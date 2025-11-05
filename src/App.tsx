@@ -238,12 +238,20 @@ const LoginForm = ({ onSuccess }: { onSuccess: () => void }) => {
 							{loading
 								? 'Processando…'
 								: mode === 'signup'
-									? 'Criar acesso'
-									: mode === 'reset'
-										? 'Enviar instruções'
-										: 'Entrar'}
+								? 'Criar acesso'
+								: mode === 'reset'
+								? 'Enviar instruções'
+								: 'Entrar'}
 						</button>
 					</form>
+
+					<footer className="flex items-center justify-center border-t border-white/10 bg-[#05060F] px-6 py-4 sm:px-10">
+						<img
+							src="/made-by-sark.jpeg"
+							alt="Made by SARK"
+							className="h-6 w-auto object-contain sm:h-8 scale-90"
+						/>
+					</footer>
 				</motion.div>
 			</div>
 		</div>
@@ -261,19 +269,26 @@ const Dashboard = ({ onLogout }: { onLogout: () => void }) => {
 					<img
 						src="/stanley-seeklogo.png"
 						alt="Stanley logo"
-						className="h-9 w-auto object-contain brightness-0 invert"
+						className="h-8 w-auto object-contain brightness-0 invert sm:h-9"
 					/>
-					<div>
+					<div className="hidden flex-col sm:flex">
 						<p className="text-xs uppercase tracking-[0.35em] text-white/50">Stanley Portal</p>
 						<h1 className="text-lg font-semibold tracking-tight">Dashboard</h1>
 					</div>
 				</div>
-				<button
-					type="button"
-					onClick={onLogout}
-					className="inline-flex rounded-full border border-white/15 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.3em] text-white/60 transition hover:border-white/30 hover:text-white">
-					Sair
-				</button>
+				<div className="flex items-center gap-4">
+					<img
+						src="/easynumbers.png"
+						alt="EasyNumbers"
+						className="h-8 w-auto brightness-0 invert sm:h-10 lg:h-12 xl:h-16 scale-[5.75]"
+					/>
+					<button
+						type="button"
+						onClick={onLogout}
+						className="inline-flex rounded-full border border-white/15 px-4 py-2 text-[11px] z-10 font-semibold uppercase tracking-[0.3em] text-white/60 transition hover:border-white/30 hover:text-white">
+						Sair
+					</button>
+				</div>
 			</header>
 
 			<main className="flex flex-1 items-stretch px-4 py-6 sm:px-10 lg:px-16">
@@ -300,6 +315,14 @@ const Dashboard = ({ onLogout }: { onLogout: () => void }) => {
 					/>
 				</div>
 			</main>
+
+			<footer className="flex items-center justify-center border-t border-white/10 bg-[#05060F] px-6 py-4 sm:px-10">
+				<img
+					src="/made-by-sark.jpeg"
+					alt="Made by SARK"
+					className="h-6 w-auto object-contain sm:h-8 scale-90"
+				/>
+			</footer>
 		</div>
 	);
 };
