@@ -5,8 +5,7 @@ import './App.css';
 import { supabase } from './lib/supabaseClient';
 
 // 🔧 Link de embed do dashboard Power BI publicado (autenticação via Power BI)
-const EMBED_URL =
-	'https://app.powerbi.com/reportEmbed?reportId=af602dae-86d8-4ab1-afb7-dba13cb281ee&autoAuth=true&ctid=6a0d4330-1fa7-4bd3-8736-ea1ce81b5a79';
+const LOOKER_EMBED_URL = import.meta.env.VITE_LOOKER_EMBED_URL ?? '';
 
 type AuthMode = 'signin' | 'signup';
 
@@ -223,7 +222,7 @@ const LoginForm = ({ onSuccess }: { onSuccess: () => void }) => {
 };
 
 const Dashboard = ({ onLogout }: { onLogout: () => void }) => {
-	const src = useMemo(() => EMBED_URL, []);
+	const src = useMemo(() => LOOKER_EMBED_URL, []);
 	const [ready, setReady] = useState(false);
 
 	return (
