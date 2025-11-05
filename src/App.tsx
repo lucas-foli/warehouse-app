@@ -1,29 +1,40 @@
+import type { Session } from '@supabase/supabase-js';
 import { motion } from 'framer-motion';
 import { useEffect, useMemo, useState } from 'react';
 import './App.css';
+import { supabase } from './lib/supabaseClient';
 
 // 🔧 Link de embed do dashboard Power BI publicado (autenticação via Power BI)
 const EMBED_URL =
 	'https://app.powerbi.com/reportEmbed?reportId=af602dae-86d8-4ab1-afb7-dba13cb281ee&autoAuth=true&ctid=6a0d4330-1fa7-4bd3-8736-ea1ce81b5a79';
 
-// ⚠️ Exemplo didático: autenticação fake usando localStorage
-const FAKE_AUTH_KEY = 'app_demo_token' as const;
-const saveToken = (token: string) => localStorage.setItem(FAKE_AUTH_KEY, token);
-const getToken = () => localStorage.getItem(FAKE_AUTH_KEY);
-const clearToken = () => localStorage.removeItem(FAKE_AUTH_KEY);
-
 type AuthMode = 'signin' | 'signup';
 
-const LoginForm = ({ onSuccess }: { onSuccess: (t: string) => void }) => {
+const LoginForm = ({ onSuccess }: { onSuccess: () => void }) => {
 	const [mode, setMode] = useState<AuthMode>('signin');
 	const [email, setEmail] = useState('');
 	const [password, setPassword] = useState('');
 	const [passwordConfirm, setPasswordConfirm] = useState('');
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState('');
+	const [info, setInfo] = useState('');
+
+	const translateAuthError = (message: string) => {
+		const normalized = message.toLowerCase();
+		if (normalized.includes('invalid login credentials')) return 'E-mail ou senha inválidos.';
+		if (normalized.includes('email not confirmed')) return 'Confirme seu e-mail antes de continuar.';
+		if (normalized.includes('user already registered')) return 'Este e-mail já possui cadastro.';
+		if (normalized.match(/^email address (.+) is invalid$/i)) return 'E-mail inválido.';
+		if (normalized.includes('password should contain'))
+			return 'A senha precisa ter\n• mínimo de 6 caracteres \n• 1 letra maiúscula\n• 1 letra minúscula\n• 1 número\n• 1 caractere especial';
+		if (normalized.includes('password')) return 'Revise a senha informada e tente novamente.';
+		if (normalized.includes('rate limit')) return 'Muitas tentativas recentes. Aguarde um instante e tente novamente.';
+		return message.replace(/\\n/g, '\n');
+	};
 
 	useEffect(() => {
 		setError('');
+		setInfo('');
 		setPasswordConfirm('');
 	}, [mode]);
 
@@ -34,8 +45,6 @@ const LoginForm = ({ onSuccess }: { onSuccess: (t: string) => void }) => {
 
 		const validEmail = /.+@.+\..+/.test(email);
 		const validPass = password.length >= 6;
-
-		await new Promise((r) => setTimeout(r, 500));
 
 		if (!validEmail) {
 			setError('Informe um e-mail válido.');
@@ -53,9 +62,47 @@ const LoginForm = ({ onSuccess }: { onSuccess: (t: string) => void }) => {
 			return;
 		}
 
-		const fakeJwt = btoa(JSON.stringify({ sub: email, mode, iat: Date.now() }));
-		saveToken(fakeJwt);
-		onSuccess(fakeJwt);
+		if (mode === 'signup') {
+			const { error: signUpError, data } = await supabase.auth.signUp({ email, password });
+			if (signUpError) {
+				setInfo('');
+				setError(translateAuthError(signUpError.message));
+				setLoading(false);
+				return;
+			}
+
+			const userAlreadyExists = data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0;
+
+			if (userAlreadyExists) {
+				setMode('signin');
+				setInfo('Este e-mail já está cadastrado. Utilize sua senha para entrar.');
+				setError('');
+				setLoading(false);
+				return;
+			}
+
+			if (data.session) {
+				onSuccess();
+				setLoading(false);
+				return;
+			}
+
+			setInfo(
+				data.user?.email_confirmed_at ? 'Conta criada com sucesso.' : 'Verifique seu e-mail para confirmar o cadastro.',
+			);
+			setError('');
+			setLoading(false);
+			return;
+		}
+
+		const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+		if (signInError) {
+			setError(translateAuthError(signInError.message));
+			setLoading(false);
+			return;
+		}
+
+		onSuccess();
 		setLoading(false);
 	};
 
@@ -76,7 +123,11 @@ const LoginForm = ({ onSuccess }: { onSuccess: (t: string) => void }) => {
 					transition={{ duration: 0.5, ease: 'easeOut' }}
 					className="w-full max-w-lg rounded-3xl border border-white/10 bg-black/70 p-10 shadow-[0_35px_80px_rgba(0,0,0,0.65)] backdrop-blur-xl">
 					<div className="flex flex-col items-center gap-6 text-center">
-						<img src="/stanley-seeklogo.png" alt="Stanley logo" className="h-16 w-auto object-contain brightness-0 invert" />
+						<img
+							src="/stanley-seeklogo.png"
+							alt="Stanley logo"
+							className="h-16 w-auto object-contain brightness-0 invert"
+						/>
 						<div className="text-[11px] uppercase tracking-[0.4em] text-white/60">Stanley Portal</div>
 
 						<div className="inline-flex rounded-full border border-white/10 bg-white/5 p-1 text-xs font-semibold uppercase tracking-[0.3em]">
@@ -84,7 +135,9 @@ const LoginForm = ({ onSuccess }: { onSuccess: (t: string) => void }) => {
 								type="button"
 								onClick={() => setMode('signin')}
 								className={`rounded-full px-5 py-2 transition ${
-									!isSignup ? 'bg-white text-black shadow-[0_10px_30px_rgba(0,0,0,0.35)]' : 'text-white/60 hover:text-white'
+									!isSignup
+										? 'bg-white text-black shadow-[0_10px_30px_rgba(0,0,0,0.35)]'
+										: 'text-white/60 hover:text-white'
 								}`}>
 								Entrar
 							</button>
@@ -92,7 +145,9 @@ const LoginForm = ({ onSuccess }: { onSuccess: (t: string) => void }) => {
 								type="button"
 								onClick={() => setMode('signup')}
 								className={`rounded-full px-5 py-2 transition ${
-									isSignup ? 'bg-white text-black shadow-[0_10px_30px_rgba(0,0,0,0.35)]' : 'text-white/60 hover:text-white'
+									isSignup
+										? 'bg-white text-black shadow-[0_10px_30px_rgba(0,0,0,0.35)]'
+										: 'text-white/60 hover:text-white'
 								}`}>
 								Criar conta
 							</button>
@@ -143,9 +198,14 @@ const LoginForm = ({ onSuccess }: { onSuccess: (t: string) => void }) => {
 							</label>
 						)}
 
-						{error && (
-							<div className="rounded-2xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-xs font-semibold uppercase tracking-[0.3em] text-red-200">
+						{error && !info && (
+							<div className="whitespace-pre-line rounded-2xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-xs font-semibold uppercase tracking-[0.3em] text-red-200">
 								{error}
+							</div>
+						)}
+						{info && (
+							<div className="rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-xs font-semibold uppercase tracking-[0.3em] text-white/70">
+								{info}
 							</div>
 						)}
 
@@ -170,7 +230,11 @@ const Dashboard = ({ onLogout }: { onLogout: () => void }) => {
 		<div className="flex min-h-screen flex-col bg-[#04050B] text-white">
 			<header className="flex items-center justify-between border-b border-white/10 bg-[#05060F] px-6 py-4 sm:px-10">
 				<div className="flex items-center gap-4">
-					<img src="/stanley-seeklogo.png" alt="Stanley logo" className="h-9 w-auto object-contain brightness-0 invert" />
+					<img
+						src="/stanley-seeklogo.png"
+						alt="Stanley logo"
+						className="h-9 w-auto object-contain brightness-0 invert"
+					/>
 					<div>
 						<p className="text-xs uppercase tracking-[0.35em] text-white/50">Stanley Portal</p>
 						<h1 className="text-lg font-semibold tracking-tight">Dashboard</h1>
@@ -198,7 +262,9 @@ const Dashboard = ({ onLogout }: { onLogout: () => void }) => {
 					<iframe
 						title="Stanley_ES"
 						src={src}
-						className={`h-[calc(100vh-8rem)] min-h-[70vh] w-full border-0 transition-opacity duration-500 ${ready ? 'opacity-100' : 'opacity-0'}`}
+						className={`h-[calc(100vh-8rem)] min-h-[70vh] w-full border-0 transition-opacity duration-500 ${
+							ready ? 'opacity-100' : 'opacity-0'
+						}`}
 						frameBorder="0"
 						loading="lazy"
 						onLoad={() => setReady(true)}
@@ -211,18 +277,43 @@ const Dashboard = ({ onLogout }: { onLogout: () => void }) => {
 };
 
 const App = () => {
-	const [token, setToken] = useState<string | null>(null);
+	const [session, setSession] = useState<Session | null>(null);
+	const [checkingSession, setCheckingSession] = useState(true);
 
 	useEffect(() => {
-		setToken(getToken());
+		let isMounted = true;
+		supabase.auth.getSession().then(({ data }) => {
+			if (isMounted) {
+				setSession(data.session ?? null);
+				setCheckingSession(false);
+			}
+		});
+
+		const {
+			data: { subscription },
+		} = supabase.auth.onAuthStateChange((_event, currentSession) => {
+			setSession(currentSession);
+		});
+
+		return () => {
+			isMounted = false;
+			subscription.unsubscribe();
+		};
 	}, []);
 
-	const handleLogout = () => {
-		clearToken();
-		setToken(null);
+	const handleLogout = async () => {
+		await supabase.auth.signOut();
+		setSession(null);
 	};
 
-	if (!token) return <LoginForm onSuccess={(t) => setToken(t)} />;
+	const handleSuccessAuth = async () => {
+		const { data } = await supabase.auth.getSession();
+		setSession(data.session ?? null);
+	};
+
+	if (checkingSession) return null;
+
+	if (!session) return <LoginForm onSuccess={handleSuccessAuth} />;
 	return <Dashboard onLogout={handleLogout} />;
 };
 
