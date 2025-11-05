@@ -7,7 +7,7 @@ import { supabase } from './lib/supabaseClient';
 // 🔧 Link de embed do dashboard Power BI publicado (autenticação via Power BI)
 const LOOKER_EMBED_URL = import.meta.env.VITE_LOOKER_EMBED_URL ?? '';
 
-type AuthMode = 'signin' | 'signup';
+type AuthMode = 'signin' | 'signup' | 'reset';
 
 const LoginForm = ({ onSuccess }: { onSuccess: () => void }) => {
 	const [mode, setMode] = useState<AuthMode>('signin');
@@ -35,6 +35,7 @@ const LoginForm = ({ onSuccess }: { onSuccess: () => void }) => {
 		setError('');
 		setInfo('');
 		setPasswordConfirm('');
+		setPassword('');
 	}, [mode]);
 
 	const handleSubmit: React.FormEventHandler<HTMLFormElement> = async (e) => {
@@ -50,13 +51,27 @@ const LoginForm = ({ onSuccess }: { onSuccess: () => void }) => {
 			setLoading(false);
 			return;
 		}
-		if (!validPass) {
+		if (mode !== 'reset' && !validPass) {
 			setError('A senha deve ter pelo menos 6 caracteres.');
 			setLoading(false);
 			return;
 		}
 		if (mode === 'signup' && password !== passwordConfirm) {
 			setError('As senhas precisam coincidir.');
+			setLoading(false);
+			return;
+		}
+
+		if (mode === 'reset') {
+			const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+				redirectTo: `${window.location.origin}/auth/callback`,
+			});
+			if (resetError) {
+				setError(translateAuthError(resetError.message));
+				setLoading(false);
+				return;
+			}
+			setInfo('Enviamos um e-mail com instruções para logar no portal.');
 			setLoading(false);
 			return;
 		}
@@ -151,6 +166,12 @@ const LoginForm = ({ onSuccess }: { onSuccess: () => void }) => {
 								Criar conta
 							</button>
 						</div>
+						<button
+							type="button"
+							onClick={() => setMode('reset')}
+							className="text-[11px] font-semibold uppercase tracking-[0.3em] text-white/50 transition hover:text-white/80">
+							Esqueci minha senha
+						</button>
 					</div>
 
 					<form onSubmit={handleSubmit} className="mt-10 space-y-5">
@@ -167,21 +188,23 @@ const LoginForm = ({ onSuccess }: { onSuccess: () => void }) => {
 							/>
 						</label>
 
-						<label className="block text-left text-[11px] font-semibold uppercase tracking-[0.35em] text-white/60">
-							Senha
-							<input
-								type="password"
-								value={password}
-								onChange={(e) => setPassword(e.target.value)}
-								placeholder="••••••••"
-								className="mt-2 w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-white/40 focus:ring-2 focus:ring-white/20"
-								autoComplete={isSignup ? 'new-password' : 'current-password'}
-								required
-								minLength={6}
-							/>
-						</label>
+						{mode !== 'reset' && (
+							<label className="block text-left text-[11px] font-semibold uppercase tracking-[0.35em] text-white/60">
+								Senha
+								<input
+									type="password"
+									value={password}
+									onChange={(e) => setPassword(e.target.value)}
+									placeholder="••••••••"
+									className="mt-2 w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-white/40 focus:ring-2 focus:ring-white/20"
+									autoComplete={isSignup ? 'new-password' : 'current-password'}
+									required
+									minLength={6}
+								/>
+							</label>
+						)}
 
-						{isSignup && (
+						{mode === 'signup' && (
 							<label className="block text-left text-[11px] font-semibold uppercase tracking-[0.35em] text-white/60">
 								Confirmar senha
 								<input
@@ -212,7 +235,13 @@ const LoginForm = ({ onSuccess }: { onSuccess: () => void }) => {
 							type="submit"
 							className="w-full rounded-2xl bg-white px-4 py-3 text-sm font-semibold uppercase tracking-[0.35em] text-black transition hover:bg-white/90 disabled:opacity-60"
 							disabled={loading}>
-							{loading ? 'Processando…' : isSignup ? 'Criar acesso' : 'Entrar'}
+							{loading
+								? 'Processando…'
+								: mode === 'signup'
+									? 'Criar acesso'
+									: mode === 'reset'
+										? 'Enviar instruções'
+										: 'Entrar'}
 						</button>
 					</form>
 				</motion.div>
