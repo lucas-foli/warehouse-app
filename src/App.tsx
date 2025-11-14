@@ -2,6 +2,7 @@ import type { Session } from '@supabase/supabase-js';
 import { motion } from 'framer-motion';
 import { useEffect, useMemo, useState } from 'react';
 import './App.css';
+import StatusUpdateForm from './StatusUpdateForm';
 import { supabase } from './lib/supabaseClient';
 
 // 🔧 Link de embed do dashboard Power BI publicado (autenticação via Power BI)
@@ -246,11 +247,7 @@ const LoginForm = ({ onSuccess }: { onSuccess: () => void }) => {
 					</form>
 
 					<footer className="flex items-center justify-center border-t border-white/10 bg-[#05060F] px-6 py-4 sm:px-10">
-						<img
-							src="/made-by-sark.jpeg"
-							alt="Made by SARK"
-							className="h-6 w-auto object-contain sm:h-8 scale-90"
-						/>
+						<img src="/made-by-sark.jpeg" alt="Made by SARK" className="h-6 w-auto object-contain sm:h-8 scale-90" />
 					</footer>
 				</motion.div>
 			</div>
@@ -258,7 +255,7 @@ const LoginForm = ({ onSuccess }: { onSuccess: () => void }) => {
 	);
 };
 
-const Dashboard = ({ onLogout }: { onLogout: () => void }) => {
+const Dashboard = ({ onLogout, onOpenStatusForm }: { onLogout: () => void; onOpenStatusForm: () => void }) => {
 	const src = useMemo(() => LOOKER_EMBED_URL, []);
 	const [ready, setReady] = useState(false);
 
@@ -277,10 +274,16 @@ const Dashboard = ({ onLogout }: { onLogout: () => void }) => {
 					</div>
 				</div>
 				<div className="flex items-center gap-4">
+					<button
+						type="button"
+						onClick={onOpenStatusForm}
+						className="inline-flex rounded-full border border-white/15 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.3em] text-white transition hover:border-white/30">
+						Atualizar status
+					</button>
 					<img
 						src="/easynumbers.png"
 						alt="EasyNumbers"
-						className="h-8 w-auto brightness-0 invert sm:h-10 lg:h-12 xl:h-16 scale-[5.75]"
+						className="pointer-events-none h-8 w-auto brightness-0 invert sm:h-10 lg:h-12 xl:h-16 scale-[5.75] relative z-[-0.5]"
 					/>
 					<button
 						type="button"
@@ -317,11 +320,7 @@ const Dashboard = ({ onLogout }: { onLogout: () => void }) => {
 			</main>
 
 			<footer className="flex items-center justify-center border-t border-white/10 bg-[#05060F] px-6 py-4 sm:px-10">
-				<img
-					src="/made-by-sark.jpeg"
-					alt="Made by SARK"
-					className="h-6 w-auto object-contain sm:h-8 scale-90"
-				/>
+				<img src="/made-by-sark.jpeg" alt="Made by SARK" className="h-6 w-auto object-contain sm:h-8 scale-90" />
 			</footer>
 		</div>
 	);
@@ -330,6 +329,7 @@ const Dashboard = ({ onLogout }: { onLogout: () => void }) => {
 const App = () => {
 	const [session, setSession] = useState<Session | null>(null);
 	const [checkingSession, setCheckingSession] = useState(true);
+	const [view, setView] = useState<'dashboard' | 'statusForm'>('dashboard');
 
 	useEffect(() => {
 		let isMounted = true;
@@ -355,17 +355,24 @@ const App = () => {
 	const handleLogout = async () => {
 		await supabase.auth.signOut();
 		setSession(null);
+		setView('dashboard');
 	};
 
 	const handleSuccessAuth = async () => {
 		const { data } = await supabase.auth.getSession();
 		setSession(data.session ?? null);
+		setView('dashboard');
 	};
 
 	if (checkingSession) return null;
 
 	if (!session) return <LoginForm onSuccess={handleSuccessAuth} />;
-	return <Dashboard onLogout={handleLogout} />;
+
+	if (view === 'statusForm') {
+		return <StatusUpdateForm session={session} onBack={() => setView('dashboard')} />;
+	}
+
+	return <Dashboard onLogout={handleLogout} onOpenStatusForm={() => setView('statusForm')} />;
 };
 
 export default App;
