@@ -193,34 +193,38 @@ const StatusUpdateForm = ({ session, onBack }: Props) => {
 				<div className="absolute -bottom-40 left-0 h-[460px] w-[460px] rounded-full bg-[#00f6ff]/15 blur-3xl" />
 			</div>
 
-			<div className="mx-auto flex min-h-screen max-w-5xl flex-col items-center justify-center px-4 py-16 sm:px-6 lg:px-10">
+			<div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col items-center justify-center px-4 py-12 sm:px-6 lg:px-10">
 				<motion.div
 					initial={{ opacity: 0, y: 32 }}
 					animate={{ opacity: 1, y: 0 }}
 					transition={{ duration: 0.5, ease: 'easeOut' }}
-					className="relative w-full max-w-2xl rounded-[32px] border border-white/10 bg-gradient-to-br from-[#070707]/90 via-[#0B0C11]/90 to-[#09090E]/90 p-10 shadow-[0_35px_90px_rgba(0,0,0,0.65)] backdrop-blur-2xl">
+					className="relative w-full max-w-2xl rounded-[28px] border border-white/10 bg-gradient-to-br from-[#070707]/90 via-[#0B0C11]/90 to-[#09090E]/90 p-6 shadow-[0_35px_90px_rgba(0,0,0,0.65)] backdrop-blur-2xl sm:rounded-[32px] sm:p-10">
 					<div className="flex flex-col gap-4 text-center">
 						<button
 							type="button"
 							onClick={onBack}
-							className="self-start rounded-full border border-white/10 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.35em] text-white/60 transition hover:border-white/30 hover:text-white">
+							className="self-start rounded-full border border-white/10 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.25em] text-white/60 transition hover:border-white/30 hover:text-white sm:tracking-[0.35em]">
 							Voltar
 						</button>
-						<p className="text-xs uppercase tracking-[0.3em] text-white/60">Formulário interno</p>
-						<h1 className="text-3xl font-semibold uppercase tracking-[0.4em] text-white">Atualização Status Produto</h1>
-						<p className="text-sm text-white/70">
+						<p className="text-[10px] uppercase tracking-[0.25em] text-white/60 sm:text-xs sm:tracking-[0.3em]">
+							Formulário interno
+						</p>
+						<h1 className="text-2xl font-semibold uppercase tracking-[0.3em] text-white sm:text-3xl sm:tracking-[0.4em]">
+							Atualização Status Produto
+						</h1>
+						<p className="text-xs text-white/70 sm:text-sm">
 							Envie o código de barras e o status desejado. Os envios ficarão vinculados ao usuário{' '}
 							<span className="font-semibold text-white">{userEmail}</span>.
 						</p>
 					</div>
 
-					<form onSubmit={handleSubmit} className="mt-10 space-y-6">
+					<form onSubmit={handleSubmit} className="mt-8 space-y-6 sm:mt-10">
 						<div>
-							<label className="block text-left text-[11px] font-semibold uppercase tracking-[0.35em] text-white/60">
+							<label className="block text-left text-[10px] font-semibold uppercase tracking-[0.25em] text-white/60 sm:text-[11px] sm:tracking-[0.35em]">
 								Foto do código de barras
 							</label>
-							<div className="mt-2 flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/70">
-								<label className="inline-flex cursor-pointer items-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.35em] text-white transition hover:border-white/30 hover:text-white">
+							<div className="mt-2 flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-white/70 sm:flex-row sm:items-center sm:text-sm">
+								<label className="inline-flex cursor-pointer items-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.3em] text-white transition hover:border-white/30 hover:text-white sm:text-xs sm:tracking-[0.35em]">
 									<input
 										id="barcode-photo-upload"
 										type="file"
@@ -231,7 +235,7 @@ const StatusUpdateForm = ({ session, onBack }: Props) => {
 									/>
 									Escolher arquivos
 								</label>
-								<span className="truncate text-xs uppercase tracking-[0.2em] text-white/50">
+								<span className="truncate text-[11px] uppercase tracking-[0.2em] text-white/50 sm:text-xs">
 									{barcodePhotos.length > 0
 										? `${barcodePhotos.length} arquivo${barcodePhotos.length > 1 ? 's' : ''} selecionado${
 												barcodePhotos.length > 1 ? 's' : ''
@@ -241,7 +245,7 @@ const StatusUpdateForm = ({ session, onBack }: Props) => {
 							</div>
 						</div>
 
-						<label className="block text-left text-[11px] font-semibold uppercase tracking-[0.35em] text-white/60">
+						<label className="block text-left text-[10px] font-semibold uppercase tracking-[0.25em] text-white/60 sm:text-[11px] sm:tracking-[0.35em]">
 							Códigos de barras
 							<div className="mt-2 space-y-3">
 								<div className="flex flex-col gap-3 sm:flex-row">
@@ -262,7 +266,7 @@ const StatusUpdateForm = ({ session, onBack }: Props) => {
 										Adicionar
 									</button>
 								</div>
-								<p className="text-[10px] uppercase tracking-[0.3em] text-white/40">
+								<p className="text-[10px] uppercase tracking-[0.2em] text-white/40 sm:tracking-[0.3em]">
 									Pressione Enter a cada leitura ou cole vários códigos separados por espaço, vírgula ou quebra de
 									linha.
 								</p>
@@ -287,7 +291,7 @@ const StatusUpdateForm = ({ session, onBack }: Props) => {
 							</div>
 						</label>
 
-						<label className="block text-left text-[11px] font-semibold uppercase tracking-[0.35em] text-white/60">
+						<label className="block text-left text-[10px] font-semibold uppercase tracking-[0.25em] text-white/60 sm:text-[11px] sm:tracking-[0.35em]">
 							Status
 							<select
 								id="product-location-select"
@@ -306,7 +310,7 @@ const StatusUpdateForm = ({ session, onBack }: Props) => {
 							</select>
 						</label>
 
-						<label className="block text-left text-[11px] font-semibold uppercase tracking-[0.35em] text-white/60">
+						<label className="block text-left text-[10px] font-semibold uppercase tracking-[0.25em] text-white/60 sm:text-[11px] sm:tracking-[0.35em]">
 							Observações
 							<textarea
 								value={notes}
@@ -327,12 +331,14 @@ const StatusUpdateForm = ({ session, onBack }: Props) => {
 							</div>
 						)}
 
-						<button
-							type="submit"
-							className="w-full rounded-2xl bg-gradient-to-r from-white via-white to-[#ffd9cd] px-4 py-3 text-sm font-semibold uppercase tracking-[0.45em] text-black shadow-[0_18px_45px_rgba(0,0,0,0.35)] transition hover:translate-y-[-1px] hover:shadow-[0_22px_55px_rgba(0,0,0,0.45)] disabled:cursor-not-allowed disabled:opacity-50"
-							disabled={submitting}>
-							{submitting ? 'Enviando…' : 'Enviar'}
-						</button>
+						<div className="pt-2 sm:pt-0">
+							<button
+								type="submit"
+								className="w-full rounded-2xl bg-gradient-to-r from-white via-white to-[#ffd9cd] px-4 py-3 text-sm font-semibold uppercase tracking-[0.35em] text-black shadow-[0_18px_45px_rgba(0,0,0,0.35)] transition hover:translate-y-[-1px] hover:shadow-[0_22px_55px_rgba(0,0,0,0.45)] disabled:cursor-not-allowed disabled:opacity-50 sm:tracking-[0.45em]"
+								disabled={submitting}>
+								{submitting ? 'Enviando…' : 'Enviar'}
+							</button>
+						</div>
 					</form>
 				</motion.div>
 			</div>
