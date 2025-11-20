@@ -241,7 +241,7 @@ const LoginForm = ({ onSuccess }: { onSuccess: () => void }) => {
 					</form>
 
 					<footer className="flex items-center justify-center border-t border-black/5 bg-white px-6 py-4 sm:px-10">
-						<img src="/made-by-sark.jpeg" alt="Made by SARK" className="h-6 w-auto object-contain sm:h-8 scale-90" />
+						<img src="/made-by-sark.jpeg" alt="Made by SARK" className="h-6 w-auto object-contain sm:h-8 scale-[0.50]" />
 					</footer>
 				</motion.div>
 			</div>
@@ -319,7 +319,7 @@ const Dashboard = ({ onLogout, onOpenStatusForm }: { onLogout: () => void; onOpe
 			</main>
 
 			<footer className="flex items-center justify-center border-t border-black/5 bg-white px-6 py-4 text-xs uppercase tracking-[0.3em] text-[#6f6f6f] sm:px-10">
-				<img src="/made-by-sark.jpeg" alt="Made by SARK" className="h-6 w-auto object-contain sm:h-8" />
+				<img src="/made-by-sark.jpeg" alt="Made by SARK" className="h-6 w-auto object-contain sm:h-8 scale-[0.50]" />
 			</footer>
 		</div>
 	);
