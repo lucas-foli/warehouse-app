@@ -81,7 +81,7 @@ const StatusUpdateForm = ({ session, onBack }: Props) => {
 		}
 
 		const basePayload: Record<string, unknown> = {
-			sku: sku.trim(),
+			sku: sku.trim() || null,
 			barcodes: barcodes.length > 0 ? barcodes : undefined,
 			barcode: barcodes.length === 0 ? null : undefined,
 			status: status.trim(),
@@ -219,12 +219,15 @@ const StatusUpdateForm = ({ session, onBack }: Props) => {
 							Envie o código de barras e o status desejado. Os envios ficarão vinculados ao usuário{' '}
 							<span className="font-semibold text-[#121213]">{userEmail}</span>.
 						</p>
+						<p className="text-xs text-[#3b3b3b] sm:text-sm">
+							Informe ao menos um código ou anexe ao menos uma foto.
+						</p>
 					</div>
 
 					<form onSubmit={handleSubmit} className="mt-8 space-y-6 sm:mt-10">
 						<div>
 							<label className="block text-left text-[10px] font-semibold uppercase tracking-[0.25em] text-[#6f6f6f] sm:text-[11px] sm:tracking-[0.35em]">
-								Foto do código de barras
+								Foto do código de barras*
 							</label>
 							<div className="mt-2 flex flex-col gap-3 rounded-2xl border border-black/10 bg-[#f6f6f2] px-4 py-3 text-xs text-[#3b3b3b] sm:flex-row sm:items-center sm:text-sm">
 								<label className="inline-flex cursor-pointer items-center gap-2 rounded-2xl border border-black/15 bg-white px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.3em] text-[#121213] transition hover:border-black/30 hover:text-black sm:text-xs sm:tracking-[0.35em]">
@@ -246,7 +249,7 @@ const StatusUpdateForm = ({ session, onBack }: Props) => {
 										: 'Nenhum arquivo selecionado'}
 								</span>
 							</div>
-							<p className="mt-1 text-[11px] uppercase tracking-[0.2em] text-[#8a8a8a] sm:text-xs">
+							<p className="text-[10px] uppercase tracking-[0.15em] text-[#8a8a8a] sm:tracking-[0.25em]">
 								{barcodes.length === 0
 									? 'Envie uma foto ou preencha os códigos abaixo.'
 									: 'Opcional se os códigos já foram informados.'}
@@ -254,7 +257,7 @@ const StatusUpdateForm = ({ session, onBack }: Props) => {
 						</div>
 
 						<label className="block text-left text-[10px] font-semibold uppercase tracking-[0.25em] text-[#6f6f6f] sm:text-[11px] sm:tracking-[0.35em]">
-							Códigos de barras
+							Códigos de barras*
 							<div className="mt-2 space-y-3">
 								<div className="flex flex-col gap-3 sm:flex-row">
 									<input
@@ -274,14 +277,11 @@ const StatusUpdateForm = ({ session, onBack }: Props) => {
 										Adicionar
 									</button>
 								</div>
-								<p className="text-[10px] uppercase tracking-[0.2em] text-[#8a8a8a] sm:tracking-[0.3em]">
+								<p className="text-[10px] uppercase tracking-[0.15em] text-[#8a8a8a] sm:tracking-[0.25em]">
 									Pressione Enter a cada leitura ou cole vários códigos separados por espaço, vírgula ou quebra de
 									linha.
 								</p>
-								<p className="text-[10px] uppercase tracking-[0.2em] text-[#8a8a8a] sm:tracking-[0.25em]">
-									{barcodePhotos.length === 0
-										? 'Informe ao menos um código ou anexe a foto acima.'
-										: 'Opcional se a foto já foi anexada.'}
+								<p className="text-[10px] uppercase tracking-[0.15em] text-[#8a8a8a] sm:tracking-[0.2em]">
 								</p>
 								{barcodes.length > 0 && (
 									<div className="flex flex-wrap gap-2">
@@ -304,17 +304,16 @@ const StatusUpdateForm = ({ session, onBack }: Props) => {
 							</div>
 						</label>
 
-						<label className="block text-left text-[10px] font-semibold uppercase tracking-[0.25em] text-[#6f6f6f] sm:text-[11px] sm:tracking-[0.35em]">
-							SKU
+						{/* <label className="block text-left text-[10px] font-semibold uppercase tracking-[0.25em] text-[#6f6f6f] sm:text-[11px] sm:tracking-[0.35em]">
+							SKU (opcional)
 							<input
-								type="number"
+								type="text"
 								value={sku}
 								onChange={(event) => setSku(event.target.value)}
 								placeholder="Informe o SKU"
 								className="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm text-[#121213] outline-none transition focus:border-black/50 focus:ring-2 focus:ring-black/10"
-								required
 							/>
-						</label>
+						</label> */}
 
 						<label className="block text-left text-[10px] font-semibold uppercase tracking-[0.25em] text-[#6f6f6f] sm:text-[11px] sm:tracking-[0.35em]">
 							Status*
