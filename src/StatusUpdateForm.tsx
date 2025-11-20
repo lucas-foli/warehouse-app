@@ -376,7 +376,7 @@ const StatusUpdateForm = ({ session, onBack }: Props) => {
 
 						{mode === 'sku' && (
 							<label className="block text-left text-[10px] font-semibold uppercase tracking-[0.25em] text-[#6f6f6f] sm:text-[11px] sm:tracking-[0.35em]">
-								SKU (um ou vários)
+								SKU (um ou vários)*
 								<div className="mt-2 space-y-3">
 									<div className="flex flex-col gap-3 sm:flex-row">
 										<input
