@@ -4,7 +4,7 @@ import { useState } from 'react';
 
 const STATUS_UPDATE_WEBHOOK_URL =
 	import.meta.env.VITE_STATUS_UPDATE_WEBHOOK_URL ?? 'https://n8n.go-fly.ai/webhook/product-location';
-const STATUS_SUGGESTIONS = ['ESTOQUE', 'VM/GAVETA'];
+const STATUS_SUGGESTIONS = ['ESTOQUE', 'GAVETA', 'VM'];
 const GMT3_OFFSET_MINUTES = -180;
 
 type Props = {
@@ -21,6 +21,7 @@ const StatusUpdateForm = ({ session, onBack }: Props) => {
 	const [barcodePhotos, setBarcodePhotos] = useState<File[]>([]);
 	const [barcodeInput, setBarcodeInput] = useState('');
 	const [barcodes, setBarcodes] = useState<string[]>([]);
+	const [sku, setSku] = useState('');
 	const [status, setStatus] = useState('');
 	const [notes, setNotes] = useState('');
 	const [feedback, setFeedback] = useState<Feedback | null>(null);
@@ -80,6 +81,7 @@ const StatusUpdateForm = ({ session, onBack }: Props) => {
 		}
 
 		const basePayload: Record<string, unknown> = {
+			sku: sku.trim() || null,
 			barcodes: barcodes.length > 0 ? barcodes : undefined,
 			barcode: barcodes.length === 0 ? null : undefined,
 			status: status.trim(),
@@ -132,6 +134,7 @@ const StatusUpdateForm = ({ session, onBack }: Props) => {
 						? `Enviamos ${barcodePhotos.length} fotos com sucesso.`
 						: 'Atualização enviada com sucesso.',
 			});
+			setSku('');
 			setBarcodes([]);
 			setBarcodeInput('');
 			setStatus('');
@@ -186,45 +189,48 @@ const StatusUpdateForm = ({ session, onBack }: Props) => {
 	};
 
 	return (
-		<div className="relative min-h-screen overflow-hidden bg-[#030712] text-white">
+		<div className="relative min-h-screen overflow-hidden bg-[#f9f9f7] text-[#121213]">
 			<div className="pointer-events-none absolute inset-0">
-				<div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.03),transparent_50%)]" />
-				<div className="absolute -top-32 right-10 h-[420px] w-[420px] rounded-full bg-[#FFB9A3]/20 blur-3xl" />
-				<div className="absolute -bottom-40 left-0 h-[460px] w-[460px] rounded-full bg-[#00f6ff]/15 blur-3xl" />
+				<div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(0,0,0,0.03),transparent_55%)]" />
+				<div className="absolute -top-24 right-10 h-[320px] w-[320px] rounded-full bg-[#f0ece0] blur-3xl" />
+				<div className="absolute -bottom-32 left-0 h-[360px] w-[360px] rounded-full bg-[#ebe7d9] blur-3xl" />
 			</div>
 
-			<div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col items-center justify-center px-4 py-12 sm:px-6 lg:px-10">
+			<div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col items-center justify-center px-4 py-12 sm:px-6 lg:px-10">
 				<motion.div
 					initial={{ opacity: 0, y: 32 }}
 					animate={{ opacity: 1, y: 0 }}
 					transition={{ duration: 0.5, ease: 'easeOut' }}
-					className="relative w-full max-w-2xl rounded-[28px] border border-white/10 bg-gradient-to-br from-[#070707]/90 via-[#0B0C11]/90 to-[#09090E]/90 p-6 shadow-[0_35px_90px_rgba(0,0,0,0.65)] backdrop-blur-2xl sm:rounded-[32px] sm:p-10">
+					className="relative w-full max-w-3xl rounded-[28px] border border-black/10 bg-white p-6 shadow-[0_30px_60px_rgba(0,0,0,0.08)] sm:rounded-[32px] sm:p-10">
 					<div className="flex flex-col gap-4 text-center">
 						<button
 							type="button"
 							onClick={onBack}
-							className="self-start rounded-full border border-white/10 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.25em] text-white/60 transition hover:border-white/30 hover:text-white sm:tracking-[0.35em]">
+							className="self-start rounded-full border border-black/10 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.25em] text-[#6f6f6f] transition hover:border-black/30 hover:text-black sm:tracking-[0.35em]">
 							Voltar
 						</button>
-						<p className="text-[10px] uppercase tracking-[0.25em] text-white/60 sm:text-xs sm:tracking-[0.3em]">
+						<p className="text-[10px] uppercase tracking-[0.25em] text-[#6f6f6f] sm:text-xs sm:tracking-[0.3em]">
 							Formulário interno
 						</p>
-						<h1 className="text-2xl font-semibold uppercase tracking-[0.3em] text-white sm:text-3xl sm:tracking-[0.4em]">
+						<h1 className="text-2xl font-semibold uppercase tracking-[0.3em] text-[#121213] sm:text-3xl sm:tracking-[0.4em]">
 							Atualização Status Produto
 						</h1>
-						<p className="text-xs text-white/70 sm:text-sm">
+						<p className="text-xs text-[#3b3b3b] sm:text-sm">
 							Envie o código de barras e o status desejado. Os envios ficarão vinculados ao usuário{' '}
-							<span className="font-semibold text-white">{userEmail}</span>.
+							<span className="font-semibold text-[#121213]">{userEmail}</span>.
+						</p>
+						<p className="text-xs text-[#3b3b3b] sm:text-sm">
+							Informe ao menos um código ou anexe ao menos uma foto.
 						</p>
 					</div>
 
 					<form onSubmit={handleSubmit} className="mt-8 space-y-6 sm:mt-10">
 						<div>
-							<label className="block text-left text-[10px] font-semibold uppercase tracking-[0.25em] text-white/60 sm:text-[11px] sm:tracking-[0.35em]">
-								Foto do código de barras
+							<label className="block text-left text-[10px] font-semibold uppercase tracking-[0.25em] text-[#6f6f6f] sm:text-[11px] sm:tracking-[0.35em]">
+								Foto do código de barras*
 							</label>
-							<div className="mt-2 flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-white/70 sm:flex-row sm:items-center sm:text-sm">
-								<label className="inline-flex cursor-pointer items-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.3em] text-white transition hover:border-white/30 hover:text-white sm:text-xs sm:tracking-[0.35em]">
+							<div className="mt-2 flex flex-col gap-3 rounded-2xl border border-black/10 bg-[#f6f6f2] px-4 py-3 text-xs text-[#3b3b3b] sm:flex-row sm:items-center sm:text-sm">
+								<label className="inline-flex cursor-pointer items-center gap-2 rounded-2xl border border-black/15 bg-white px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.3em] text-[#121213] transition hover:border-black/30 hover:text-black sm:text-xs sm:tracking-[0.35em]">
 									<input
 										id="barcode-photo-upload"
 										type="file"
@@ -235,7 +241,7 @@ const StatusUpdateForm = ({ session, onBack }: Props) => {
 									/>
 									Escolher arquivos
 								</label>
-								<span className="truncate text-[11px] uppercase tracking-[0.2em] text-white/50 sm:text-xs">
+								<span className="truncate text-[11px] uppercase tracking-[0.2em] text-[#6f6f6f] sm:text-xs">
 									{barcodePhotos.length > 0
 										? `${barcodePhotos.length} arquivo${barcodePhotos.length > 1 ? 's' : ''} selecionado${
 												barcodePhotos.length > 1 ? 's' : ''
@@ -243,10 +249,15 @@ const StatusUpdateForm = ({ session, onBack }: Props) => {
 										: 'Nenhum arquivo selecionado'}
 								</span>
 							</div>
+							<p className="text-[10px] uppercase tracking-[0.15em] text-[#8a8a8a] sm:tracking-[0.25em]">
+								{barcodes.length === 0
+									? 'Envie uma foto ou preencha os códigos abaixo.'
+									: 'Opcional se os códigos já foram informados.'}
+							</p>
 						</div>
 
-						<label className="block text-left text-[10px] font-semibold uppercase tracking-[0.25em] text-white/60 sm:text-[11px] sm:tracking-[0.35em]">
-							Códigos de barras
+						<label className="block text-left text-[10px] font-semibold uppercase tracking-[0.25em] text-[#6f6f6f] sm:text-[11px] sm:tracking-[0.35em]">
+							Códigos de barras*
 							<div className="mt-2 space-y-3">
 								<div className="flex flex-col gap-3 sm:flex-row">
 									<input
@@ -256,31 +267,33 @@ const StatusUpdateForm = ({ session, onBack }: Props) => {
 										onChange={handleBarcodeInputChange}
 										onKeyDown={handleBarcodeKeyDown}
 										placeholder="Escaneie com a pistola ou digite manualmente"
-										className="flex-1 rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white outline-none transition focus:border-white/40 focus:ring-2 focus:ring-white/20 disabled:cursor-not-allowed disabled:opacity-50"
+										className="flex-1 rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm text-[#121213] outline-none transition focus:border-black/50 focus:ring-2 focus:ring-black/10 disabled:cursor-not-allowed disabled:opacity-50"
 										autoComplete="off"
 									/>
 									<button
 										type="button"
 										onClick={() => addBarcodesFromValue(barcodeInput)}
-										className="rounded-2xl border border-white/20 bg-white/10 px-4 py-3 text-xs font-semibold uppercase tracking-[0.35em] text-white transition hover:border-white/30 hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-40">
+										className="rounded-2xl border border-black/15 bg-white px-4 py-3 text-xs font-semibold uppercase tracking-[0.3em] text-[#121213] transition hover:border-black/30 hover:bg-[#f6f6f2] disabled:cursor-not-allowed disabled:opacity-40">
 										Adicionar
 									</button>
 								</div>
-								<p className="text-[10px] uppercase tracking-[0.2em] text-white/40 sm:tracking-[0.3em]">
+								<p className="text-[10px] uppercase tracking-[0.15em] text-[#8a8a8a] sm:tracking-[0.25em]">
 									Pressione Enter a cada leitura ou cole vários códigos separados por espaço, vírgula ou quebra de
 									linha.
+								</p>
+								<p className="text-[10px] uppercase tracking-[0.15em] text-[#8a8a8a] sm:tracking-[0.2em]">
 								</p>
 								{barcodes.length > 0 && (
 									<div className="flex flex-wrap gap-2">
 										{barcodes.map((code) => (
 											<span
 												key={code}
-												className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/40 px-3 py-1 text-xs font-semibold uppercase tracking-[0.25em] text-white">
+												className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-[#f6f6f2] px-3 py-1 text-xs font-semibold uppercase tracking-[0.25em] text-[#121213]">
 												{code}
 												<button
 													type="button"
 													onClick={() => removeBarcode(code)}
-													className="text-white/60 transition hover:text-white disabled:pointer-events-none disabled:opacity-40"
+													className="text-[#6f6f6f] transition hover:text-[#121213] disabled:pointer-events-none disabled:opacity-40"
 													aria-label={`Remover código ${code}`}>
 													×
 												</button>
@@ -291,13 +304,24 @@ const StatusUpdateForm = ({ session, onBack }: Props) => {
 							</div>
 						</label>
 
-						<label className="block text-left text-[10px] font-semibold uppercase tracking-[0.25em] text-white/60 sm:text-[11px] sm:tracking-[0.35em]">
-							Status
+						{/* <label className="block text-left text-[10px] font-semibold uppercase tracking-[0.25em] text-[#6f6f6f] sm:text-[11px] sm:tracking-[0.35em]">
+							SKU (opcional)
+							<input
+								type="text"
+								value={sku}
+								onChange={(event) => setSku(event.target.value)}
+								placeholder="Informe o SKU"
+								className="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm text-[#121213] outline-none transition focus:border-black/50 focus:ring-2 focus:ring-black/10"
+							/>
+						</label> */}
+
+						<label className="block text-left text-[10px] font-semibold uppercase tracking-[0.25em] text-[#6f6f6f] sm:text-[11px] sm:tracking-[0.35em]">
+							Status*
 							<select
 								id="product-location-select"
 								value={status}
 								onChange={(event) => setStatus(event.target.value)}
-								className="mt-2 w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm uppercase tracking-[0.2em] text-white outline-none transition focus:border-white/40 focus:ring-2 focus:ring-white/20 disabled:cursor-not-allowed disabled:opacity-50"
+								className="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm uppercase tracking-[0.2em] text-[#121213] outline-none transition focus:border-black/50 focus:ring-2 focus:ring-black/10 disabled:cursor-not-allowed disabled:opacity-50"
 								required>
 								<option value="" disabled>
 									Selecione um status
@@ -310,22 +334,22 @@ const StatusUpdateForm = ({ session, onBack }: Props) => {
 							</select>
 						</label>
 
-						<label className="block text-left text-[10px] font-semibold uppercase tracking-[0.25em] text-white/60 sm:text-[11px] sm:tracking-[0.35em]">
+						<label className="block text-left text-[10px] font-semibold uppercase tracking-[0.25em] text-[#6f6f6f] sm:text-[11px] sm:tracking-[0.35em]">
 							Observações
 							<textarea
 								value={notes}
 								onChange={(event) => setNotes(event.target.value)}
 								placeholder="Informações adicionais (opcional)"
-								className="mt-2 min-h-[120px] w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white outline-none transition focus:border-white/40 focus:ring-2 focus:ring-white/20 disabled:cursor-not-allowed disabled:opacity-50"
+								className="mt-2 min-h-[120px] w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm text-[#121213] outline-none transition focus:border-black/50 focus:ring-2 focus:ring-black/10 disabled:cursor-not-allowed disabled:opacity-50"
 							/>
 						</label>
 
 						{feedback && (
 							<div
-								className={`rounded-2xl border px-4 py-3 text-xs font-semibold uppercase tracking-[0.3em] ${
+								className={`rounded-2xl border px-4 py-3 text-xs font-semibold uppercase tracking-[0.25em] ${
 									feedback.type === 'success'
-										? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-200'
-										: 'border-red-400/30 bg-red-400/10 text-red-200'
+										? 'border-emerald-300/60 bg-emerald-50 text-emerald-700'
+										: 'border-red-300/60 bg-red-50 text-red-700'
 								}`}>
 								{feedback.text}
 							</div>
@@ -334,7 +358,7 @@ const StatusUpdateForm = ({ session, onBack }: Props) => {
 						<div className="pt-2 sm:pt-0">
 							<button
 								type="submit"
-								className="w-full rounded-2xl bg-gradient-to-r from-white via-white to-[#ffd9cd] px-4 py-3 text-sm font-semibold uppercase tracking-[0.35em] text-black shadow-[0_18px_45px_rgba(0,0,0,0.35)] transition hover:translate-y-[-1px] hover:shadow-[0_22px_55px_rgba(0,0,0,0.45)] disabled:cursor-not-allowed disabled:opacity-50 sm:tracking-[0.45em]"
+								className="w-full rounded-2xl bg-[#121213] px-4 py-3 text-sm font-semibold uppercase tracking-[0.35em] text-white shadow-[0_16px_30px_rgba(0,0,0,0.15)] transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-50 sm:tracking-[0.45em]"
 								disabled={submitting}>
 								{submitting ? 'Enviando…' : 'Enviar'}
 							</button>
