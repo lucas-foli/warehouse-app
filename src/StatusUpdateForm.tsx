@@ -17,11 +17,15 @@ type Feedback = {
 	text: string;
 };
 
+type Mode = 'barcode' | 'sku';
+
 const StatusUpdateForm = ({ session, onBack }: Props) => {
+	const [mode, setMode] = useState<Mode>('barcode');
 	const [barcodePhotos, setBarcodePhotos] = useState<File[]>([]);
 	const [barcodeInput, setBarcodeInput] = useState('');
 	const [barcodes, setBarcodes] = useState<string[]>([]);
-	const [sku, setSku] = useState('');
+	const [skuInput, setSkuInput] = useState('');
+	const [skus, setSkus] = useState<string[]>([]);
 	const [status, setStatus] = useState('');
 	const [notes, setNotes] = useState('');
 	const [feedback, setFeedback] = useState<Feedback | null>(null);
@@ -59,10 +63,20 @@ const StatusUpdateForm = ({ session, onBack }: Props) => {
 		event.preventDefault();
 		setFeedback(null);
 
-		if (barcodes.length === 0 && barcodePhotos.length === 0) {
+		const hasBarcodes = barcodes.length > 0 || barcodePhotos.length > 0;
+		const hasSkus = skus.length > 0;
+
+		if (mode === 'barcode' && !hasBarcodes) {
 			setFeedback({
 				type: 'error',
 				text: 'Envie ao menos uma foto ou informe ao menos um código de barras.',
+			});
+			return;
+		}
+		if (mode === 'sku' && !hasSkus) {
+			setFeedback({
+				type: 'error',
+				text: 'Informe ao menos um SKU.',
 			});
 			return;
 		}
@@ -81,9 +95,11 @@ const StatusUpdateForm = ({ session, onBack }: Props) => {
 		}
 
 		const basePayload: Record<string, unknown> = {
-			sku: sku.trim() || null,
-			barcodes: barcodes.length > 0 ? barcodes : undefined,
-			barcode: barcodes.length === 0 ? null : undefined,
+			mode,
+			sku: skus.length === 1 ? skus[0] : undefined,
+			skus: skus.length > 0 ? skus : undefined,
+			barcodes: mode === 'barcode' && barcodes.length > 0 ? barcodes : undefined,
+			barcode: mode === 'barcode' && barcodes.length === 0 ? null : undefined,
 			status: status.trim(),
 			notes: notes.trim() || null,
 			submittedBy: userEmail,
@@ -119,22 +135,21 @@ const StatusUpdateForm = ({ session, onBack }: Props) => {
 
 		setSubmitting(true);
 		try {
-			if (barcodePhotos.length === 0) {
-				await sendPayload();
-			} else {
-				for (const photo of barcodePhotos) {
-					await sendPayload(photo);
+			if (mode === 'barcode') {
+				if (barcodePhotos.length === 0) {
+					await sendPayload();
+				} else {
+					for (const photo of barcodePhotos) {
+						await sendPayload(photo);
+					}
 				}
+			} else {
+				await sendPayload();
 			}
 
-			setFeedback({
-				type: 'success',
-				text:
-					barcodePhotos.length > 1
-						? `Enviamos ${barcodePhotos.length} fotos com sucesso.`
-						: 'Atualização enviada com sucesso.',
-			});
-			setSku('');
+			setFeedback({ type: 'success', text: 'Atualização enviada com sucesso.' });
+			setSkus([]);
+			setSkuInput('');
 			setBarcodes([]);
 			setBarcodeInput('');
 			setStatus('');
@@ -184,8 +199,41 @@ const StatusUpdateForm = ({ session, onBack }: Props) => {
 		setBarcodeInput(event.target.value);
 	};
 
+	const addSkusFromValue = (value: string) => {
+		const sanitized = value
+			.split(/[\n,;\s]+/)
+			.map((code) => code.trim())
+			.filter(Boolean);
+		if (!sanitized.length) return;
+		setSkus((prev) => {
+			const next = [...prev];
+			for (const code of sanitized) {
+				if (!next.includes(code)) {
+					next.push(code);
+				}
+			}
+			return next;
+		});
+		setSkuInput('');
+	};
+
+	const handleSkuKeyDown: React.KeyboardEventHandler<HTMLInputElement> = (event) => {
+		if (event.key === 'Enter') {
+			event.preventDefault();
+			addSkusFromValue(skuInput);
+		}
+	};
+
+	const handleSkuInputChange: React.ChangeEventHandler<HTMLInputElement> = (event) => {
+		setSkuInput(event.target.value);
+	};
+
 	const removeBarcode = (code: string) => {
 		setBarcodes((prev) => prev.filter((item) => item !== code));
+	};
+
+	const removeSku = (code: string) => {
+		setSkus((prev) => prev.filter((item) => item !== code));
 	};
 
 	return (
@@ -196,12 +244,12 @@ const StatusUpdateForm = ({ session, onBack }: Props) => {
 				<div className="absolute -bottom-32 left-0 h-[360px] w-[360px] rounded-full bg-[#ebe7d9] blur-3xl" />
 			</div>
 
-			<div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col items-center justify-center px-4 py-12 sm:px-6 lg:px-10">
+			<div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col items-center justify-center px-4 py-12 sm:px-6 lg:px-10">
 				<motion.div
 					initial={{ opacity: 0, y: 32 }}
 					animate={{ opacity: 1, y: 0 }}
 					transition={{ duration: 0.5, ease: 'easeOut' }}
-					className="relative w-full max-w-3xl rounded-[28px] border border-black/10 bg-white p-6 shadow-[0_30px_60px_rgba(0,0,0,0.08)] sm:rounded-[32px] sm:p-10">
+					className="relative w-full max-w-xl rounded-[28px] border border-black/10 bg-white p-8 shadow-[0_30px_60px_rgba(0,0,0,0.08)] sm:rounded-[32px] sm:p-10">
 					<div className="flex flex-col gap-4 text-center">
 						<button
 							type="button"
@@ -216,104 +264,162 @@ const StatusUpdateForm = ({ session, onBack }: Props) => {
 							Atualização Status Produto
 						</h1>
 						<p className="text-xs text-[#3b3b3b] sm:text-sm">
-							Envie o código de barras e o status desejado. Os envios ficarão vinculados ao usuário{' '}
+							Envie o código de barras ou o SKU e o status desejado. Os envios ficarão vinculados ao usuário{' '}
 							<span className="font-semibold text-[#121213]">{userEmail}</span>.
 						</p>
-						<p className="text-xs text-[#3b3b3b] sm:text-sm">
-							Informe ao menos um código ou anexe ao menos uma foto.
-						</p>
+						<div className="text-xs text-[#3b3b3b] sm:text-sm">Escolha se vai enviar códigos de barra ou SKUs.</div>
+						<div className="mx-auto inline-flex rounded-full border border-black/10 bg-[#f3f3f1] p-[6px] text-xs font-semibold uppercase tracking-[0.25em] text-[#2b2b2b]">
+							<button
+								type="button"
+								onClick={() => setMode('barcode')}
+								className={`rounded-full px-4 py-2 transition ${
+									mode === 'barcode'
+										? 'bg-[#121213] text-white shadow-[0_10px_30px_rgba(0,0,0,0.12)]'
+										: 'text-[#6f6f6f] hover:text-black'
+								}`}>
+								Cod. Barras
+							</button>
+							<button
+								type="button"
+								onClick={() => setMode('sku')}
+								className={`rounded-full px-4 py-2 transition ${
+									mode === 'sku'
+										? 'bg-[#121213] text-white shadow-[0_10px_30px_rgba(0,0,0,0.12)]'
+										: 'text-[#6f6f6f] hover:text-black'
+								}`}>
+								SKU
+							</button>
+						</div>
 					</div>
 
 					<form onSubmit={handleSubmit} className="mt-8 space-y-6 sm:mt-10">
-						<div>
-							<label className="block text-left text-[10px] font-semibold uppercase tracking-[0.25em] text-[#6f6f6f] sm:text-[11px] sm:tracking-[0.35em]">
-								Foto do código de barras*
-							</label>
-							<div className="mt-2 flex flex-col gap-3 rounded-2xl border border-black/10 bg-[#f6f6f2] px-4 py-3 text-xs text-[#3b3b3b] sm:flex-row sm:items-center sm:text-sm">
-								<label className="inline-flex cursor-pointer items-center gap-2 rounded-2xl border border-black/15 bg-white px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.3em] text-[#121213] transition hover:border-black/30 hover:text-black sm:text-xs sm:tracking-[0.35em]">
-									<input
-										id="barcode-photo-upload"
-										type="file"
-										accept="image/*"
-										multiple
-										className="hidden"
-										onChange={handleFileChange}
-									/>
-									Escolher arquivos
-								</label>
-								<span className="truncate text-[11px] uppercase tracking-[0.2em] text-[#6f6f6f] sm:text-xs">
-									{barcodePhotos.length > 0
-										? `${barcodePhotos.length} arquivo${barcodePhotos.length > 1 ? 's' : ''} selecionado${
-												barcodePhotos.length > 1 ? 's' : ''
-										  }`
-										: 'Nenhum arquivo selecionado'}
-								</span>
-							</div>
-							<p className="text-[10px] uppercase tracking-[0.15em] text-[#8a8a8a] sm:tracking-[0.25em]">
-								{barcodes.length === 0
-									? 'Envie uma foto ou preencha os códigos abaixo.'
-									: 'Opcional se os códigos já foram informados.'}
-							</p>
-						</div>
-
-						<label className="block text-left text-[10px] font-semibold uppercase tracking-[0.25em] text-[#6f6f6f] sm:text-[11px] sm:tracking-[0.35em]">
-							Códigos de barras*
-							<div className="mt-2 space-y-3">
-								<div className="flex flex-col gap-3 sm:flex-row">
-									<input
-										id="barcode-type-in"
-										type="text"
-										value={barcodeInput}
-										onChange={handleBarcodeInputChange}
-										onKeyDown={handleBarcodeKeyDown}
-										placeholder="Escaneie com a pistola ou digite manualmente"
-										className="flex-1 rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm text-[#121213] outline-none transition focus:border-black/50 focus:ring-2 focus:ring-black/10 disabled:cursor-not-allowed disabled:opacity-50"
-										autoComplete="off"
-									/>
-									<button
-										type="button"
-										onClick={() => addBarcodesFromValue(barcodeInput)}
-										className="rounded-2xl border border-black/15 bg-white px-4 py-3 text-xs font-semibold uppercase tracking-[0.3em] text-[#121213] transition hover:border-black/30 hover:bg-[#f6f6f2] disabled:cursor-not-allowed disabled:opacity-40">
-										Adicionar
-									</button>
-								</div>
-								<p className="text-[10px] uppercase tracking-[0.15em] text-[#8a8a8a] sm:tracking-[0.25em]">
-									Pressione Enter a cada leitura ou cole vários códigos separados por espaço, vírgula ou quebra de
-									linha.
-								</p>
-								<p className="text-[10px] uppercase tracking-[0.15em] text-[#8a8a8a] sm:tracking-[0.2em]">
-								</p>
-								{barcodes.length > 0 && (
-									<div className="flex flex-wrap gap-2">
-										{barcodes.map((code) => (
-											<span
-												key={code}
-												className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-[#f6f6f2] px-3 py-1 text-xs font-semibold uppercase tracking-[0.25em] text-[#121213]">
-												{code}
-												<button
-													type="button"
-													onClick={() => removeBarcode(code)}
-													className="text-[#6f6f6f] transition hover:text-[#121213] disabled:pointer-events-none disabled:opacity-40"
-													aria-label={`Remover código ${code}`}>
-													×
-												</button>
-											</span>
-										))}
+						{mode === 'barcode' && (
+							<>
+								<div>
+									<label className="block text-left text-[10px] font-semibold uppercase tracking-[0.25em] text-[#6f6f6f] sm:text-[11px] sm:tracking-[0.35em]">
+										Foto do código de barras*
+									</label>
+									<div className="mt-2 flex flex-col gap-2 rounded-2xl border border-black/10 bg-[#f6f6f2] px-3 py-3 text-xs text-[#3b3b3b] sm:flex-row sm:items-center sm:gap-3 sm:px-4 sm:text-sm">
+										<label className="inline-flex w-full max-w-[190px] cursor-pointer items-center justify-center rounded-2xl border border-black/15 bg-white px-3 py-[9px] text-[10px] font-semibold uppercase tracking-[0.2em] text-[#121213] transition hover:border-black/30 hover:text-black sm:max-w-[210px] sm:px-3 sm:py-[10px] sm:text-[11px] sm:tracking-[0.25em]">
+											<input
+												id="barcode-photo-upload"
+												type="file"
+												accept="image/*"
+												multiple
+												className="hidden"
+												onChange={handleFileChange}
+											/>
+											Escolher arquivos
+										</label>
+										<span className="flex-1 truncate text-[11px] uppercase tracking-[0.15em] text-[#6f6f6f] sm:text-xs">
+											{barcodePhotos.length > 0
+												? `${barcodePhotos.length} arquivo${barcodePhotos.length > 1 ? 's' : ''} selecionado${
+														barcodePhotos.length > 1 ? 's' : ''
+												  }`
+												: 'Nenhum arquivo selecionado'}
+										</span>
 									</div>
-								)}
-							</div>
-						</label>
+									<p className="text-[10px] uppercase tracking-[0.15em] text-[#8a8a8a] sm:tracking-[0.25em]">
+										{barcodes.length === 0
+											? 'Envie uma foto ou preencha os códigos abaixo.'
+											: 'Opcional se os códigos já foram informados.'}
+									</p>
+								</div>
 
-						{/* <label className="block text-left text-[10px] font-semibold uppercase tracking-[0.25em] text-[#6f6f6f] sm:text-[11px] sm:tracking-[0.35em]">
-							SKU (opcional)
-							<input
-								type="text"
-								value={sku}
-								onChange={(event) => setSku(event.target.value)}
-								placeholder="Informe o SKU"
-								className="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm text-[#121213] outline-none transition focus:border-black/50 focus:ring-2 focus:ring-black/10"
-							/>
-						</label> */}
+								<label className="block text-left text-[10px] font-semibold uppercase tracking-[0.25em] text-[#6f6f6f] sm:text-[11px] sm:tracking-[0.35em]">
+									Códigos de barras*
+									<div className="mt-2 space-y-3">
+										<div className="flex flex-col gap-3 sm:flex-row">
+											<input
+												id="barcode-type-in"
+												type="text"
+												value={barcodeInput}
+												onChange={handleBarcodeInputChange}
+												onKeyDown={handleBarcodeKeyDown}
+												placeholder="Escaneie com a pistola ou digite manualmente"
+												className="flex-1 rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm text-[#121213] outline-none transition focus:border-black/50 focus:ring-2 focus:ring-black/10 disabled:cursor-not-allowed disabled:opacity-50"
+												autoComplete="off"
+											/>
+											<button
+												type="button"
+												onClick={() => addBarcodesFromValue(barcodeInput)}
+												className="rounded-2xl border border-black/15 bg-white px-4 py-3 text-xs font-semibold uppercase tracking-[0.3em] text-[#121213] transition hover:border-black/30 hover:bg-[#f6f6f2] disabled:cursor-not-allowed disabled:opacity-40">
+												Adicionar
+											</button>
+										</div>
+										<p className="text-[10px] uppercase tracking-[0.15em] text-[#8a8a8a] sm:tracking-[0.25em]">
+											Pressione Enter a cada leitura ou cole vários códigos separados por espaço, vírgula ou quebra de
+											linha.
+										</p>
+										{barcodes.length > 0 && (
+											<div className="flex flex-wrap gap-2">
+												{barcodes.map((code) => (
+													<span
+														key={code}
+														className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-[#f6f6f2] px-3 py-1 text-xs font-semibold uppercase tracking-[0.25em] text-[#121213]">
+														{code}
+														<button
+															type="button"
+															onClick={() => removeBarcode(code)}
+															className="text-[#6f6f6f] transition hover:text-[#121213] disabled:pointer-events-none disabled:opacity-40"
+															aria-label={`Remover código ${code}`}>
+															×
+														</button>
+													</span>
+												))}
+											</div>
+										)}
+									</div>
+								</label>
+							</>
+						)}
+
+						{mode === 'sku' && (
+							<label className="block text-left text-[10px] font-semibold uppercase tracking-[0.25em] text-[#6f6f6f] sm:text-[11px] sm:tracking-[0.35em]">
+								SKU (um ou vários)
+								<div className="mt-2 space-y-3">
+									<div className="flex flex-col gap-3 sm:flex-row">
+										<input
+											id="sku-type-in"
+											type="number"
+											value={skuInput}
+											onChange={handleSkuInputChange}
+											onKeyDown={handleSkuKeyDown}
+											placeholder="Informe ou cole um ou vários SKUs"
+											className="flex-1 rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm text-[#121213] outline-none transition focus:border-black/50 focus:ring-2 focus:ring-black/10 disabled:cursor-not-allowed disabled:opacity-50"
+											autoComplete="off"
+										/>
+										<button
+											type="button"
+											onClick={() => addSkusFromValue(skuInput)}
+											className="rounded-2xl border border-black/15 bg-white px-4 py-3 text-xs font-semibold uppercase tracking-[0.3em] text-[#121213] transition hover:border-black/30 hover:bg-[#f6f6f2] disabled:cursor-not-allowed disabled:opacity-40">
+											Adicionar
+										</button>
+									</div>
+									<p className="text-[10px] uppercase tracking-[0.15em] text-[#8a8a8a] sm:tracking-[0.25em]">
+										Pressione Enter para cadastrar ou cole vários SKUs separados por espaço, vírgula ou quebra de linha.
+									</p>
+									{skus.length > 0 && (
+										<div className="flex flex-wrap gap-2">
+											{skus.map((code) => (
+												<span
+													key={code}
+													className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-[#f6f6f2] px-3 py-1 text-xs font-semibold uppercase tracking-[0.25em] text-[#121213]">
+													{code}
+													<button
+														type="button"
+														onClick={() => removeSku(code)}
+														className="text-[#6f6f6f] transition hover:text-[#121213] disabled:pointer-events-none disabled:opacity-40"
+														aria-label={`Remover SKU ${code}`}>
+														×
+													</button>
+												</span>
+											))}
+										</div>
+									)}
+								</div>
+							</label>
+						)}
 
 						<label className="block text-left text-[10px] font-semibold uppercase tracking-[0.25em] text-[#6f6f6f] sm:text-[11px] sm:tracking-[0.35em]">
 							Status*
