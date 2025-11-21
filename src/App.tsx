@@ -141,7 +141,7 @@ const LoginForm = ({ onSuccess }: { onSuccess: () => void }) => {
 				className="w-full max-w-xl rounded-[28px] border border-black/10 bg-white p-8 shadow-[0_30px_60px_rgba(0,0,0,0.08)]">
 				<div className="flex flex-col items-center gap-6 text-center">
 					<img src="/Stanley Brandmark Horizontal.avif" alt="Stanley" className="h-6 w-auto object-contain" />
-					<div className="text-[11px] uppercase tracking-[0.35em] text-[#6f6f6f]">Stanley Portal</div>
+					<div className="text-[11px] uppercase tracking-[0.35em] text-[#6f6f6f]">Brasília Shopping</div>
 
 					<div className="inline-flex rounded-full border border-black/10 bg-[#f3f3f1] p-1 text-xs font-semibold uppercase tracking-[0.25em] text-[#2b2b2b]">
 						<button
