@@ -264,7 +264,7 @@ const Dashboard = ({ onLogout, onOpenStatusForm }: { onLogout: () => void; onOpe
 								alt="Stanley"
 								className="h-6 w-auto object-contain sm:h-7"
 							/>
-							<p className="text-[11px] uppercase tracking-[0.35em] text-[#6f6f6f]">Stanley Portal</p>
+							<p className="text-[11px] uppercase tracking-[0.35em] text-[#6f6f6f]">Brasília Shopping</p>
 						</div>
 						<div className="ml-auto flex items-center gap-3 text-[#2b2b2b]">
 							<img
