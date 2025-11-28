@@ -1,15 +1,16 @@
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { BiListCheck } from 'react-icons/bi';
 import { LuLogOut } from 'react-icons/lu';
 import {
 	Area,
 	AreaChart,
 	Bar,
+	BarChart,
 	CartesianGrid,
-	ComposedChart,
 	Legend,
 	Line,
+	LineChart,
 	ResponsiveContainer,
 	Tooltip,
 	XAxis,
@@ -24,10 +25,17 @@ import {
 	buildMultiSellerPerformance,
 	parseCsv,
 } from '../utils/helpers';
+import { Card, ListItem, Metric, Section, Title } from './ui/Primitives';
 
 const Dashboard = ({ onLogout, onOpenStatusForm }: { onLogout: () => void; onOpenStatusForm: () => void }) => {
 	const [loading, setLoading] = useState(false);
 	const [page, setPage] = useState<'overview' | 'clientes' | 'vendedores'>('overview');
+	const [surface, setSurface] = useState<'dashboard' | 'products'>('dashboard');
+	const [productQuery, setProductQuery] = useState('');
+	const [productStatusFilter, setProductStatusFilter] = useState<'all' | 'critical' | 'no-photo' | 'zero-stock'>(
+		'all',
+	);
+	const [productLocationFilter, setProductLocationFilter] = useState<'all' | string>('all');
 	const [products, setProducts] = useState<Product[]>([]);
 	const [kpis] = useState<KPIs>({
 		faturamento: 574661,
@@ -39,6 +47,7 @@ const Dashboard = ({ onLogout, onOpenStatusForm }: { onLogout: () => void; onOpe
 	const [history, setHistory] = useState<HistoryItem[]>([]);
 	const [clientes, setClientes] = useState<Client[]>([]);
 	const [vendedores, setVendedores] = useState<Seller[]>([]);
+	const sellerColors = ['#121213', '#afafafff', '#9a9a9a', '#d4d4d4'];
 
 	useEffect(() => {
 		const loadData = async () => {
@@ -152,11 +161,77 @@ const Dashboard = ({ onLogout, onOpenStatusForm }: { onLogout: () => void; onOpe
 		loadData();
 	}, []);
 
-	const totalEstoque = products.reduce((acc, cur) => acc + (cur.qty || 0), 0);
-	const produtosDistintos = products.length;
 	const estoqueBaixo = products.filter((p) => p.min !== undefined && p.qty < (p.min ?? 0)).length;
 	const semFoto = products.filter((p) => !p.image).length;
-	const maxHistoryValue = history.reduce((max, h) => (h.value > max ? h.value : max), 0);
+
+	const isCriticalProduct = (p: Product) => {
+		const zeroStock = (p.qty || 0) <= 0;
+		const noPhoto = !p.image;
+		const status = (p.status || '').toLowerCase();
+		const criticalStatus =
+			status.includes('sem giro') || status.includes('stockout') || status.includes('comprar') || status.includes('em risco');
+		return zeroStock || noPhoto || criticalStatus;
+	};
+
+	const criticalProductIds = new Set(products.filter(isCriticalProduct).map((p) => p.id));
+	const criticalItems = criticalProductIds.size;
+	const estoqueZerado = products.filter((p) => (p.qty || 0) === 0).length;
+
+	const latestMonth = history[history.length - 1];
+	const previousMonth = history[history.length - 2];
+	const monthlyRevenue = latestMonth?.value ?? kpis.faturamento;
+	const dailyRevenue = monthlyRevenue / 30;
+	const monthlyChange =
+		latestMonth && previousMonth && previousMonth.value
+			? (latestMonth.value - previousMonth.value) / previousMonth.value
+			: 0;
+
+	const operationStatusLabel =
+		monthlyChange > 0.08 ? 'Acelerando' : monthlyChange < -0.05 ? 'Em atenção' : 'Em linha';
+	const operationStatusDetail =
+		monthlyChange === 0
+			? 'Tendência estável no mês.'
+			: monthlyChange > 0
+			? `Crescimento de ${(monthlyChange * 100).toFixed(1)}% vs mês anterior.`
+			: `Queda de ${Math.abs(monthlyChange * 100).toFixed(1)}% vs mês anterior.`;
+
+	const locations = useMemo(
+		() => Array.from(new Set(products.map((p) => p.location))).filter(Boolean),
+		[products],
+	);
+
+	const filteredProducts = useMemo(() => {
+		const query = productQuery.trim().toLowerCase();
+		return products.filter((p) => {
+			if (productLocationFilter !== 'all' && p.location !== productLocationFilter) return false;
+
+			if (productStatusFilter === 'critical' && !isCriticalProduct(p)) return false;
+			if (productStatusFilter === 'no-photo' && p.image) return false;
+			if (productStatusFilter === 'zero-stock' && (p.qty || 0) > 0) return false;
+
+			if (!query) return true;
+
+			const haystack = `${p.sku} ${p.name} ${p.status} ${p.location}`.toLowerCase();
+			return haystack.includes(query);
+		});
+	}, [products, productLocationFilter, productQuery, productStatusFilter]);
+
+	const topProducts = useMemo(() => {
+		const withSales = [...products]
+			.filter((p) => p.totalSold)
+			.sort((a, b) => (b.totalSold || 0) - (a.totalSold || 0));
+
+		if (withSales.length) return withSales.slice(0, 5);
+
+		// Mock simples quando não há dados suficientes no CSV
+		return [
+			{ id: 'top-1', name: 'Quencher Term Text 2.0 Wisteria', sku: '08707', status: 'ESTOQUE', location: 'Brasília Shopping', qty: 5, totalSold: 220 },
+			{ id: 'top-2', name: 'Quencher Protour Black Fade', sku: '08659', status: 'ESTOQUE', location: 'Brasília Shopping', qty: 6, totalSold: 185 },
+			{ id: 'top-3', name: 'Copo Quencher Sea Foam', sku: '08591', status: 'ESTOQUE', location: 'Brasília Shopping', qty: 4, totalSold: 160 },
+			{ id: 'top-4', name: 'Copo Beer Pint Hammertone Green', sku: '08364', status: 'OK', location: 'Brasília Shopping', qty: 61, totalSold: 140 },
+			{ id: 'top-5', name: 'Quencher Protour Rose Quartz', sku: '08662', status: 'ESTOQUE', location: 'Brasília Shopping', qty: 4, totalSold: 120 },
+		];
+	}, [products]);
 
 	const sampleClientEvolution: HistoryItem[] = [
 		{ month: 'Ago/25', value: 120 },
@@ -184,7 +259,47 @@ const Dashboard = ({ onLogout, onOpenStatusForm }: { onLogout: () => void; onOpe
 
 	const sellerPerformanceSeries = buildMultiSellerPerformance(vendedores);
 	const sellerPerformance = sellerPerformanceSeries.length ? sellerPerformanceSeries : [];
-	// const maxSellerPerformanceValue = sellerPerformance.reduce((max, h) => (h.value > max ? h.value : max), 0);
+
+	const sellerBarData = useMemo(
+		() =>
+			vendedores.map((v) => ({
+				vendedor: v.nome,
+				bruto: v.bruto,
+				liquido: v.liquido,
+			})),
+		[vendedores],
+	);
+
+	const formatCurrency = (value: number) =>
+		`R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+	const renderSellerTooltip = (props: any) => {
+		if (!props?.active || !props.payload?.length) return null;
+		const { label, payload } = props;
+		const bruto = payload.find((p: any) => p.dataKey === 'bruto')?.value ?? 0;
+		const liquido = payload.find((p: any) => p.dataKey === 'liquido')?.value ?? 0;
+		const total = bruto + liquido;
+
+		return (
+			<div className="rounded-xl border border-black/10 bg-white px-4 py-3 text-xs shadow-[0_12px_30px_rgba(0,0,0,0.12)]">
+				<p className="mb-2 text-sm font-semibold text-[#1A1A1A]">{label}</p>
+				<div className="space-y-1">
+					<div className="flex items-center justify-between gap-6">
+						<span className="text-[#1f2937]">Valor bruto</span>
+						<span className="font-semibold text-[#1f2937]">{formatCurrency(bruto)}</span>
+					</div>
+					<div className="flex items-center justify-between gap-6">
+						<span className="text-[#4b5563]">Valor líquido</span>
+						<span className="font-semibold text-[#4b5563]">{formatCurrency(liquido)}</span>
+					</div>
+					<div className="mt-2 flex items-center justify-between gap-6 border-t border-black/5 pt-2">
+						<span className="text-[#1A1A1A]">Total</span>
+						<span className="font-semibold text-[#1A1A1A]">{formatCurrency(total)}</span>
+					</div>
+				</div>
+			</div>
+		);
+	};
 
 	return (
 		<div className="flex min-h-screen flex-col bg-[#f9f9f7] text-[#121213]">
@@ -231,24 +346,22 @@ const Dashboard = ({ onLogout, onOpenStatusForm }: { onLogout: () => void; onOpe
 				</div>
 			</header>
 
-			<main className="flex flex-1 items-stretch px-4 py-6 sm:px-10 lg:px-16">
-				<div className="w-full space-y-6 rounded-[32px] border border-black/10 bg-white p-6 shadow-[0_35px_70px_rgba(0,0,0,0.08)] sm:p-8">
+			<main className="flex flex-1 items-stretch px-4 py-8 sm:px-10 lg:px-16">
+				<div className="w-full space-y-10 rounded-[32px] border border-black/5 bg-white p-8 shadow-[0_35px_90px_rgba(0,0,0,0.08)] sm:p-10">
 					<div className="flex flex-wrap items-center justify-between gap-4">
 						<div>
-							<h2 className="text-2xl font-semibold text-[#121213]">
-								Dashboard | {page === 'overview' ? 'Produtos' : page === 'clientes' ? 'Clientes' : 'Vendedores'}
-							</h2>
-							<p className="text-sm text-[#6f6f6f]">
-								{page === 'overview' && 'Resumo rápido do estoque'}
-								{page === 'clientes' && 'Informações de clientes e últimas compras'}
-								{page === 'vendedores' && 'Performance e detalhamento por vendedor'}
-							</p>
+							<Title>
+								{page === 'overview' && surface === 'dashboard' && 'Como está a operação hoje?'}
+								{page === 'overview' && surface === 'products' && 'Produtos'}
+								{page === 'clientes' && 'Clientes'}
+								{page === 'vendedores' && 'Vendedores'}
+							</Title>
 						</div>
 						<div className="flex items-center gap-3 text-sm text-[#6f6f6f]">
-							<div className="inline-flex rounded-full border border-black/10 bg-[#f3f3f1] p-1 text-xs font-semibold uppercase tracking-[0.25em] text-[#2b2b2b]">
+							<div className="inline-flex rounded-full bg-[#F5F5F7] p-1 text-xs font-medium uppercase tracking-[0.25em] text-[#2b2b2b]">
 								{(
 									[
-										{ key: 'overview', label: 'Produtos' },
+										{ key: 'overview', label: 'Dashboard' },
 										{ key: 'clientes', label: 'Clientes' },
 										{ key: 'vendedores', label: 'Vendedores' },
 									] as const
@@ -256,49 +369,117 @@ const Dashboard = ({ onLogout, onOpenStatusForm }: { onLogout: () => void; onOpe
 									<button
 										key={tab.key}
 										type="button"
-										onClick={() => setPage(tab.key)}
+										onClick={() => {
+											setPage(tab.key);
+											if (tab.key !== 'overview') setSurface('dashboard');
+										}}
 										className={`rounded-full px-4 py-2 transition ${
-											page === tab.key ? 'bg-[#121213] text-white shadow' : 'text-[#6f6f6f] hover:text-black'
+											page === tab.key ? 'bg-[#121213] text-white shadow-sm' : 'text-[#6f6f6f] hover:text-black'
 										}`}>
 										{tab.label}
 									</button>
 								))}
 							</div>
-							<span className="inline-flex h-9 items-center rounded-full bg-[#f6f6f2] px-4 font-semibold uppercase tracking-[0.2em] text-[#2b2b2b]">
-								Brasília Shopping
-							</span>
 						</div>
 					</div>
 
-					{page === 'overview' && (
+					{page === 'overview' && surface === 'dashboard' && (
 						<>
-							<div className="grid gap-4 lg:grid-cols-4">
-								{[
-									{ label: 'Faturamento total', value: kpis.faturamento, prefix: 'R$ ' },
-									{ label: 'Total Custo', value: kpis.totalCusto, prefix: 'R$ ' },
-									{ label: 'Qtde em Estoque', value: totalEstoque },
-									{ label: 'Produtos Distintos', value: produtosDistintos },
-								].map((item) => (
-									<div key={item.label} className="rounded-2xl border border-black/10 bg-[#f6f6f2] p-4">
-										<p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-[#6f6f6f]">{item.label}</p>
-										<p className="mt-2 text-3xl font-semibold text-[#121213]">
-											{item.prefix ?? ''}
-											{item.value.toLocaleString('pt-BR')}
-										</p>
-									</div>
-								))}
-							</div>
+							{/* Nível 1 — Overview absoluto */}
+							<Section className="mt-8 grid items-stretch gap-8 md:grid-cols-2 xl:grid-cols-4">
+								<Card>
+									<Metric
+										value={Math.max(0, dailyRevenue || 0).toLocaleString('pt-BR', {
+											maximumFractionDigits: 0,
+										})}
+										label="Faturamento do dia"
+										prefix="R$ "
+										detail={monthlyChange >= 0 ? '⬆︎ Tendência positiva' : '⬇︎ Tendência em atenção'}
+									/>
+								</Card>
+								<Card>
+									<Metric
+										value={Math.max(0, monthlyRevenue || 0).toLocaleString('pt-BR')}
+										label="Faturamento do mês"
+										prefix="R$ "
+										detail="Visão consolidada do mês atual"
+									/>
+								</Card>
+								<Card>
+									<Metric
+										value={String(criticalItems)}
+										label="Itens críticos"
+										detail={`${estoqueZerado} sem estoque • ${semFoto} sem foto • ${estoqueBaixo} abaixo do mínimo`}
+									/>
+								</Card>
+								<Card>
+									<Metric value={operationStatusLabel} label="Status da operação" detail={operationStatusDetail} />
+								</Card>
+							</Section>
 
-							<div className="grid gap-4 lg:grid-cols-3">
-								<div className="lg:col-span-2 rounded-2xl border border-black/10 bg-[#f6f6f2] p-4 ">
-									<div className="flex items-center justify-between">
-										<p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-[#6f6f6f]">Vendas</p>
-										<span className="text-[11px] uppercase tracking-[0.2em] text-[#9a9a9a]">Histórico</span>
+							{/* Nível 2 — Seções com propósito */}
+							<Section className="grid items-stretch gap-10 xl:grid-cols-2">
+								<Card>
+									<p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-[#6f6f6f]">
+										Alertas importantes
+									</p>
+									<div className="mt-5 space-y-3 text-sm">
+										<ListItem>
+											<div className="flex flex-col">
+												<span className="text-[#1A1A1A]">Itens com estoque baixo</span>
+											</div>
+											<span className="text-base font-semibold text-[#1A1A1A]">{estoqueBaixo}</span>
+										</ListItem>
+										<ListItem>
+											<div className="flex flex-col">
+												<span className="text-[#1A1A1A]">Itens sem foto</span>
+											</div>
+											<span className="text-base font-semibold text-[#1A1A1A]">{semFoto}</span>
+										</ListItem>
+										<ListItem>
+											<div className="flex flex-col">
+												<span className="text-[#1A1A1A]">Itens sem estoque</span>
+											</div>
+											<span className="text-base font-semibold text-[#1A1A1A]">{estoqueZerado}</span>
+										</ListItem>
 									</div>
-									<div className="mt-4 h-64 w-full rounded-xl p-4 outline-none [&_.recharts-wrapper]:outline-none">
+								</Card>
+
+								<Card>
+									<p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-[#6f6f6f]">
+										Categorias — vendas e custos
+									</p>
+									<div className="mt-5 space-y-4">
+										{categorySales.slice(0, 5).map((cat) => {
+											const share = Math.min(100, cat.share || 0);
+											return (
+												<div key={cat.name} className="space-y-1.5">
+													<div className="flex items-center justify-between text-sm text-[#1A1A1A]">
+														<span>{cat.name}</span>
+														<span className="text-xs text-[#8a8a8a]">R$ {cat.venda.toLocaleString('pt-BR')}</span>
+													</div>
+													<div className="flex h-2 overflow-hidden rounded-full bg-white">
+														<div className="bg-[#1A1A1A]" style={{ width: `${share}%` }} />
+													</div>
+													<div className="flex justify-between text-[10px] uppercase tracking-[0.18em] text-[#8a8a8a]">
+														<span>Custo: R$ {cat.custo.toLocaleString('pt-BR')}</span>
+														<span>Share: {share.toFixed(1)}%</span>
+													</div>
+												</div>
+											);
+										})}
+									</div>
+								</Card>
+							</Section>
+
+							<Section className="grid gap-10 xl:grid-cols-2">
+								<Card>
+									<p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-[#6f6f6f]">
+										Tendência mensal
+									</p>
+									<div className="mt-4 h-56 w-full rounded-xl bg-white/60 p-4">
 										<ResponsiveContainer width="100%" height="100%">
-											<ComposedChart data={history}>
-												<CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+											<LineChart data={history}>
 												<XAxis
 													dataKey="month"
 													axisLine={false}
@@ -307,172 +488,142 @@ const Dashboard = ({ onLogout, onOpenStatusForm }: { onLogout: () => void; onOpe
 													dy={10}
 												/>
 												<YAxis
-													yAxisId="left"
-													orientation="left"
 													axisLine={false}
 													tickLine={false}
 													tick={{ fill: '#6f6f6f', fontSize: 10 }}
-													tickFormatter={(value) =>
-														value >= 1000 ? `${(value / 1000).toFixed(0)}K` : value
-													}
-												/>
-												<YAxis
-													yAxisId="right"
-													orientation="right"
-													axisLine={false}
-													tickLine={false}
-													tick={{ fill: '#6f6f6f', fontSize: 10 }}
+													tickFormatter={(value) => (value >= 1000 ? `${(value / 1000).toFixed(0)}K` : value)}
 												/>
 												<Tooltip
 													contentStyle={{
 														backgroundColor: '#fff',
-														borderRadius: '8px',
+														borderRadius: '10px',
 														border: '1px solid #f0f0f0',
-														boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+														boxShadow: '0 12px 30px rgba(0,0,0,0.12)',
 													}}
 													itemStyle={{ fontSize: '12px', fontWeight: 600 }}
 													labelStyle={{ fontSize: '12px', color: '#6f6f6f', marginBottom: '8px' }}
-													formatter={(value: number, name: string) => {
-														if (name === 'Venda')
-															return [`R$ ${value.toLocaleString('pt-BR')}`, 'Venda'];
-														return [value, 'Qtde'];
-													}}
-												/>
-												<Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
-												<Bar
-													yAxisId="right"
-													dataKey="quantity"
-													name="Qtde"
-													fill="#3e4c5e"
-													radius={[4, 4, 0, 0]}
-													barSize={30}
+													formatter={(value: number) => [`R$ ${value.toLocaleString('pt-BR')}`, 'Faturamento']}
 												/>
 												<Line
-													yAxisId="left"
 													type="monotone"
 													dataKey="value"
-													name="Venda"
-													stroke="#2563eb"
-													strokeWidth={3}
-													dot={{ r: 4, fill: '#2563eb', strokeWidth: 2, stroke: '#fff' }}
-													activeDot={{ r: 6, strokeWidth: 0 }}
+													stroke="#121213"
+													strokeWidth={2.5}
+													dot={{ r: 3, fill: '#121213' }}
+													activeDot={{ r: 5, strokeWidth: 0 }}
 												/>
-											</ComposedChart>
+											</LineChart>
 										</ResponsiveContainer>
 									</div>
-								</div>
-								<div className="rounded-2xl border border-black/10 bg-[#f6f6f2] p-4">
-									<p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-[#6f6f6f]">
-										Vendas e Custos por categoria
-									</p>
-									<div className="mt-4 space-y-3">
-										{categorySales.map((cat) => (
-											<div key={cat.name} className="space-y-1">
-												<div className="flex items-center justify-between text-sm text-[#2b2b2b]">
-													<span>{cat.name}</span>
-													<span className="text-xs text-[#6f6f6f]">R$ {cat.venda.toLocaleString('pt-BR')}</span>
-												</div>
-												<div className="flex h-2 overflow-hidden rounded-full bg-white">
-													<div
-														className="bg-[#121213]"
-														style={{ width: `${Math.min(100, (cat.venda / (kpis.faturamento || 1)) * 100)}%` }}
-													/>
-												</div>
-											</div>
-										))}
-									</div>
-								</div>
-							</div>
+								</Card>
 
-							<div className="grid gap-4 lg:grid-cols-3">
-								<div className="rounded-2xl border border-black/10 bg-[#f6f6f2] p-4">
-									<p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-[#6f6f6f]">Alertas</p>
-									<div className="mt-3 space-y-3 text-sm">
-										<div className="flex items-center justify-between rounded-xl bg-white/80 px-3 py-2">
-											<span className="text-[#2b2b2b]">Itens com estoque baixo</span>
-											<span className="text-base font-semibold text-[#121213]">{estoqueBaixo}</span>
-										</div>
-										<div className="flex items-center justify-between rounded-xl bg-white/80 px-3 py-2">
-											<span className="text-[#2b2b2b]">Itens sem foto</span>
-											<span className="text-base font-semibold text-[#121213]">{semFoto}</span>
-										</div>
-									</div>
-								</div>
-								<div className="lg:col-span-2 rounded-2xl border border-black/10 bg-[#f6f6f2] p-4">
-									<div className="flex items-center justify-between">
+								<Card>
+									<div className="flex items-center justify-between gap-4">
 										<p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-[#6f6f6f]">
-											Faturamento acumulado (últimos meses)
+											Top 5 produtos
 										</p>
-										<span className="text-[11px] uppercase tracking-[0.2em] text-[#9a9a9a]">Tendência</span>
+										<button
+											type="button"
+											onClick={() => {
+												setSurface('products');
+												setProductStatusFilter('all');
+											}}
+											className="rounded-full border border-black/10 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#1A1A1A] transition hover:bg-black hover:text-white">
+											Ver todos os produtos
+										</button>
 									</div>
-									<div className="mt-4 space-y-4">
-										{history.map((point) => {
-											const width = maxHistoryValue ? Math.round((point.value / maxHistoryValue) * 100) : 0;
-											return (
-												<div key={point.month} className="space-y-1">
-													<div className="flex items-center justify-between text-sm text-[#2b2b2b]">
-														<span>{point.month}</span>
-														<span className="text-xs text-[#6f6f6f]">R$ {point.value.toLocaleString('pt-BR')}</span>
-													</div>
-													<div className="h-2 overflow-hidden rounded-full bg-white">
-														<div
-															className="h-full bg-gradient-to-r from-[#121213] to-[#4b4b4b]"
-															style={{ width: `${width}%` }}
-														/>
-													</div>
-												</div>
-											);
-										})}
-									</div>
-								</div>
-							</div>
-
-							{/* <div className="space-y-3">
-								<div className="flex items-center justify-between">
-									<p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-[#6f6f6f]">Produtos</p>
-									<span className="text-[11px] uppercase tracking-[0.2em] text-[#9a9a9a]">Imagens direto do CSV</span>
-								</div>
-								<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 overflow-auto max-h-[600px]">
-									{products.map((product) => (
-										<div
-											key={product.id}
-											className="flex items-center gap-3 rounded-2xl border border-black/10 bg-[#f6f6f2] p-3">
-											<div className="h-14 w-14 overflow-hidden rounded-xl bg-white/70">
-												{product.image ? (
-													<img
-														src={product.image}
-														alt={product.name}
-														className="h-full w-full object-cover"
-														loading="lazy"
-													/>
-												) : (
-													<div className="flex h-full w-full items-center justify-center text-[11px] uppercase tracking-[0.2em] text-[#9a9a9a]">
-														SEM FOTO
-													</div>
-												)}
-											</div>
-											<div className="space-y-1 text-sm">
-												<p className="font-semibold text-[#121213]">{product.name}</p>
-												<p className="text-[11px] uppercase tracking-[0.2em] text-[#6f6f6f]">SKU {product.sku}</p>
-												<div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.15em] text-[#6f6f6f]">
-													<span className="rounded-full bg-black/5 px-2 py-[3px] font-semibold text-[#121213]">
-														{product.status}
+									<div className="mt-5 space-y-3">
+										{topProducts.map((product, index) => (
+											<ListItem key={product.id}>
+												<div className="flex items-center gap-3">
+													<span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#F5F5F7] text-[11px] font-semibold text-[#1A1A1A]">
+														{index + 1}
 													</span>
-													<span>Estoque: {product.qty}</span>
-													<span>Estoque: {product.qty}</span>
-													<span>Estoque: {product.qty}</span>
-													<span>Estoque: {product.qty}</span>
+													<div className="flex flex-col">
+														<span className="font-semibold text-[#1A1A1A]">{product.name}</span>
+														<span className="text-[11px] uppercase tracking-[0.18em] text-[#8a8a8a]">
+															SKU {product.sku}
+														</span>
+													</div>
 												</div>
-											</div>
-										</div>
-									))}
+												<div className="text-right">
+													<p className="text-xs uppercase tracking-[0.18em] text-[#8a8a8a]">Vendidos</p>
+													<p className="text-sm font-semibold text-[#1A1A1A]">
+														{product.totalSold?.toLocaleString('pt-BR') ?? '—'}
+													</p>
+												</div>
+											</ListItem>
+										))}
+										{!topProducts.length && (
+											<p className="text-xs text-[#8a8a8a]">Sem dados suficientes para calcular o ranking.</p>
+										)}
 									</div>
-							</div> */}
+								</Card>
+							</Section>
+						</>
+					)}
 
-							<div className="rounded-2xl border border-black/10">
-								<div className="overflow-auto max-h-[600px]">
+					{page === 'overview' && surface === 'products' && (
+						<Section className="mt-8 space-y-8">
+							<div className="flex flex-wrap items-center justify-between gap-4">
+								<div>
+									<p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-[#6f6f6f]">
+										Lista completa de produtos
+									</p>
+								</div>
+								<button
+									type="button"
+									onClick={() => setSurface('dashboard')}
+									className="rounded-full border border-black/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#1A1A1A] transition hover:bg-black hover:text-white">
+									Voltar ao dashboard
+								</button>
+							</div>
+							<div className="flex flex-wrap items-center gap-3">
+								<input
+									type="search"
+									value={productQuery}
+									onChange={(e) => setProductQuery(e.target.value)}
+									placeholder="Buscar por SKU, nome ou status"
+									className="min-w-[260px] flex-1 rounded-full border border-black/10 bg-[#F5F5F7] px-4 py-2.5 text-sm text-[#1A1A1A] placeholder:text-[#b0b0b0] outline-none transition focus:border-black/40 focus:bg-white"
+								/>
+								<div className="flex flex-wrap gap-2 text-[11px] uppercase tracking-[0.2em]">
+									{[
+										{ key: 'all', label: 'Todos' },
+										{ key: 'critical', label: 'Críticos' },
+										{ key: 'no-photo', label: 'Sem foto' },
+										{ key: 'zero-stock', label: 'Estoque zerado' },
+									].map((filter) => (
+										<button
+											key={filter.key}
+											type="button"
+											onClick={() => setProductStatusFilter(filter.key as typeof productStatusFilter)}
+											className={`rounded-full border px-3 py-1 font-semibold transition ${
+												productStatusFilter === filter.key
+													? 'border-[#121213] bg-[#121213] text-white'
+													: 'border-black/10 bg-[#F5F5F7] text-[#6f6f6f] hover:text-[#1A1A1A]'
+											}`}>
+											{filter.label}
+										</button>
+									))}
+								</div>
+								{locations.length > 1 && (
+									<select
+										value={productLocationFilter}
+										onChange={(e) => setProductLocationFilter(e.target.value === 'all' ? 'all' : e.target.value)}
+										className="h-9 rounded-full border border-black/10 bg-[#F5F5F7] px-3 text-[11px] uppercase tracking-[0.3em] text-[#6f6f6f] outline-none transition hover:border-black/25 focus:border-black/40 focus:bg-white">
+										<option value="all">Todos os locais</option>
+										{locations.map((loc) => (
+											<option key={loc} value={loc}>
+												{loc}
+											</option>
+										))}
+									</select>
+								)}
+							</div>
+							<Card interactive={false} className="border border-black/5 bg-[#F5F5F7]">
+								<div className="overflow-auto max-h-[640px]">
 									<table className="min-w-full divide-y divide-black/5 text-sm">
-										<thead className="bg-[#f6f6f2] text-left text-[11px] uppercase tracking-[0.25em] text-[#6f6f6f]">
+										<thead className="sticky top-0 z-10 bg-[#F5F5F7] text-left text-[11px] uppercase tracking-[0.25em] text-[#6f6f6f]">
 											<tr>
 												<th className="px-4 py-3">Foto</th>
 												<th className="px-4 py-3">SKU</th>
@@ -482,11 +633,11 @@ const Dashboard = ({ onLogout, onOpenStatusForm }: { onLogout: () => void; onOpe
 												<th className="px-4 py-3">Qtd</th>
 												<th className="px-4 py-3">Mínimo</th>
 												<th className="px-4 py-3">Preço</th>
-												<th className="px-4 py-3">Total Vendido</th>
+												<th className="px-4 py-3">Total vendido</th>
 												<th className="px-4 py-3">Código de barras</th>
 											</tr>
 										</thead>
-										<tbody className="divide-y divide-black/5">
+										<tbody className="divide-y divide-black/5 bg-white">
 											{loading && (
 												<tr>
 													<td colSpan={10} className="px-4 py-6 text-center text-[#6f6f6f]">
@@ -495,10 +646,10 @@ const Dashboard = ({ onLogout, onOpenStatusForm }: { onLogout: () => void; onOpe
 												</tr>
 											)}
 											{!loading &&
-												products.map((product) => (
-													<tr key={product.id} className="hover:bg-[#f9f9f7]">
+												filteredProducts.map((product) => (
+													<tr key={product.id} className="hover:bg-[#F5F5F7]">
 														<td className="px-4 py-3">
-															<div className="h-12 w-12 overflow-hidden rounded-lg bg-black/5">
+															<div className="h-12 w-12 overflow-hidden rounded-xl bg-black/5">
 																{product.image ? (
 																	<img
 																		src={product.image}
@@ -532,37 +683,47 @@ const Dashboard = ({ onLogout, onOpenStatusForm }: { onLogout: () => void; onOpe
 														<td className="px-4 py-3 text-[#2b2b2b]">{product.barcode ?? '—'}</td>
 													</tr>
 												))}
-											{!loading && products.length === 0 && (
+											{!loading && filteredProducts.length === 0 && (
 												<tr>
 													<td colSpan={10} className="px-4 py-6 text-center text-[#6f6f6f]">
-														Nenhum produto encontrado.
+														Nenhum produto encontrado com os filtros atuais.
 													</td>
 												</tr>
 											)}
 										</tbody>
 									</table>
 								</div>
-							</div>
-						</>
+							</Card>
+						</Section>
 					)}
 
 					{page === 'clientes' && (
 						<>
-							<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-								{[
-									{ label: 'Quantidade de Clientes', value: 743 },
-									{ label: 'Cidades', value: 42 },
-									{ label: 'Última Compra', value: '14 Nov 2025' },
-									{ label: 'Último Cadastro', value: '14 Nov 2025' },
-								].map((item) => (
-									<div key={item.label} className="rounded-2xl border border-black/10 bg-[#f6f6f2] p-4">
-										<p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-[#6f6f6f]">{item.label}</p>
-										<p className="mt-2 text-2xl font-semibold text-[#121213]">{item.value}</p>
-									</div>
-								))}
-							</div>
-							<div className="grid gap-4 lg:grid-cols-2">
-								<div className="rounded-2xl border border-black/10 bg-[#f6f6f2] p-4">
+							<Section className="mt-8 grid items-stretch gap-8 sm:grid-cols-2 lg:grid-cols-4">
+								<Card>
+									<Metric
+										value={clientes.length ? clientes.length.toLocaleString('pt-BR') : 0}
+										label="Clientes ativos"
+									/>
+								</Card>
+								<Card>
+									<Metric
+										value={Array.from(new Set(clientes.map((c) => c.cidade))).length.toString()}
+										label="Cidades atendidas"
+									/>
+								</Card>
+								<Card>
+									<Metric value={new Date(clientes[0]?.ultimaCompra).toLocaleDateString('pt-BR', {
+										dateStyle: 'short',
+									}) ?? 0} label="Última compra registrada" />
+								</Card>
+								<Card>
+									<Metric value={0} label="Novos no mês" />
+								</Card>
+							</Section>
+
+							<Section className="grid gap-10 lg:grid-cols-2">
+								<Card>
 									<p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-[#6f6f6f]">
 										Evolução de clientes
 									</p>
@@ -571,8 +732,8 @@ const Dashboard = ({ onLogout, onOpenStatusForm }: { onLogout: () => void; onOpe
 											<AreaChart data={clientEvolution}>
 												<defs>
 													<linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-														<stop offset="5%" stopColor="#2563eb" stopOpacity={0.1} />
-														<stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
+														<stop offset="5%" stopColor="#121213" stopOpacity={0.12} />
+														<stop offset="95%" stopColor="#121213" stopOpacity={0} />
 													</linearGradient>
 												</defs>
 												<CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
@@ -583,11 +744,7 @@ const Dashboard = ({ onLogout, onOpenStatusForm }: { onLogout: () => void; onOpe
 													tick={{ fill: '#6f6f6f', fontSize: 10 }}
 													dy={10}
 												/>
-												<YAxis
-													axisLine={false}
-													tickLine={false}
-													tick={{ fill: '#6f6f6f', fontSize: 10 }}
-												/>
+												<YAxis axisLine={false} tickLine={false} tick={{ fill: '#6f6f6f', fontSize: 10 }} />
 												<Tooltip
 													contentStyle={{
 														backgroundColor: '#fff',
@@ -595,7 +752,7 @@ const Dashboard = ({ onLogout, onOpenStatusForm }: { onLogout: () => void; onOpe
 														border: '1px solid #f0f0f0',
 														boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
 													}}
-													itemStyle={{ fontSize: '12px', fontWeight: 600, color: '#2563eb' }}
+													itemStyle={{ fontSize: '12px', fontWeight: 600, color: '#121213' }}
 													labelStyle={{ fontSize: '12px', color: '#6f6f6f', marginBottom: '8px' }}
 													formatter={(value: number) => [value, 'Cliente']}
 												/>
@@ -604,18 +761,18 @@ const Dashboard = ({ onLogout, onOpenStatusForm }: { onLogout: () => void; onOpe
 													type="monotone"
 													dataKey="value"
 													name="Cliente"
-													stroke="#2563eb"
+													stroke="#121213"
 													strokeWidth={2}
 													fillOpacity={1}
 													fill="url(#colorValue)"
-													dot={{ r: 4, fill: '#2563eb', strokeWidth: 2, stroke: '#fff' }}
+													dot={{ r: 4, fill: '#121213', strokeWidth: 2, stroke: '#fff' }}
 													activeDot={{ r: 6, strokeWidth: 0 }}
 												/>
 											</AreaChart>
 										</ResponsiveContainer>
 									</div>
-								</div>
-								<div className="rounded-2xl border border-black/10 bg-[#f6f6f2] p-4">
+								</Card>
+								<Card>
 									<p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-[#6f6f6f]">
 										Últimas compras por data
 									</p>
@@ -642,39 +799,64 @@ const Dashboard = ({ onLogout, onOpenStatusForm }: { onLogout: () => void; onOpe
 											);
 										})}
 									</div>
-								</div>
-							</div>
-							<div className="rounded-2xl border border-black/10">
-								<div className="max-h-[420px] overflow-auto">
-									<table className="min-w-full divide-y divide-black/5 text-sm">
-										<thead className="bg-[#f6f6f2] text-left text-[11px] uppercase tracking-[0.25em] text-[#6f6f6f]">
-											<tr>
-												<th className="px-4 py-3">Nome</th>
-												<th className="px-4 py-3">Cidade</th>
-												<th className="px-4 py-3">Telefone</th>
-												<th className="px-4 py-3">Última compra</th>
-											</tr>
-										</thead>
-										<tbody className="divide-y divide-black/5">
-											{clientes.map((c) => (
-												<tr key={c.id} className="hover:bg-[#f9f9f7]">
-													<td className="px-4 py-3 font-semibold text-[#121213]">{c.nome}</td>
-													<td className="px-4 py-3 text-[#2b2b2b]">{c.cidade}</td>
-													<td className="px-4 py-3 text-[#2b2b2b]">{c.telefone ?? '—'}</td>
-													<td className="px-4 py-3 text-[#2b2b2b]">{c.ultimaCompra}</td>
+								</Card>
+							</Section>
+
+							<Section>
+								<Card interactive={false} className="border border-black/10 bg-[#F5F5F7]">
+									<div className="max-h-[420px] overflow-auto">
+										<table className="min-w-full divide-y divide-black/5 text-sm">
+											<thead className="bg-[#f6f6f2] text-left text-[11px] uppercase tracking-[0.25em] text-[#6f6f6f]">
+												<tr>
+													<th className="px-4 py-3">Nome</th>
+													<th className="px-4 py-3">Cidade</th>
+													<th className="px-4 py-3">Telefone</th>
+													<th className="px-4 py-3">Última compra</th>
 												</tr>
-											))}
-										</tbody>
-									</table>
-								</div>
-							</div>
+											</thead>
+											<tbody className="divide-y divide-black/5 bg-white">
+												{clientes.map((c) => (
+													<tr key={c.id} className="hover:bg-[#f9f9f7]">
+														<td className="px-4 py-3 font-semibold text-[#121213]">{c.nome}</td>
+														<td className="px-4 py-3 text-[#2b2b2b]">{c.cidade}</td>
+														<td className="px-4 py-3 text-[#2b2b2b]">{c.telefone ?? '—'}</td>
+														<td className="px-4 py-3 text-[#2b2b2b]">{c.ultimaCompra}</td>
+													</tr>
+												))}
+											</tbody>
+										</table>
+									</div>
+								</Card>
+							</Section>
 						</>
 					)}
 
 					{page === 'vendedores' && (
 						<>
-							<div className="grid gap-4 lg:grid-cols-2">
-								<div className="rounded-2xl border border-black/10 bg-[#f6f6f2] p-4">
+							<Section className="mt-8 grid items-stretch gap-8 sm:grid-cols-2 lg:grid-cols-4">
+								<Card>
+									<Metric value={vendedores.length.toString()} label="Vendedores ativos" />
+								</Card>
+								<Card>
+									<Metric
+										value={
+											vendedores.length
+												? `R$ ${vendedores.reduce((sum, v) => sum + (v.bruto || 0), 0).toLocaleString('pt-BR')}`
+												: '—'
+										}
+										label="Faturamento combinado"
+									/>
+								</Card>
+								<Card>
+									<Metric value={vendedores[0]?.nome ?? '—'} label="Maior faturamento" />
+								</Card>
+								<Card>
+									<Metric value="—" label="Abaixo da meta" />
+								</Card>
+							</Section>
+
+							<Section className="grid gap-10 lg:grid-cols-2">
+								<Card>
 									<p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-[#6f6f6f]">
 										Performance por período
 									</p>
@@ -683,17 +865,10 @@ const Dashboard = ({ onLogout, onOpenStatusForm }: { onLogout: () => void; onOpe
 											<AreaChart data={sellerPerformance}>
 												<defs>
 													{vendedores.map((v, i) => (
+														// usa uma paleta neutra alinhada ao app (preto e cinzas)
 														<linearGradient key={v.id} id={`color${v.id}`} x1="0" y1="0" x2="0" y2="1">
-															<stop
-																offset="5%"
-																stopColor={`hsl(${i * 60}, 70%, 50%)`}
-																stopOpacity={0.1}
-															/>
-															<stop
-																offset="95%"
-																stopColor={`hsl(${i * 60}, 70%, 50%)`}
-																stopOpacity={0}
-															/>
+															<stop offset="5%" stopColor={sellerColors[i % sellerColors.length]} stopOpacity={0.1} />
+															<stop offset="95%" stopColor={sellerColors[i % sellerColors.length]} stopOpacity={0} />
 														</linearGradient>
 													))}
 												</defs>
@@ -709,9 +884,7 @@ const Dashboard = ({ onLogout, onOpenStatusForm }: { onLogout: () => void; onOpe
 													axisLine={false}
 													tickLine={false}
 													tick={{ fill: '#6f6f6f', fontSize: 10 }}
-													tickFormatter={(value) =>
-														value >= 1000 ? `${(value / 1000).toFixed(0)}K` : value
-													}
+													tickFormatter={(value) => (value >= 1000 ? `${(value / 1000).toFixed(0)}K` : value)}
 												/>
 												<Tooltip
 													contentStyle={{
@@ -723,20 +896,20 @@ const Dashboard = ({ onLogout, onOpenStatusForm }: { onLogout: () => void; onOpe
 													itemStyle={{ fontSize: '12px', fontWeight: 600 }}
 													labelStyle={{ fontSize: '12px', color: '#6f6f6f', marginBottom: '8px' }}
 												/>
-												<Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }}/>
+												<Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
 												{vendedores.map((v, i) => (
 													<Area
 														key={v.id}
 														type="monotone"
 														dataKey={v.nome}
 														name={v.nome}
-														stroke={`hsl(${i * 60}, 70%, 50%)`}
+														stroke={sellerColors[i % sellerColors.length]}
 														strokeWidth={2}
 														fillOpacity={1}
 														fill={`url(#color${v.id})`}
 														dot={{
 															r: 4,
-															fill: `hsl(${i * 60}, 70%, 50%)`,
+															fill: sellerColors[i % sellerColors.length],
 															strokeWidth: 2,
 															stroke: '#fff',
 														}}
@@ -746,55 +919,85 @@ const Dashboard = ({ onLogout, onOpenStatusForm }: { onLogout: () => void; onOpe
 											</AreaChart>
 										</ResponsiveContainer>
 									</div>
-								</div>
-								<div className="rounded-2xl border border-black/10 bg-[#f6f6f2] p-4">
+								</Card>
+								<Card>
 									<p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-[#6f6f6f]">
-										Faturamento por vendedor (mock)
+										Faturamento por vendedor
 									</p>
-									<div className="mt-4 space-y-3">
-										{vendedores.map((v) => (
-											<div key={v.id}>
-												<div className="flex items-center justify-between text-sm text-[#2b2b2b]">
-													<span>{v.nome}</span>
-													<span className="text-xs text-[#6f6f6f]">R$ {v.liquido.toLocaleString('pt-BR')}</span>
-												</div>
-												<div className="flex h-2 overflow-hidden rounded-full bg-white">
-													<div
-														className="bg-[#121213]"
-														style={{ width: `${Math.min(100, (v.bruto / kpis.faturamento) * 100)}%` }}
-													/>
-												</div>
-											</div>
-										))}
+									<div className="mt-4 h-64 w-full rounded-xl p-4 outline-none [&_.recharts-wrapper]:outline-none">
+										<ResponsiveContainer width="100%" height="100%">
+											<BarChart
+												data={sellerBarData}
+												layout="vertical"
+												margin={{ top: 8, right: 24, bottom: 8, left: 0 }}>
+												<CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f0f0f0" />
+												<XAxis
+													type="number"
+													axisLine={false}
+													tickLine={false}
+													tick={{ fill: '#6f6f6f', fontSize: 10 }}
+													tickFormatter={(value) => (value >= 1000 ? `${(value / 1000).toFixed(0)}K` : value)}
+												/>
+												<YAxis
+													type="category"
+													dataKey="vendedor"
+													axisLine={false}
+													tickLine={false}
+													tick={{ fill: '#2b2b2b', fontSize: 11 }}
+													width={80}
+												/>
+												<Tooltip content={renderSellerTooltip} />
+												<Legend wrapperStyle={{ fontSize: '12px', paddingTop: '6px' }} />
+												<Bar
+													dataKey="bruto"
+													name="Valor bruto"
+													stackId="total"
+													barSize={14}
+													radius={[0, 0, 0, 0]}
+													fill="#1f2937"
+												/>
+												<Bar
+													dataKey="liquido"
+													name="Valor líquido"
+													stackId="total"
+													barSize={14}
+													radius={[0, 0, 0, 0]}
+													fill="#4b5563"
+												/>
+											</BarChart>
+										</ResponsiveContainer>
 									</div>
-								</div>
-							</div>
-							<div className="rounded-2xl border border-black/10">
-								<div className="overflow-auto">
-									<table className="min-w-full divide-y divide-black/5 text-sm">
-										<thead className="bg-[#f6f6f2] text-left text-[11px] uppercase tracking-[0.25em] text-[#6f6f6f]">
-											<tr>
-												<th className="px-4 py-3">Vendedor(a)</th>
-												<th className="px-4 py-3">Itens</th>
-												<th className="px-4 py-3">Valor bruto</th>
-												<th className="px-4 py-3">Valor líquido</th>
-												<th className="px-4 py-3">Nº Boletos</th>
-											</tr>
-										</thead>
-										<tbody className="divide-y divide-black/5">
-											{vendedores.map((v) => (
-												<tr key={v.id} className="hover:bg-[#f9f9f7]">
-													<td className="px-4 py-3 font-semibold text-[#121213]">{v.nome}</td>
-													<td className="px-4 py-3 text-[#2b2b2b]">{v.itens}</td>
-													<td className="px-4 py-3 text-[#2b2b2b]">R$ {v.bruto.toLocaleString('pt-BR')}</td>
-													<td className="px-4 py-3 text-[#2b2b2b]">R$ {v.liquido.toLocaleString('pt-BR')}</td>
-													<td className="px-4 py-3 text-[#2b2b2b]">{v.boletos}</td>
+								</Card>
+							</Section>
+
+							<Section>
+								<Card interactive={false} className="border border-black/10 bg-[#F5F5F7]">
+									<div className="overflow-auto">
+										<table className="min-w-full divide-y divide-black/5 text-sm">
+											<thead className="bg-[#f6f6f2] text-left text-[11px] uppercase tracking-[0.25em] text-[#6f6f6f]">
+												<tr>
+													<th className="px-4 py-3">Vendedor(a)</th>
+													<th className="px-4 py-3">Itens</th>
+													<th className="px-4 py-3">Valor bruto</th>
+													<th className="px-4 py-3">Valor líquido</th>
+													<th className="px-4 py-3">Nº Boletos</th>
 												</tr>
-											))}
-										</tbody>
-									</table>
-								</div>
-							</div>
+											</thead>
+											<tbody className="divide-y divide-black/5 bg-white">
+												{vendedores.map((v) => (
+													<tr key={v.id} className="hover:bg-[#f9f9f7]">
+														<td className="px-4 py-3 font-semibold text-[#121213]">{v.nome}</td>
+														<td className="px-4 py-3 text-[#2b2b2b]">{v.itens}</td>
+														<td className="px-4 py-3 text-[#2b2b2b]">R$ {v.bruto.toLocaleString('pt-BR')}</td>
+														<td className="px-4 py-3 text-[#2b2b2b]">R$ {v.liquido.toLocaleString('pt-BR')}</td>
+														<td className="px-4 py-3 text-[#2b2b2b]">{v.boletos}</td>
+													</tr>
+												))}
+											</tbody>
+										</table>
+									</div>
+								</Card>
+							</Section>
 						</>
 					)}
 				</div>
