@@ -16,6 +16,7 @@ import {
 	XAxis,
 	YAxis,
 } from 'recharts';
+import { supabase } from '../lib/supabaseClient';
 import type { CategorySale, Client, HistoryItem, KPIs, Product, Seller } from '../types';
 import {
 	buildCategorySalesFromProducts,
@@ -23,7 +24,6 @@ import {
 	buildClientPurchasesTimelineFromClients,
 	buildHistoryFromProducts,
 	buildMultiSellerPerformance,
-	parseCsv,
 } from '../utils/helpers';
 import { Card, ListItem, Metric, Section, Title } from './ui/Primitives';
 
@@ -127,18 +127,41 @@ const Dashboard = ({ onLogout, onOpenStatusForm }: { onLogout: () => void; onOpe
 				{ id: 'v2', nome: 'Maria', itens: 776, bruto: 134580.19, liquido: 133203.84, boletos: 409 },
 				{ id: 'v3', nome: 'Cecilia', itens: 289, bruto: 31591, liquido: 31497.17, boletos: 111 },
 			];
-			let parsedProducts: Product[] | [] = [];
+			let parsedProducts: Product[] = [];
 
-			const csvUrl = '/products.csv';
+			// Fetch products from Supabase
 			try {
-				const response = await fetch(csvUrl);
-				if (!response.ok) throw new Error('Erro ao ler products.csv.');
-				const csv = await response.text();
-				const parsed = parseCsv(csv);
-				parsedProducts = parsed;
-			} catch (err) {
-				console.error('Falha ao carregar planilha, usando dados mock.', err);
+			const { data, error } = await supabase
+				.from('products')
+				.select('*');
+
+			if (error) {
+				console.error('Supabase error:', error);
+				throw error;
 			}
+
+			console.log('Supabase data received:', data?.length || 0, 'products');
+
+			if (data && data.length > 0) {
+				// Map Supabase data to Product interface
+				parsedProducts = data.map((row: any) => ({
+					id: row.id || row.sku || String(Math.random()),
+					name: row.name || row.descricao || row.Descrição || '',
+					sku: row.sku || row.SKU || '',
+					barcode: row.barcode || row.codigo_barras || '',
+					status: row.status || row.Status || '',
+					location: row.location || row.local || row.Local || '',
+					qty: Number(row.qty || row.quantidade_estoque || row.Quantidade_Estoque || row.total_estoque || row.Total_Estoque || 0),
+					min: row.min !== undefined ? Number(row.min) : (row.estoque_minimo || row.Estoque_Minimo ? Number(row.estoque_minimo || row.Estoque_Minimo) : undefined),
+					price: row.price !== undefined ? Number(row.price) : (row.preco_venda || row['Preço de Venda Normal'] ? Number(String(row.preco_venda || row['Preço de Venda Normal']).replace(/[^\d,.-]/g, '').replace(',', '.')) : undefined),
+					totalSold: row.total_sold !== undefined ? Number(row.total_sold) : undefined,
+					image: row.image || row.foto || row.Foto || '',
+				}));
+				console.log('Parsed products:', parsedProducts.length);
+			}
+		} catch (err) {
+			console.error('Failed to load products from Supabase, using mock data.', err);
+		}
 
 			const hasProductsFromCsv = parsedProducts.length > 0;
 			const productsToUse = hasProductsFromCsv ? parsedProducts : sample;
