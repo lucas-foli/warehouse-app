@@ -35,6 +35,7 @@ export const Metric = ({
 	prefix,
 	suffix,
 	className,
+	valueClassName,
 }: {
 	value: string | number;
 	label: string;
@@ -42,14 +43,15 @@ export const Metric = ({
 	prefix?: string;
 	suffix?: string;
 		className?: string;
+		valueClassName?: string;
 }) => (
 	<div className={merge("flex flex-col gap-2", className)}>
-		<p className="text-4xl font-semibold tracking-tight sm:text-5xl">
+		<p className={merge("text-4xl font-semibold tracking-tight sm:text-5xl", valueClassName)}>
 			{prefix}
 			{value}
 			{suffix}
 		</p>
-		<p className="text-base font-medium">{label}</p>
+		<p className={merge("text-base font-medium", valueClassName ? "text-sm" : "")}>{label}</p>
 		<p className="text-sm leading-snug min-h-[2.75rem] opacity-80">
 			{detail || '\u00A0'}
 		</p>

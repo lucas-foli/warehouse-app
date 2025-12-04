@@ -436,7 +436,12 @@ const Dashboard = ({ onLogout, onOpenStatusForm }: { onLogout: () => void; onOpe
 									/>
 								</Card>
 								<Card>
-									<Metric value={operationStatusLabel} label="Status da operação" detail={operationStatusDetail} />
+									<Metric
+										value={operationStatusLabel}
+										label="Status da operação"
+										detail={operationStatusDetail}
+										valueClassName="text-3xl sm:text-4xl"
+									/>
 								</Card>
 							</Section>
 
