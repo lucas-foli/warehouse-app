@@ -141,19 +141,22 @@ const Dashboard = ({ onLogout, onOpenStatusForm }: { onLogout: () => void; onOpe
 
 				if (data && data.length > 0) {
 					// Map Supabase data to Product interface
-					parsedProducts = data.map((row: any) => ({
-						id: row.id || row.sku || String(Math.random()),
-						name: row.name || row.descricao || row.Descrição || '',
-						sku: row.sku || row.SKU || '',
-						barcode: row.barcode || row.codigo_barras || '',
-						status: row.status || row.Status || '',
-						location: row.location || row.local || row.Local || '',
-						qty: Number(row.qty || row.quantidade_estoque || row.Quantidade_Estoque || row.total_estoque || row.Total_Estoque || 0),
-						min: row.min !== undefined ? Number(row.min) : (row.estoque_minimo || row.Estoque_Minimo ? Number(row.estoque_minimo || row.Estoque_Minimo) : undefined),
-						price: row.price !== undefined ? Number(row.price) : (row.preco_venda || row['Preço de Venda Normal'] ? Number(String(row.preco_venda || row['Preço de Venda Normal']).replace(/[^\d,.-]/g, '').replace(',', '.')) : undefined),
-						totalSold: row.total_sold !== undefined ? Number(row.total_sold) : undefined,
-						image: row.image || row.foto || row.Foto || '',
-					}));
+					parsedProducts = data.map((row: any) => {
+
+						return {
+							id: row.id || row.sku || String(Math.random()),
+							name: row.name || row.descricao || row.Descrição || '',
+							sku: row.sku || row.SKU || '',
+							barcode: row.barcode || row.Barcode || row.BARCODE || row.codigo_barras || '',
+							status: row.status || row.Status || '',
+							location: row.location || row.local || row.Local || '',
+							qty: Number(row.qty || row.quantidade_estoque || row.Quantidade_Estoque || row.total_estoque || row.Total_Estoque || 0),
+							min: row.min !== undefined ? Number(row.min) : (row.estoque_minimo || row.Estoque_Minimo ? Number(row.estoque_minimo || row.Estoque_Minimo) : undefined),
+							price: row.price !== undefined ? Number(row.price) : (row.preco_venda || row['Preço de Venda Normal'] ? Number(String(row.preco_venda || row['Preço de Venda Normal']).replace(/[^\d,.-]/g, '').replace(',', '.')) : undefined),
+							totalSold: row.total_sold !== undefined ? Number(row.total_sold) : undefined,
+							image: row.image || row.foto || row.Foto || '',
+						};
+					});
 					console.log('Parsed products:', parsedProducts.length);
 				}
 			} catch (err) {
@@ -168,12 +171,12 @@ const Dashboard = ({ onLogout, onOpenStatusForm }: { onLogout: () => void; onOpe
 			const historyFromCsv = hasProductsFromCsv ? buildHistoryFromProducts(parsedProducts) : [];
 
 			setCategorySales(categoryFromCsv.length ? categoryFromCsv : sampleCategory);
-			setHistory(historyFromCsv.length ? historyFromCsv : sampleHistory);
+			setHistory(historyFromCsv.length ? historyFromCsv : sampleClientEvolution);
 
 			// Fallback independente para clientes e vendedores:
 			// se ainda não houver dados reais carregados, usa os mocks.
-			setClientes((current) => (current && current.length ? current : sampleClientes));
-			setVendedores((current) => (current && current.length ? current : sampleVendedores));
+			if (!clientes.length) setClientes(sampleClientes);
+			if (!vendedores.length) setVendedores(sampleVendedores);
 
 			setLoading(false);
 		};
