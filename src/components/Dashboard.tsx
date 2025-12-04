@@ -98,13 +98,13 @@ const Dashboard = ({ onLogout, onOpenStatusForm }: { onLogout: () => void; onOpe
 				{ name: 'Cuias', venda: 9000, custo: 4000, share: 5.1 },
 				{ name: 'Outros', venda: 13000, custo: 8000, share: 11.0 },
 			];
-			const sampleHistory = [
-				{ month: 'Jul/25', value: 120000, quantity: 450 },
-				{ month: 'Ago/25', value: 144000, quantity: 520 },
-				{ month: 'Set/25', value: 131000, quantity: 480 },
-				{ month: 'Out/25', value: 118000, quantity: 430 },
-				{ month: 'Nov/25', value: 149000, quantity: 550 },
-			];
+			// const sampleHistory = [
+			// 	{ month: 'Jul/25', value: 120000, quantity: 450 },
+			// 	{ month: 'Ago/25', value: 144000, quantity: 520 },
+			// 	{ month: 'Set/25', value: 131000, quantity: 480 },
+			// 	{ month: 'Out/25', value: 118000, quantity: 430 },
+			// 	{ month: 'Nov/25', value: 149000, quantity: 550 },
+			// ];
 			const sampleClientes = [
 				{ id: 'c1', nome: 'Ana Paula', cidade: 'Brasília/DF', telefone: '(61) 99999-1111', ultimaCompra: '2025-11-14' },
 				{
