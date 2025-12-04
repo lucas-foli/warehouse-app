@@ -4,6 +4,14 @@
 @tailwind components;
 @tailwind utilities;
 
+/* colors:
+#394e6b
+#46b280
+#df3e60
+#ec7522
+#edc668
+ */
+
 :root {
 	--background: 214 47% 97%;
 	--foreground: 222 47% 12%;

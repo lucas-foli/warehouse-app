@@ -9,12 +9,10 @@ import {
 	BarChart,
 	CartesianGrid,
 	Legend,
-	Line,
-	LineChart,
 	ResponsiveContainer,
 	Tooltip,
 	XAxis,
-	YAxis,
+	YAxis
 } from 'recharts';
 import { supabase } from '../lib/supabaseClient';
 import type { CategorySale, Client, HistoryItem, KPIs, Product, Seller } from '../types';
@@ -47,7 +45,6 @@ const Dashboard = ({ onLogout, onOpenStatusForm }: { onLogout: () => void; onOpe
 	const [history, setHistory] = useState<HistoryItem[]>([]);
 	const [clientes, setClientes] = useState<Client[]>([]);
 	const [vendedores, setVendedores] = useState<Seller[]>([]);
-	const sellerColors = ['#121213', '#afafafff', '#9a9a9a', '#d4d4d4'];
 
 	useEffect(() => {
 		const loadData = async () => {
@@ -131,37 +128,37 @@ const Dashboard = ({ onLogout, onOpenStatusForm }: { onLogout: () => void; onOpe
 
 			// Fetch products from Supabase
 			try {
-			const { data, error } = await supabase
-				.from('products')
-				.select('*');
+				const { data, error } = await supabase
+					.from('products')
+					.select('*');
 
-			if (error) {
-				console.error('Supabase error:', error);
-				throw error;
+				if (error) {
+					console.error('Supabase error:', error);
+					throw error;
+				}
+
+				console.log('Supabase data received:', data?.length || 0, 'products');
+
+				if (data && data.length > 0) {
+					// Map Supabase data to Product interface
+					parsedProducts = data.map((row: any) => ({
+						id: row.id || row.sku || String(Math.random()),
+						name: row.name || row.descricao || row.Descrição || '',
+						sku: row.sku || row.SKU || '',
+						barcode: row.barcode || row.codigo_barras || '',
+						status: row.status || row.Status || '',
+						location: row.location || row.local || row.Local || '',
+						qty: Number(row.qty || row.quantidade_estoque || row.Quantidade_Estoque || row.total_estoque || row.Total_Estoque || 0),
+						min: row.min !== undefined ? Number(row.min) : (row.estoque_minimo || row.Estoque_Minimo ? Number(row.estoque_minimo || row.Estoque_Minimo) : undefined),
+						price: row.price !== undefined ? Number(row.price) : (row.preco_venda || row['Preço de Venda Normal'] ? Number(String(row.preco_venda || row['Preço de Venda Normal']).replace(/[^\d,.-]/g, '').replace(',', '.')) : undefined),
+						totalSold: row.total_sold !== undefined ? Number(row.total_sold) : undefined,
+						image: row.image || row.foto || row.Foto || '',
+					}));
+					console.log('Parsed products:', parsedProducts.length);
+				}
+			} catch (err) {
+				console.error('Failed to load products from Supabase, using mock data.', err);
 			}
-
-			console.log('Supabase data received:', data?.length || 0, 'products');
-
-			if (data && data.length > 0) {
-				// Map Supabase data to Product interface
-				parsedProducts = data.map((row: any) => ({
-					id: row.id || row.sku || String(Math.random()),
-					name: row.name || row.descricao || row.Descrição || '',
-					sku: row.sku || row.SKU || '',
-					barcode: row.barcode || row.codigo_barras || '',
-					status: row.status || row.Status || '',
-					location: row.location || row.local || row.Local || '',
-					qty: Number(row.qty || row.quantidade_estoque || row.Quantidade_Estoque || row.total_estoque || row.Total_Estoque || 0),
-					min: row.min !== undefined ? Number(row.min) : (row.estoque_minimo || row.Estoque_Minimo ? Number(row.estoque_minimo || row.Estoque_Minimo) : undefined),
-					price: row.price !== undefined ? Number(row.price) : (row.preco_venda || row['Preço de Venda Normal'] ? Number(String(row.preco_venda || row['Preço de Venda Normal']).replace(/[^\d,.-]/g, '').replace(',', '.')) : undefined),
-					totalSold: row.total_sold !== undefined ? Number(row.total_sold) : undefined,
-					image: row.image || row.foto || row.Foto || '',
-				}));
-				console.log('Parsed products:', parsedProducts.length);
-			}
-		} catch (err) {
-			console.error('Failed to load products from Supabase, using mock data.', err);
-		}
 
 			const hasProductsFromCsv = parsedProducts.length > 0;
 			const productsToUse = hasProductsFromCsv ? parsedProducts : sample;
@@ -215,8 +212,8 @@ const Dashboard = ({ onLogout, onOpenStatusForm }: { onLogout: () => void; onOpe
 		monthlyChange === 0
 			? 'Tendência estável no mês.'
 			: monthlyChange > 0
-			? `Crescimento de ${(monthlyChange * 100).toFixed(1)}% vs mês anterior.`
-			: `Queda de ${Math.abs(monthlyChange * 100).toFixed(1)}% vs mês anterior.`;
+				? `Crescimento de ${(monthlyChange * 100).toFixed(1)}% vs mês anterior.`
+				: `Queda de ${Math.abs(monthlyChange * 100).toFixed(1)}% vs mês anterior.`;
 
 	const locations = useMemo(
 		() => Array.from(new Set(products.map((p) => p.location))).filter(Boolean),
@@ -396,9 +393,8 @@ const Dashboard = ({ onLogout, onOpenStatusForm }: { onLogout: () => void; onOpe
 											setPage(tab.key);
 											if (tab.key !== 'overview') setSurface('dashboard');
 										}}
-										className={`rounded-full px-4 py-2 transition ${
-											page === tab.key ? 'bg-[#121213] text-white shadow-sm' : 'text-[#6f6f6f] hover:text-black'
-										}`}>
+										className={`rounded-full px-4 py-2 transition ${page === tab.key ? 'bg-[#121213] text-white shadow-sm' : 'text-[#6f6f6f] hover:text-black'
+											}`}>
 										{tab.label}
 									</button>
 								))}
@@ -410,7 +406,7 @@ const Dashboard = ({ onLogout, onOpenStatusForm }: { onLogout: () => void; onOpe
 						<>
 							{/* Nível 1 — Overview absoluto */}
 							<Section className="mt-8 grid items-stretch gap-8 md:grid-cols-2 xl:grid-cols-4">
-								<Card>
+								<Card className="bg-gradient-to-br from-[#394e6b] to-[#46b280] text-white shadow-lg">
 									<Metric
 										value={Math.max(0, dailyRevenue || 0).toLocaleString('pt-BR', {
 											maximumFractionDigits: 0,
@@ -418,12 +414,13 @@ const Dashboard = ({ onLogout, onOpenStatusForm }: { onLogout: () => void; onOpe
 										label="Faturamento do dia"
 										prefix="R$ "
 										detail={monthlyChange >= 0 ? '⬆︎ Tendência positiva' : '⬇︎ Tendência em atenção'}
+
 									/>
 								</Card>
 								<Card>
 									<Metric
 										value={Math.max(0, monthlyRevenue || 0).toLocaleString('pt-BR')}
-										label="Faturamento do mês"
+										label="Faturamento Total"
 										prefix="R$ "
 										detail="Visão consolidada do mês atual"
 									/>
@@ -477,12 +474,12 @@ const Dashboard = ({ onLogout, onOpenStatusForm }: { onLogout: () => void; onOpe
 											const share = Math.min(100, cat.share || 0);
 											return (
 												<div key={cat.name} className="space-y-1.5">
-													<div className="flex items-center justify-between text-sm text-[#1A1A1A]">
+													<div className="flex items-center justify-between text-sm text-[#394e6b]">
 														<span>{cat.name}</span>
 														<span className="text-xs text-[#8a8a8a]">R$ {cat.venda.toLocaleString('pt-BR')}</span>
 													</div>
 													<div className="flex h-2 overflow-hidden rounded-full bg-white">
-														<div className="bg-[#1A1A1A]" style={{ width: `${share}%` }} />
+														<div className="bg-[#394e6b]" style={{ width: `${share}%` }} />
 													</div>
 													<div className="flex justify-between text-[10px] uppercase tracking-[0.18em] text-[#8a8a8a]">
 														<span>Custo: R$ {cat.custo.toLocaleString('pt-BR')}</span>
@@ -502,18 +499,24 @@ const Dashboard = ({ onLogout, onOpenStatusForm }: { onLogout: () => void; onOpe
 									</p>
 									<div className="mt-4 h-56 w-full rounded-xl bg-white/60 p-4">
 										<ResponsiveContainer width="100%" height="100%">
-											<LineChart data={history}>
+											<AreaChart data={history}>
+												<defs>
+													<linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+														<stop offset="5%" stopColor="#394e6b" stopOpacity={0.3} />
+														<stop offset="95%" stopColor="#394e6b" stopOpacity={0} />
+													</linearGradient>
+												</defs>
 												<XAxis
 													dataKey="month"
 													axisLine={false}
 													tickLine={false}
-													tick={{ fill: '#6f6f6f', fontSize: 10 }}
+													tick={{ fill: '#394e6b', fontSize: 10 }}
 													dy={10}
 												/>
 												<YAxis
 													axisLine={false}
 													tickLine={false}
-													tick={{ fill: '#6f6f6f', fontSize: 10 }}
+													tick={{ fill: '#394e6b', fontSize: 10 }}
 													tickFormatter={(value) => (value >= 1000 ? `${(value / 1000).toFixed(0)}K` : value)}
 												/>
 												<Tooltip
@@ -527,15 +530,16 @@ const Dashboard = ({ onLogout, onOpenStatusForm }: { onLogout: () => void; onOpe
 													labelStyle={{ fontSize: '12px', color: '#6f6f6f', marginBottom: '8px' }}
 													formatter={(value: number) => [`R$ ${value.toLocaleString('pt-BR')}`, 'Faturamento']}
 												/>
-												<Line
+												<Area
 													type="monotone"
 													dataKey="value"
-													stroke="#121213"
+													stroke="#394e6b"
 													strokeWidth={2.5}
-													dot={{ r: 3, fill: '#121213' }}
+													fill="url(#colorRevenue)"
+													dot={{ r: 3, fill: '#394e6b' }}
 													activeDot={{ r: 5, strokeWidth: 0 }}
 												/>
-											</LineChart>
+											</AreaChart>
 										</ResponsiveContainer>
 									</div>
 								</Card>
@@ -620,11 +624,10 @@ const Dashboard = ({ onLogout, onOpenStatusForm }: { onLogout: () => void; onOpe
 											key={filter.key}
 											type="button"
 											onClick={() => setProductStatusFilter(filter.key as typeof productStatusFilter)}
-											className={`rounded-full border px-3 py-1 font-semibold transition ${
-												productStatusFilter === filter.key
-													? 'border-[#121213] bg-[#121213] text-white'
-													: 'border-black/10 bg-[#F5F5F7] text-[#6f6f6f] hover:text-[#1A1A1A]'
-											}`}>
+											className={`rounded-full border px-3 py-1 font-semibold transition ${productStatusFilter === filter.key
+												? 'border-[#121213] bg-[#121213] text-white'
+												: 'border-black/10 bg-[#F5F5F7] text-[#6f6f6f] hover:text-[#1A1A1A]'
+												}`}>
 											{filter.label}
 										</button>
 									))}
@@ -755,8 +758,8 @@ const Dashboard = ({ onLogout, onOpenStatusForm }: { onLogout: () => void; onOpe
 											<AreaChart data={clientEvolution}>
 												<defs>
 													<linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-														<stop offset="5%" stopColor="#121213" stopOpacity={0.12} />
-														<stop offset="95%" stopColor="#121213" stopOpacity={0} />
+														<stop offset="5%" stopColor="#394e6b" stopOpacity={0.3} />
+														<stop offset="95%" stopColor="#394e6b" stopOpacity={0} />
 													</linearGradient>
 												</defs>
 												<CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
@@ -764,10 +767,10 @@ const Dashboard = ({ onLogout, onOpenStatusForm }: { onLogout: () => void; onOpe
 													dataKey="month"
 													axisLine={false}
 													tickLine={false}
-													tick={{ fill: '#6f6f6f', fontSize: 10 }}
+													tick={{ fill: '#394e6b', fontSize: 10 }}
 													dy={10}
 												/>
-												<YAxis axisLine={false} tickLine={false} tick={{ fill: '#6f6f6f', fontSize: 10 }} />
+												<YAxis axisLine={false} tickLine={false} tick={{ fill: '#394e6b', fontSize: 10 }} />
 												<Tooltip
 													contentStyle={{
 														backgroundColor: '#fff',
@@ -784,11 +787,11 @@ const Dashboard = ({ onLogout, onOpenStatusForm }: { onLogout: () => void; onOpe
 													type="monotone"
 													dataKey="value"
 													name="Cliente"
-													stroke="#121213"
+													stroke="#394e6b"
 													strokeWidth={2}
 													fillOpacity={1}
 													fill="url(#colorValue)"
-													dot={{ r: 4, fill: '#121213', strokeWidth: 2, stroke: '#fff' }}
+													dot={{ r: 4, fill: '#394e6b', strokeWidth: 2, stroke: '#fff' }}
 													activeDot={{ r: 6, strokeWidth: 0 }}
 												/>
 											</AreaChart>
@@ -814,7 +817,7 @@ const Dashboard = ({ onLogout, onOpenStatusForm }: { onLogout: () => void; onOpe
 													</div>
 													<div className="h-2 overflow-hidden rounded-full bg-white">
 														<div
-															className="h-full bg-gradient-to-r from-[#121213] to-[#4b4b4b]"
+															className="h-full bg-gradient-to-r from-[#394e6b] to-[#46b280]"
 															style={{ width: `${width}%` }}
 														/>
 													</div>
@@ -887,11 +890,10 @@ const Dashboard = ({ onLogout, onOpenStatusForm }: { onLogout: () => void; onOpe
 										<ResponsiveContainer width="100%" height="100%">
 											<AreaChart data={sellerPerformance}>
 												<defs>
-													{vendedores.map((v, i) => (
-														// usa uma paleta neutra alinhada ao app (preto e cinzas)
+													{vendedores.map((v) => (
 														<linearGradient key={v.id} id={`color${v.id}`} x1="0" y1="0" x2="0" y2="1">
-															<stop offset="5%" stopColor={sellerColors[i % sellerColors.length]} stopOpacity={0.1} />
-															<stop offset="95%" stopColor={sellerColors[i % sellerColors.length]} stopOpacity={0} />
+															<stop offset="5%" stopColor="#394e6b" stopOpacity={0.3} />
+															<stop offset="95%" stopColor="#394e6b" stopOpacity={0} />
 														</linearGradient>
 													))}
 												</defs>
@@ -900,13 +902,13 @@ const Dashboard = ({ onLogout, onOpenStatusForm }: { onLogout: () => void; onOpe
 													dataKey="month"
 													axisLine={false}
 													tickLine={false}
-													tick={{ fill: '#6f6f6f', fontSize: 10 }}
+													tick={{ fill: '#394e6b', fontSize: 10 }}
 													dy={10}
 												/>
 												<YAxis
 													axisLine={false}
 													tickLine={false}
-													tick={{ fill: '#6f6f6f', fontSize: 10 }}
+													tick={{ fill: '#394e6b', fontSize: 10 }}
 													tickFormatter={(value) => (value >= 1000 ? `${(value / 1000).toFixed(0)}K` : value)}
 												/>
 												<Tooltip
@@ -920,19 +922,19 @@ const Dashboard = ({ onLogout, onOpenStatusForm }: { onLogout: () => void; onOpe
 													labelStyle={{ fontSize: '12px', color: '#6f6f6f', marginBottom: '8px' }}
 												/>
 												<Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
-												{vendedores.map((v, i) => (
+												{vendedores.map((v) => (
 													<Area
 														key={v.id}
 														type="monotone"
 														dataKey={v.nome}
 														name={v.nome}
-														stroke={sellerColors[i % sellerColors.length]}
+														stroke="#394e6b"
 														strokeWidth={2}
 														fillOpacity={1}
 														fill={`url(#color${v.id})`}
 														dot={{
 															r: 4,
-															fill: sellerColors[i % sellerColors.length],
+															fill: '#394e6b',
 															strokeWidth: 2,
 															stroke: '#fff',
 														}}
@@ -958,7 +960,7 @@ const Dashboard = ({ onLogout, onOpenStatusForm }: { onLogout: () => void; onOpe
 													type="number"
 													axisLine={false}
 													tickLine={false}
-													tick={{ fill: '#6f6f6f', fontSize: 10 }}
+													tick={{ fill: '#394e6b', fontSize: 10 }}
 													tickFormatter={(value) => (value >= 1000 ? `${(value / 1000).toFixed(0)}K` : value)}
 												/>
 												<YAxis
@@ -977,7 +979,7 @@ const Dashboard = ({ onLogout, onOpenStatusForm }: { onLogout: () => void; onOpe
 													stackId="total"
 													barSize={14}
 													radius={[0, 0, 0, 0]}
-													fill="#1f2937"
+													fill="#394e6b"
 												/>
 												<Bar
 													dataKey="liquido"
@@ -985,7 +987,7 @@ const Dashboard = ({ onLogout, onOpenStatusForm }: { onLogout: () => void; onOpe
 													stackId="total"
 													barSize={14}
 													radius={[0, 0, 0, 0]}
-													fill="#4b5563"
+													fill="#46b280"
 												/>
 											</BarChart>
 										</ResponsiveContainer>
