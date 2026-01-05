@@ -4,28 +4,46 @@
 @tailwind components;
 @tailwind utilities;
 
+/* colors:
+#394e6b
+#46b280
+#df3e60
+#ec7522
+#edc668
+ */
+
 :root {
-	--background: 214 47% 97%;
-	--foreground: 222 47% 12%;
+	/* Default (Stanley) */
+	--background: 60 14% 97%;
+	--foreground: 240 3% 7%;
 
 	--card: 0 0% 100%;
-	--card-foreground: 222 47% 12%;
+	--card-foreground: 240 3% 7%;
 
-	--border: 214 32% 90%;
-	--input: 214 32% 92%;
-	--ring: 222 84% 55%;
+	--border: 0 0% 90%;
+	--input: 0 0% 92%;
+	--ring: 240 3% 7%;
 
-	--primary: 225 72% 55%;
-	--primary-foreground: 216 100% 98%;
+	/* Default fallback values, will be overridden by JS */
+	--primary-color: #394e6b;
+	--secondary-color: #46b280;
 
-	--secondary: 224 41% 20%;
-	--secondary-foreground: 237 23% 19%;
+	/* CTAs/buttons (black) */
+	--primary: 240 3% 7%;
+	--primary-foreground: 0 0% 100%;
 
-	--muted: 222 36% 95%;
-	--muted-foreground: 222 16% 45%;
+	--secondary: 240 11% 96%;
+	--secondary-foreground: 240 3% 7%;
 
-	--accent: 191 97% 65%;
-	--accent-foreground: 222 47% 15%;
+	--muted: 240 11% 96%;
+	--muted-foreground: 0 0% 44%;
+
+	--accent: 45 35% 91%;
+	--accent-foreground: 240 3% 7%;
+
+	--font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+	--radius-card: 24px;
+	--shadow-card: 0 24px 60px rgba(0, 0, 0, 0.12);
 }
 
 *,
@@ -43,7 +61,7 @@ body {
 	min-height: 100vh;
 	background-color: hsl(var(--background));
 	color: hsl(var(--foreground));
-	font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+	font-family: var(--font-sans);
 	font-synthesis: none;
 	text-rendering: optimizeLegibility;
 	-webkit-font-smoothing: antialiased;
