@@ -3,13 +3,18 @@ import { useEffect, useState } from 'react';
 import './App.css';
 import Dashboard from './components/Dashboard';
 import LoginForm from './components/LoginForm';
+import Onboarding from './components/Onboarding';
+import { useTenant } from './context/TenantContext';
 import { supabase } from './lib/supabaseClient';
 import StatusUpdateForm from './StatusUpdateForm';
 
 const App = () => {
+	const { tenant, tenantLoading, tenantError, refreshTenant } = useTenant();
 	const [session, setSession] = useState<Session | null>(null);
 	const [checkingSession, setCheckingSession] = useState(true);
 	const [view, setView] = useState<'dashboard' | 'statusForm'>('dashboard');
+	const [membershipRole, setMembershipRole] = useState<'admin' | 'member' | null>(null);
+	const [checkingMembership, setCheckingMembership] = useState(false);
 
 	useEffect(() => {
 		let isMounted = true;
@@ -32,6 +37,45 @@ const App = () => {
 		};
 	}, []);
 
+	useEffect(() => {
+		let isMounted = true;
+
+		const loadMembership = async () => {
+			const userId = session?.user.id;
+			const tenantId = tenant?.id;
+
+			if (!userId || !tenantId) {
+				setMembershipRole(null);
+				return;
+			}
+
+			setCheckingMembership(true);
+			const { data, error } = await supabase
+				.from('tenant_members')
+				.select('role')
+				.eq('tenant_id', tenantId)
+				.eq('user_id', userId)
+				.maybeSingle();
+
+			if (!isMounted) return;
+
+			if (error) {
+				setMembershipRole(null);
+				setCheckingMembership(false);
+				return;
+			}
+
+			setMembershipRole((data?.role as 'admin' | 'member' | undefined) ?? null);
+			setCheckingMembership(false);
+		};
+
+		void loadMembership();
+
+		return () => {
+			isMounted = false;
+		};
+	}, [session?.user.id, tenant?.id]);
+
 	const handleLogout = async () => {
 		await supabase.auth.signOut();
 		setSession(null);
@@ -44,9 +88,76 @@ const App = () => {
 		setView('dashboard');
 	};
 
-	if (checkingSession) return null;
+	if (checkingSession || tenantLoading) return null;
+
+	if (tenantError) {
+		return (
+			<div className="min-h-screen bg-background text-foreground flex items-center justify-center px-6">
+				<div className="w-full max-w-xl rounded-[var(--radius-card)] border border-border/40 bg-card p-8 shadow-[var(--shadow-card)]">
+					<h1 className="text-xl font-semibold tracking-tight">Empresa não encontrada</h1>
+					<p className="mt-2 text-sm text-muted-foreground">{tenantError}</p>
+				</div>
+			</div>
+		);
+	}
 
 	if (!session) return <LoginForm onSuccess={handleSuccessAuth} />;
+
+	if (!tenant) {
+		return (
+			<div className="min-h-screen bg-background text-foreground flex items-center justify-center px-6">
+				<div className="w-full max-w-xl rounded-[var(--radius-card)] border border-border/40 bg-card p-8 shadow-[var(--shadow-card)]">
+					<h1 className="text-xl font-semibold tracking-tight">Configuração pendente</h1>
+					<p className="mt-2 text-sm text-muted-foreground">Não foi possível carregar a empresa deste subdomínio.</p>
+				</div>
+			</div>
+		);
+	}
+
+	if (checkingMembership) return null;
+
+	if (!membershipRole) {
+		return (
+			<div className="min-h-screen bg-background text-foreground flex items-center justify-center px-6">
+				<div className="w-full max-w-xl rounded-[var(--radius-card)] border border-border/40 bg-card p-8 shadow-[var(--shadow-card)]">
+					<h1 className="text-xl font-semibold tracking-tight">Acesso não autorizado</h1>
+					<p className="mt-2 text-sm text-muted-foreground">
+						Sua conta não tem acesso a <span className="font-semibold">{tenant.companyName}</span>. Peça para um administrador
+						adicionar seu usuário.
+					</p>
+					<button
+						type="button"
+						onClick={handleLogout}
+						className="mt-6 rounded-2xl bg-primary px-4 py-3 text-sm font-semibold uppercase tracking-[0.25em] text-primary-foreground hover:bg-primary/90">
+						Sair
+					</button>
+				</div>
+			</div>
+		);
+	}
+
+	if (!tenant.isOnboarded) {
+		if (membershipRole !== 'admin') {
+			return (
+				<div className="min-h-screen bg-background text-foreground flex items-center justify-center px-6">
+					<div className="w-full max-w-xl rounded-[var(--radius-card)] border border-border/40 bg-card p-8 shadow-[var(--shadow-card)]">
+						<h1 className="text-xl font-semibold tracking-tight">Setup em andamento</h1>
+						<p className="mt-2 text-sm text-muted-foreground">
+							Um administrador ainda precisa finalizar a configuração de <span className="font-semibold">{tenant.companyName}</span>.
+						</p>
+						<button
+							type="button"
+							onClick={handleLogout}
+							className="mt-6 rounded-2xl bg-primary px-4 py-3 text-sm font-semibold uppercase tracking-[0.25em] text-primary-foreground hover:bg-primary/90">
+							Sair
+						</button>
+					</div>
+				</div>
+			);
+		}
+
+		return <Onboarding onFinish={() => void refreshTenant()} />;
+	}
 
 	if (view === 'statusForm') {
 		return <StatusUpdateForm session={session} onBack={() => setView('dashboard')} />;

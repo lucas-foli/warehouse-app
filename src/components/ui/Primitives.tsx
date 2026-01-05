@@ -14,18 +14,19 @@ type CardProps = WithChildren & {
 	className?: string;
 	/** Quando false, desabilita o efeito de hover/zoom */
 	interactive?: boolean;
+	style?: React.CSSProperties;
 };
 
-export const Card = ({ children, className, interactive = true }: CardProps) => {
-	const base = 'rounded-[24px] bg-[#F5F5F7] p-8';
+export const Card = ({ children, className, interactive = true, style }: CardProps) => {
+	const base = 'rounded-[var(--radius-card)] bg-muted p-8 text-foreground';
 	const interactiveClasses =
-		'transition-transform duration-200 ease-out hover:-translate-y-1 hover:scale-[1.01] hover:shadow-[0_24px_60px_rgba(0,0,0,0.12)]';
+		'transition-transform duration-200 ease-out hover:-translate-y-1 hover:scale-[1.01] hover:shadow-[var(--shadow-card)]';
 
-	return <div className={merge(`${base} ${interactive ? interactiveClasses : ''}`, className)}>{children}</div>;
+	return <div className={merge(`${base} ${interactive ? interactiveClasses : ''}`, className)} style={style}>{children}</div>;
 };
 
 export const Title = ({ children, className }: WithChildren & { className?: string }) => (
-	<h2 className={merge('text-3xl font-semibold tracking-tight text-[#1A1A1A]', className)}>{children}</h2>
+	<h2 className={merge('text-3xl font-semibold tracking-tight text-foreground', className)}>{children}</h2>
 );
 
 export const Metric = ({

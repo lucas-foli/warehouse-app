@@ -171,7 +171,7 @@ export const buildMultiSellerPerformance = (sellers: Seller[]) => {
 		date.setDate(date.getDate() - i);
 		const dayLabel = date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
 
-		const data: any = { month: dayLabel };
+			const data: Record<string, number | string> = { month: dayLabel };
 		sellers.forEach((seller) => {
 			// Generate varying daily performance with some randomness
 			const baseValue = (seller.bruto || 0) / 30; // Average daily value
