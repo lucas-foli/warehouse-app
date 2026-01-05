@@ -4,6 +4,7 @@ import './App.css';
 import Dashboard from './components/Dashboard';
 import LoginForm from './components/LoginForm';
 import Onboarding from './components/Onboarding';
+import TenantInviteGate from './components/TenantInviteGate';
 import { useTenant } from './context/TenantContext';
 import { supabase } from './lib/supabaseClient';
 import StatusUpdateForm from './StatusUpdateForm';
@@ -90,18 +91,11 @@ const App = () => {
 
 	if (checkingSession || tenantLoading) return null;
 
-	if (tenantError) {
-		return (
-			<div className="min-h-screen bg-background text-foreground flex items-center justify-center px-6">
-				<div className="w-full max-w-xl rounded-[var(--radius-card)] border border-border/40 bg-card p-8 shadow-[var(--shadow-card)]">
-					<h1 className="text-xl font-semibold tracking-tight">Empresa não encontrada</h1>
-					<p className="mt-2 text-sm text-muted-foreground">{tenantError}</p>
-				</div>
-			</div>
-		);
-	}
-
 	if (!session) return <LoginForm onSuccess={handleSuccessAuth} />;
+
+	if (tenantError) {
+		return <TenantInviteGate />;
+	}
 
 	if (!tenant) {
 		return (

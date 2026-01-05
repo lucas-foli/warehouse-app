@@ -47,7 +47,8 @@ const SAMPLE_CLIENT_PURCHASES: HistoryItem[] = [
 const Dashboard = ({ onLogout, onOpenStatusForm }: { onLogout: () => void; onOpenStatusForm: () => void }) => {
 	const { tenant } = useTenant();
 	const tenantId = tenant?.id;
-	const { logoUrl, primaryColor, secondaryColor, companyName } = useTheme();
+	const { logoUrl, primaryColor, secondaryColor, companyName, uiPreset } = useTheme();
+	const easynumbersLogo = uiPreset?.toLowerCase() === 'dark' ? '/easynumbers-white.png' : '/easynumbers.png';
 	const [loading, setLoading] = useState(false);
 	const [page, setPage] = useState<'overview' | 'clientes' | 'vendedores'>('overview');
 	const [surface, setSurface] = useState<'dashboard' | 'products'>('dashboard');
@@ -382,8 +383,8 @@ const Dashboard = ({ onLogout, onOpenStatusForm }: { onLogout: () => void; onOpe
 								</select>
 							</div>
 							<div className="ml-auto flex items-center gap-3 text-foreground">
-							<img
-								src="/easynumbers.png"
+								<img
+									src={easynumbersLogo}
 								alt="EasyNumbers"
 								className="pointer-events-none h-8 w-auto sm:h-10 scale-[5.75] z-[-0.5] mr-2"
 							/>

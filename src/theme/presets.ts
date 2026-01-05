@@ -83,7 +83,7 @@ export const UI_PRESETS: Record<UiPresetId, { label: string; tokens: ThemeTokens
 			ring: '214 60% 55%',
 			primary: '210 40% 98%',
 			secondary: '222 40% 14%',
-			'primary-foreground': '210 40% 98%',
+			'primary-foreground': '222 47% 8%',
 			'secondary-foreground': '210 40% 98%',
 			muted: '222 40% 14%',
 			'muted-foreground': '215 20% 70%',

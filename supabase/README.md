@@ -55,6 +55,23 @@ O onboarding faz `upsert` em `public.products` usando o par `(tenant_id, sku)` c
 create unique index if not exists products_tenant_id_sku_uidx on public.products (tenant_id, sku);
 ```
 
+## Tenant invites (bootstrap admin)
+
+Para criar um tenant via convite (sem SQL manual pelo usuario), gere um codigo e compartilhe com o cliente:
+
+```sql
+insert into public.tenant_invites (code, max_uses, expires_at)
+values ('INVITE-ABC123', 1, now() + interval '7 days');
+```
+
+Fluxo esperado:
+
+- Usuario cria conta e acessa o slug desejado (subdominio ou `VITE_TENANT_SLUG`).
+- Tela de "Empresa nao encontrada" solicita nome da empresa + codigo do convite.
+- O app cria o tenant e adiciona o usuario como admin.
+
+Observacao: o slug precisa ter no maximo 32 caracteres.
+
 ## UI preset e tokens
 
 O branding/tema do tenant é salvo em:

@@ -60,7 +60,7 @@ export const Metric = ({
 );
 
 export const ListItem = ({ children, className }: WithChildren & { className?: string }) => (
-	<div className={merge('flex items-center justify-between rounded-2xl bg-white px-4 py-3 text-sm', className)}>
+	<div className={merge('flex items-center justify-between rounded-2xl bg-card px-4 py-3 text-sm text-foreground', className)}>
 		{children}
 	</div>
 );
