@@ -50,6 +50,17 @@ const resolveTenantSlug = () => {
 	return defaultSlug;
 };
 
+const mergeThemeTokens = (preset: string, raw: unknown): ThemeTokens => {
+	const base = getPresetTokens(preset);
+	if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return base;
+
+	const merged = { ...base, ...(raw as Record<string, string>) } as ThemeTokens;
+	if (preset.toLowerCase() === 'dark' && merged.primary === merged['primary-foreground']) {
+		return { ...merged, 'primary-foreground': merged.background || base.background };
+	}
+	return merged;
+};
+
 const mapTenantRow = (row: Record<string, unknown>): Tenant => {
 	const str = (key: string) => {
 		const value = row[key];
@@ -64,6 +75,8 @@ const mapTenantRow = (row: Record<string, unknown>): Tenant => {
 		return Boolean(value);
 	};
 
+	const preset = str('ui_preset') || DEFAULT_UI_PRESET;
+
 	return {
 		id: str('id'),
 		slug: str('slug'),
@@ -71,14 +84,8 @@ const mapTenantRow = (row: Record<string, unknown>): Tenant => {
 		logoUrl: str('logo_url') || str('logoUrl'),
 		primaryColor: str('primary_color') || str('primaryColor') || '#394e6b',
 		secondaryColor: str('secondary_color') || str('secondaryColor') || '#46b280',
-		uiPreset: str('ui_preset') || DEFAULT_UI_PRESET,
-		themeTokens: (() => {
-			const raw = row['theme_tokens'];
-			if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
-				return { ...getPresetTokens(str('ui_preset') || DEFAULT_UI_PRESET), ...(raw as Record<string, string>) } as ThemeTokens;
-			}
-			return getPresetTokens(str('ui_preset') || DEFAULT_UI_PRESET);
-		})(),
+		uiPreset: preset,
+		themeTokens: mergeThemeTokens(preset, row['theme_tokens']),
 		isOnboarded: bool('is_onboarded') || bool('isOnboarded'),
 	};
 };

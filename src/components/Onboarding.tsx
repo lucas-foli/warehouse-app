@@ -33,6 +33,8 @@ const Onboarding = ({ onFinish }: OnboardingProps) => {
 	const [importedRows, setImportedRows] = useState<number | null>(null);
 	const [isDragging, setIsDragging] = useState(false);
 	const fileInputRef = useRef<HTMLInputElement | null>(null);
+	const isCsvInvalid = Boolean(csvFile && csvRows.length === 0);
+	const isFinishDisabled = loading || Boolean(csvError) || Boolean(importError) || isCsvInvalid;
 
 	const handleIdentitySubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -374,14 +376,17 @@ const Onboarding = ({ onFinish }: OnboardingProps) => {
 										)}
 									</div>
 								)}
-								{csvFile && (
-									<div className="pt-2">
-										<button
-											type="button"
-											onClick={resetCsv}
-											className="text-xs font-medium text-primary hover:text-primary/90"
-										>
-											Remover arquivo
+									{csvFile && (
+										<div className="pt-2">
+											<button
+												type="button"
+												onClick={(event) => {
+													event.stopPropagation();
+													resetCsv();
+												}}
+												className="text-xs font-medium text-primary hover:text-primary/90"
+											>
+												Remover arquivo
 										</button>
 									</div>
 								)}
@@ -460,11 +465,11 @@ const Onboarding = ({ onFinish }: OnboardingProps) => {
 					>
 						Voltar
 					</button>
-						<button
-							onClick={handleFinish}
-							disabled={loading}
-							className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary text-base font-medium text-primary-foreground hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-ring/25 sm:text-sm disabled:opacity-50"
-						>
+							<button
+								onClick={handleFinish}
+								disabled={isFinishDisabled}
+								className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary text-base font-medium text-primary-foreground hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-ring/25 sm:text-sm disabled:opacity-50"
+							>
 							{loading ? 'Finalizando...' : 'Finalizar Setup'}
 						</button>
 					</div>
