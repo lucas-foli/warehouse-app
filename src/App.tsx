@@ -2,6 +2,7 @@ import type { Session } from '@supabase/supabase-js';
 import { useEffect, useState } from 'react';
 import './App.css';
 import Dashboard from './components/Dashboard';
+import DataImport from './components/DataImport';
 import LoginForm from './components/LoginForm';
 import Onboarding from './components/Onboarding';
 import TenantInviteGate from './components/TenantInviteGate';
@@ -13,7 +14,7 @@ const App = () => {
 	const { tenant, tenantLoading, tenantError, refreshTenant } = useTenant();
 	const [session, setSession] = useState<Session | null>(null);
 	const [checkingSession, setCheckingSession] = useState(true);
-	const [view, setView] = useState<'dashboard' | 'statusForm'>('dashboard');
+	const [view, setView] = useState<'dashboard' | 'statusForm' | 'importData'>('dashboard');
 	const [membershipRole, setMembershipRole] = useState<'admin' | 'member' | null>(null);
 	const [checkingMembership, setCheckingMembership] = useState(false);
 
@@ -157,7 +158,18 @@ const App = () => {
 		return <StatusUpdateForm session={session} onBack={() => setView('dashboard')} />;
 	}
 
-	return <Dashboard onLogout={handleLogout} onOpenStatusForm={() => setView('statusForm')} />;
+	if (view === 'importData') {
+		return <DataImport onBack={() => setView('dashboard')} />;
+	}
+
+	return (
+		<Dashboard
+			onLogout={handleLogout}
+			onOpenStatusForm={() => setView('statusForm')}
+			onOpenImport={() => setView('importData')}
+			canImport={membershipRole === 'admin'}
+		/>
+	);
 };
 
 export default App;

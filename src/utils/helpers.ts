@@ -44,6 +44,41 @@ export const buildCategorySalesFromProducts = (
 	}));
 };
 
+export const buildCategorySalesFromItems = (
+	items: Array<{
+		sku?: string;
+		qty?: number;
+		unit_price?: number;
+		total_price?: number;
+	}>,
+	statusBySku: Map<string, string>,
+) => {
+	const byStatus = new Map<string, { venda: number; custo: number }>();
+
+	for (const item of items) {
+		const qty = item.qty ?? 0;
+		const amount =
+			item.total_price ?? (item.unit_price !== undefined ? item.unit_price * (qty || 1) : undefined);
+		if (!amount) continue;
+		const sku = item.sku ?? '';
+		const key = statusBySku.get(sku) || 'Outros';
+		const acc = byStatus.get(key) ?? { venda: 0, custo: 0 };
+		acc.venda += amount;
+		acc.custo += amount * 0.4;
+		byStatus.set(key, acc);
+	}
+
+	const totalVenda = Array.from(byStatus.values()).reduce((sum, c) => sum + c.venda, 0);
+	if (!totalVenda) return [];
+
+	return Array.from(byStatus.entries()).map(([name, { venda, custo }]) => ({
+		name,
+		venda,
+		custo,
+		share: (venda / totalVenda) * 100,
+	}));
+};
+
 export const buildHistoryFromProducts = (
 	items: Array<{
 		price?: number;
@@ -68,6 +103,37 @@ export const buildHistoryFromProducts = (
 		{ month: 'Out/25', value: totalVenda * 0.19, quantity: Math.round(totalQty * 0.19) },
 		{ month: 'Nov/25', value: totalVenda * 0.21, quantity: Math.round(totalQty * 0.21) },
 	];
+};
+
+export const buildHistoryFromOrders = (
+	orders: Array<{
+		sold_at?: string;
+		total_amount?: number;
+	}>,
+) => {
+	if (!orders.length) return [];
+
+	const byMonth = new Map<string, { label: string; value: number }>();
+
+	for (const order of orders) {
+		if (!order.total_amount) continue;
+		const date = order.sold_at ? new Date(order.sold_at) : null;
+		if (!date || Number.isNaN(date.getTime())) continue;
+		const year = date.getFullYear();
+		const month = date.getMonth();
+		const key = `${year}-${String(month + 1).padStart(2, '0')}`;
+		const label = `${date.toLocaleString('pt-BR', { month: 'short' })}/${String(year).slice(-2)}`;
+		const acc = byMonth.get(key) ?? { label, value: 0 };
+		acc.value += order.total_amount;
+		byMonth.set(key, acc);
+	}
+
+	const items = Array.from(byMonth.entries());
+	if (!items.length) return [];
+
+	items.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+
+	return items.map(([, value]) => ({ month: value.label, value: value.value }));
 };
 
 export const buildClientEvolutionFromClients = (clients: Client[]): HistoryItem[] => {

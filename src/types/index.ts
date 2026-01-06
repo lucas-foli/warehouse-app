@@ -29,6 +29,7 @@ export interface HistoryItem {
 
 export interface Client {
 	id: string;
+	externalId?: string;
 	nome: string;
 	cidade: string;
 	telefone?: string;
@@ -37,6 +38,7 @@ export interface Client {
 
 export interface Seller {
 	id: string;
+	externalId?: string;
 	nome: string;
 	itens: number;
 	bruto: number;
