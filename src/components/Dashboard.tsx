@@ -1,6 +1,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { BiListCheck } from 'react-icons/bi';
+import { FiUploadCloud } from 'react-icons/fi';
 import { LuLogOut } from 'react-icons/lu';
 import {
 	Area,
@@ -21,9 +22,11 @@ import { useTheme } from '../context/ThemeContext';
 import { supabase } from '../lib/supabaseClient';
 import type { CategorySale, Client, HistoryItem, KPIs, Product, Seller } from '../types';
 import {
+	buildCategorySalesFromItems,
 	buildCategorySalesFromProducts,
 	buildClientEvolutionFromClients,
 	buildClientPurchasesTimelineFromClients,
+	buildHistoryFromOrders,
 	buildHistoryFromProducts,
 	buildMultiSellerPerformance,
 } from '../utils/helpers';
@@ -44,7 +47,17 @@ const SAMPLE_CLIENT_PURCHASES: HistoryItem[] = [
 	{ month: '14 Nov', value: 31 },
 ];
 
-const Dashboard = ({ onLogout, onOpenStatusForm }: { onLogout: () => void; onOpenStatusForm: () => void }) => {
+const Dashboard = ({
+	onLogout,
+	onOpenStatusForm,
+	onOpenImport,
+	canImport,
+}: {
+	onLogout: () => void;
+	onOpenStatusForm: () => void;
+	onOpenImport: () => void;
+	canImport: boolean;
+}) => {
 	const { tenant } = useTenant();
 	const tenantId = tenant?.id;
 	const { logoUrl, primaryColor, secondaryColor, companyName, uiPreset } = useTheme();
@@ -149,6 +162,31 @@ const Dashboard = ({ onLogout, onOpenStatusForm }: { onLogout: () => void; onOpe
 				{ id: 'v3', nome: 'Cecilia', itens: 289, bruto: 31591, liquido: 31497.17, boletos: 111 },
 			];
 			let parsedProducts: Product[] = [];
+			let parsedClients: Client[] = [];
+			let parsedSellers: Seller[] = [];
+			let salesOrders: Array<{
+				order_number: string;
+				client_id?: string;
+				client_external_id?: string;
+				seller_id?: string;
+				seller_external_id?: string;
+				status?: string;
+				total_amount?: number;
+				sold_at?: string;
+			}> = [];
+			let salesItems: Array<{
+				order_number: string;
+				sku?: string;
+				qty?: number;
+				unit_price?: number;
+				total_price?: number;
+			}> = [];
+
+			const toText = (value: unknown) => {
+				if (typeof value === 'string') return value.trim();
+				if (typeof value === 'number') return String(value);
+				return '';
+			};
 
 			// Fetch products from Supabase
 			try {
@@ -211,20 +249,175 @@ const Dashboard = ({ onLogout, onOpenStatusForm }: { onLogout: () => void; onOpe
 				console.error('Failed to load products from Supabase, using mock data.', err);
 			}
 
+			// Fetch clients
+			try {
+				const { data, error } = await supabase.from('clients').select('*').eq('tenant_id', tenantId);
+				if (error) throw error;
+				parsedClients =
+					data?.map((row) => ({
+						id: toText(row.id) || crypto.randomUUID(),
+						externalId: toText(row.external_id) || undefined,
+						nome: toText(row.name) || toText(row.nome) || 'Cliente',
+						cidade: toText(row.city) || toText(row.cidade) || '—',
+						telefone: toText(row.phone) || toText(row.telefone) || undefined,
+						ultimaCompra: toText(row.last_purchase_at) || '',
+					})) ?? [];
+			} catch (err) {
+				console.error('Failed to load clients from Supabase.', err);
+			}
+
+			// Fetch sellers
+			try {
+				const { data, error } = await supabase.from('sellers').select('*').eq('tenant_id', tenantId);
+				if (error) throw error;
+				parsedSellers =
+					data?.map((row) => ({
+						id: toText(row.id) || crypto.randomUUID(),
+						externalId: toText(row.external_id) || undefined,
+						nome: toText(row.name) || toText(row.nome) || toText(row.external_id) || 'Vendedor',
+						itens: 0,
+						bruto: 0,
+						liquido: 0,
+						boletos: 0,
+					})) ?? [];
+			} catch (err) {
+				console.error('Failed to load sellers from Supabase.', err);
+			}
+
+			// Fetch sales orders
+			try {
+				const { data, error } = await supabase.from('sales_orders').select('*').eq('tenant_id', tenantId);
+				if (error) throw error;
+				salesOrders =
+					data?.map((row) => ({
+						order_number: toText(row.order_number),
+						client_id: toText(row.client_id) || undefined,
+						client_external_id: toText(row.client_external_id) || undefined,
+						seller_id: toText(row.seller_id) || undefined,
+						seller_external_id: toText(row.seller_external_id) || undefined,
+						status: toText(row.status) || undefined,
+						total_amount: Number(row.total_amount),
+						sold_at: toText(row.sold_at) || undefined,
+					})) ?? [];
+			} catch (err) {
+				console.error('Failed to load sales orders from Supabase.', err);
+			}
+
+			// Fetch sales items
+			try {
+				const { data, error } = await supabase.from('sales_items').select('*').eq('tenant_id', tenantId);
+				if (error) throw error;
+				salesItems =
+					data?.map((row) => ({
+						order_number: toText(row.order_number),
+						sku: toText(row.sku) || undefined,
+						qty: Number(row.qty),
+						unit_price: row.unit_price !== null && row.unit_price !== undefined ? Number(row.unit_price) : undefined,
+						total_price: row.total_price !== null && row.total_price !== undefined ? Number(row.total_price) : undefined,
+					})) ?? [];
+			} catch (err) {
+				console.error('Failed to load sales items from Supabase.', err);
+			}
+
+			if (salesItems.length) {
+				const soldBySku = new Map<string, number>();
+				salesItems.forEach((item) => {
+					if (!item.sku) return;
+					const qty = Number.isFinite(item.qty) ? Number(item.qty) : 0;
+					const current = soldBySku.get(item.sku) ?? 0;
+					soldBySku.set(item.sku, current + qty);
+				});
+
+				parsedProducts = parsedProducts.map((product) => ({
+					...product,
+					totalSold: soldBySku.get(product.sku) ?? product.totalSold,
+				}));
+			}
+
 			const hasProductsFromCsv = parsedProducts.length > 0;
 			const productsToUse = hasProductsFromCsv ? parsedProducts : sample;
 			setProducts(productsToUse);
 
-			const categoryFromCsv = hasProductsFromCsv ? buildCategorySalesFromProducts(parsedProducts) : [];
-			const historyFromCsv = hasProductsFromCsv ? buildHistoryFromProducts(parsedProducts) : [];
+			const statusBySku = new Map(productsToUse.map((product) => [product.sku, product.status]));
+			const categoryFromItems = salesItems.length ? buildCategorySalesFromItems(salesItems, statusBySku) : [];
+			const categoryFromProducts = hasProductsFromCsv ? buildCategorySalesFromProducts(parsedProducts) : [];
 
-			setCategorySales(categoryFromCsv.length ? categoryFromCsv : sampleCategory);
-			setHistory(historyFromCsv.length ? historyFromCsv : SAMPLE_CLIENT_EVOLUTION);
+			const historyFromOrders = salesOrders.length ? buildHistoryFromOrders(salesOrders) : [];
+			const historyFromProducts = hasProductsFromCsv ? buildHistoryFromProducts(parsedProducts) : [];
 
-			// Fallback independente para clientes e vendedores:
-			// se ainda não houver dados reais carregados, usa os mocks.
-			setClientes(sampleClientes);
-			setVendedores(sampleVendedores);
+			setCategorySales(
+				categoryFromItems.length ? categoryFromItems : categoryFromProducts.length ? categoryFromProducts : sampleCategory,
+			);
+			setHistory(historyFromOrders.length ? historyFromOrders : historyFromProducts.length ? historyFromProducts : SAMPLE_CLIENT_EVOLUTION);
+
+			if (salesOrders.length) {
+				const lastPurchaseByKey = new Map<string, string>();
+				salesOrders.forEach((order) => {
+					const key = order.client_id || order.client_external_id;
+					if (!key || !order.sold_at) return;
+					const current = lastPurchaseByKey.get(key);
+					if (!current || new Date(order.sold_at) > new Date(current)) {
+						lastPurchaseByKey.set(key, order.sold_at);
+					}
+				});
+
+				if (parsedClients.length) {
+					parsedClients = parsedClients.map((client) => {
+						if (client.ultimaCompra) return client;
+						const key = client.id || client.externalId;
+						const lastPurchase = key ? lastPurchaseByKey.get(key) : undefined;
+						return lastPurchase ? { ...client, ultimaCompra: lastPurchase } : client;
+					});
+				}
+			}
+
+			const clientsToUse = parsedClients.length ? parsedClients : sampleClientes;
+			setClientes(clientsToUse);
+
+			const sellerMap = new Map<string, Seller>();
+			parsedSellers.forEach((seller) => {
+				const key = seller.externalId || seller.id;
+				if (key) sellerMap.set(key, { ...seller });
+			});
+
+			const ordersByNumber = new Map<string, { sellerKey?: string }>();
+			salesOrders.forEach((order) => {
+				const sellerKey = order.seller_external_id || order.seller_id;
+				if (order.order_number) ordersByNumber.set(order.order_number, { sellerKey });
+				if (!sellerKey) return;
+				if (!sellerMap.has(sellerKey)) {
+					sellerMap.set(sellerKey, {
+						id: sellerKey,
+						externalId: order.seller_external_id,
+						nome: order.seller_external_id || sellerKey,
+						itens: 0,
+						bruto: 0,
+						liquido: 0,
+						boletos: 0,
+					});
+				}
+				const seller = sellerMap.get(sellerKey);
+				if (seller && Number.isFinite(order.total_amount)) {
+					seller.bruto += Number(order.total_amount);
+					seller.liquido = seller.bruto;
+				}
+				if (seller && order.status && order.status.toLowerCase().includes('boleto')) {
+					seller.boletos += 1;
+				}
+			});
+
+			salesItems.forEach((item) => {
+				const orderMeta = ordersByNumber.get(item.order_number);
+				const sellerKey = orderMeta?.sellerKey;
+				if (!sellerKey) return;
+				const seller = sellerMap.get(sellerKey);
+				if (!seller) return;
+				const qty = Number.isFinite(item.qty) ? Number(item.qty) : 0;
+				seller.itens += qty;
+			});
+
+			const sellersToUse = sellerMap.size ? Array.from(sellerMap.values()) : sampleVendedores;
+			setVendedores(sellersToUse);
 
 			setLoading(false);
 		};
@@ -385,9 +578,19 @@ const Dashboard = ({ onLogout, onOpenStatusForm }: { onLogout: () => void; onOpe
 							<div className="ml-auto flex items-center gap-3 text-foreground">
 								<img
 									src={easynumbersLogo}
-								alt="EasyNumbers"
-								className="pointer-events-none h-8 w-auto sm:h-10 scale-[5.75] z-[-0.5] mr-2"
-							/>
+									alt="EasyNumbers"
+									className="pointer-events-none h-8 w-auto sm:h-10 scale-[5.75] z-[-0.5] mr-2"
+								/>
+								{canImport && (
+									<button
+										type="button"
+										onClick={onOpenImport}
+										className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border/50 text-xl transition hover:border-border"
+										title="Importar dados"
+										aria-label="Importar dados">
+										<FiUploadCloud />
+									</button>
+								)}
 								<button
 									type="button"
 									onClick={onOpenStatusForm}

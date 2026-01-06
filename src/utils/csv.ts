@@ -107,6 +107,42 @@ export type ProductUpsertRow = {
 	image?: string;
 };
 
+export type ClientUpsertRow = {
+	tenant_id: string;
+	external_id: string;
+	name: string;
+	email?: string;
+	phone?: string;
+	city?: string;
+	last_purchase_at?: string;
+};
+
+export type SellerUpsertRow = {
+	tenant_id: string;
+	external_id: string;
+	name: string;
+	email?: string;
+};
+
+export type SalesOrderUpsertRow = {
+	tenant_id: string;
+	order_number: string;
+	client_external_id?: string;
+	seller_external_id?: string;
+	status?: string;
+	total_amount?: number;
+	sold_at?: string;
+};
+
+export type SalesItemUpsertRow = {
+	tenant_id: string;
+	order_number: string;
+	sku?: string;
+	qty?: number;
+	unit_price?: number;
+	total_price?: number;
+};
+
 const normalizeHeader = (value: string) =>
 	value
 		.normalize('NFD')
@@ -235,6 +271,15 @@ export type CsvProductsResult = {
 	warnings: string[];
 };
 
+export type CsvImportResult<T> = {
+	preview: Record<string, string>[];
+	rows: T[];
+	totalRows: number;
+	validRows: number;
+	skippedRows: number;
+	warnings: string[];
+};
+
 export const buildProductsFromCsvText = (csvText: string, tenantId: string): CsvProductsResult => {
 	const { headers, rows } = parseCsvText(csvText);
 	const warnings: string[] = [];
@@ -323,3 +368,406 @@ export const buildProductsFromCsvText = (csvText: string, tenantId: string): Csv
 	};
 };
 
+type ClientField = 'external_id' | 'name' | 'email' | 'phone' | 'city' | 'last_purchase_at';
+
+const CLIENT_HEADER_ALIASES: Record<string, ClientField> = {
+	external_id: 'external_id',
+	cliente_id: 'external_id',
+	client_id: 'external_id',
+	codigo_cliente: 'external_id',
+	cliente_codigo: 'external_id',
+	documento: 'external_id',
+	cpf: 'external_id',
+	cnpj: 'external_id',
+	id: 'external_id',
+
+	name: 'name',
+	nome: 'name',
+	cliente: 'name',
+	razao_social: 'name',
+	fantasia: 'name',
+
+	email: 'email',
+	'e-mail': 'email',
+
+	phone: 'phone',
+	telefone: 'phone',
+	celular: 'phone',
+	fone: 'phone',
+
+	city: 'city',
+	cidade: 'city',
+	municipio: 'city',
+
+	last_purchase_at: 'last_purchase_at',
+	ultima_compra: 'last_purchase_at',
+	ultima_compra_em: 'last_purchase_at',
+	data_ultima_compra: 'last_purchase_at',
+	last_purchase: 'last_purchase_at',
+};
+
+export const buildClientsFromCsvText = (csvText: string, tenantId: string): CsvImportResult<ClientUpsertRow> => {
+	const { headers, rows } = parseCsvText(csvText);
+	const warnings: string[] = [];
+
+	if (!headers.length) {
+		return { preview: [], rows: [], totalRows: 0, validRows: 0, skippedRows: 0, warnings: ['CSV sem cabecalho.'] };
+	}
+
+	const canonicalByIndex: Array<ClientField | undefined> = headers.map((h) => {
+		const normalized = normalizeHeader(h);
+		return CLIENT_HEADER_ALIASES[normalized];
+	});
+
+	const seenCanonicals = new Set(canonicalByIndex.filter(Boolean) as ClientField[]);
+	if (!seenCanonicals.has('name')) warnings.push('Coluna de nome nao detectada (ex: nome, name).');
+
+	const preview = rows.slice(0, 5).map((cols) =>
+		headers.reduce<Record<string, string>>((acc, header, idx) => {
+			acc[header] = (cols[idx] ?? '').trim();
+			return acc;
+		}, {}),
+	);
+
+	let skippedRows = 0;
+	const clientRows: ClientUpsertRow[] = [];
+
+	for (const cols of rows) {
+		const fields: Partial<Record<ClientField, string>> = {};
+		for (let i = 0; i < cols.length; i++) {
+			const canonical = canonicalByIndex[i];
+			if (!canonical) continue;
+			const existing = fields[canonical];
+			const next = (cols[i] ?? '').trim();
+			if (!existing && next) fields[canonical] = next;
+		}
+
+		const name = (fields.name ?? '').trim();
+		if (!name) {
+			skippedRows++;
+			continue;
+		}
+
+		const external = (fields.external_id ?? '').trim();
+		const email = (fields.email ?? '').trim();
+		const phone = (fields.phone ?? '').trim();
+		const city = (fields.city ?? '').trim();
+		const lastPurchase = (fields.last_purchase_at ?? '').trim();
+		const external_id = external || email || phone || name;
+
+		if (!external_id) {
+			skippedRows++;
+			continue;
+		}
+
+		clientRows.push({
+			tenant_id: tenantId,
+			external_id,
+			name,
+			email: email || undefined,
+			phone: phone || undefined,
+			city: city || undefined,
+			last_purchase_at: lastPurchase || undefined,
+		});
+	}
+
+	return {
+		preview,
+		rows: clientRows,
+		totalRows: rows.length,
+		validRows: clientRows.length,
+		skippedRows,
+		warnings,
+	};
+};
+
+type SellerField = 'external_id' | 'name' | 'email';
+
+const SELLER_HEADER_ALIASES: Record<string, SellerField> = {
+	external_id: 'external_id',
+	vendedor_id: 'external_id',
+	seller_id: 'external_id',
+	codigo_vendedor: 'external_id',
+	id: 'external_id',
+
+	name: 'name',
+	nome: 'name',
+	vendedor: 'name',
+	seller: 'name',
+	nome_vendedor: 'name',
+
+	email: 'email',
+	'e-mail': 'email',
+};
+
+export const buildSellersFromCsvText = (csvText: string, tenantId: string): CsvImportResult<SellerUpsertRow> => {
+	const { headers, rows } = parseCsvText(csvText);
+	const warnings: string[] = [];
+
+	if (!headers.length) {
+		return { preview: [], rows: [], totalRows: 0, validRows: 0, skippedRows: 0, warnings: ['CSV sem cabecalho.'] };
+	}
+
+	const canonicalByIndex: Array<SellerField | undefined> = headers.map((h) => {
+		const normalized = normalizeHeader(h);
+		return SELLER_HEADER_ALIASES[normalized];
+	});
+
+	const preview = rows.slice(0, 5).map((cols) =>
+		headers.reduce<Record<string, string>>((acc, header, idx) => {
+			acc[header] = (cols[idx] ?? '').trim();
+			return acc;
+		}, {}),
+	);
+
+	let skippedRows = 0;
+	const sellerRows: SellerUpsertRow[] = [];
+
+	for (const cols of rows) {
+		const fields: Partial<Record<SellerField, string>> = {};
+		for (let i = 0; i < cols.length; i++) {
+			const canonical = canonicalByIndex[i];
+			if (!canonical) continue;
+			const existing = fields[canonical];
+			const next = (cols[i] ?? '').trim();
+			if (!existing && next) fields[canonical] = next;
+		}
+
+		const name = (fields.name ?? '').trim();
+		if (!name) {
+			skippedRows++;
+			continue;
+		}
+
+		const external = (fields.external_id ?? '').trim();
+		const email = (fields.email ?? '').trim();
+		const external_id = external || email || name;
+
+		if (!external_id) {
+			skippedRows++;
+			continue;
+		}
+
+		sellerRows.push({
+			tenant_id: tenantId,
+			external_id,
+			name,
+			email: email || undefined,
+		});
+	}
+
+	return {
+		preview,
+		rows: sellerRows,
+		totalRows: rows.length,
+		validRows: sellerRows.length,
+		skippedRows,
+		warnings,
+	};
+};
+
+type OrderField = 'order_number' | 'client_external_id' | 'seller_external_id' | 'status' | 'total_amount' | 'sold_at';
+
+const ORDER_HEADER_ALIASES: Record<string, OrderField> = {
+	order_number: 'order_number',
+	numero_pedido: 'order_number',
+	numero: 'order_number',
+	pedido: 'order_number',
+	n_pedido: 'order_number',
+	order_id: 'order_number',
+
+	client_external_id: 'client_external_id',
+	cliente_id: 'client_external_id',
+	client_id: 'client_external_id',
+	cliente_codigo: 'client_external_id',
+	cliente: 'client_external_id',
+
+	seller_external_id: 'seller_external_id',
+	vendedor_id: 'seller_external_id',
+	seller_id: 'seller_external_id',
+	vendedor: 'seller_external_id',
+
+	status: 'status',
+	situacao: 'status',
+	situacao_pedido: 'status',
+	estado: 'status',
+
+	total_amount: 'total_amount',
+	valor_total: 'total_amount',
+	total: 'total_amount',
+	total_venda: 'total_amount',
+	total_pedido: 'total_amount',
+	valor: 'total_amount',
+
+	sold_at: 'sold_at',
+	data_venda: 'sold_at',
+	data_pedido: 'sold_at',
+	data: 'sold_at',
+	date: 'sold_at',
+	created_at: 'sold_at',
+};
+
+export const buildSalesOrdersFromCsvText = (csvText: string, tenantId: string): CsvImportResult<SalesOrderUpsertRow> => {
+	const { headers, rows } = parseCsvText(csvText);
+	const warnings: string[] = [];
+
+	if (!headers.length) {
+		return { preview: [], rows: [], totalRows: 0, validRows: 0, skippedRows: 0, warnings: ['CSV sem cabecalho.'] };
+	}
+
+	const canonicalByIndex: Array<OrderField | undefined> = headers.map((h) => {
+		const normalized = normalizeHeader(h);
+		return ORDER_HEADER_ALIASES[normalized];
+	});
+
+	const seenCanonicals = new Set(canonicalByIndex.filter(Boolean) as OrderField[]);
+	if (!seenCanonicals.has('order_number')) warnings.push('Coluna de numero do pedido nao detectada.');
+
+	const preview = rows.slice(0, 5).map((cols) =>
+		headers.reduce<Record<string, string>>((acc, header, idx) => {
+			acc[header] = (cols[idx] ?? '').trim();
+			return acc;
+		}, {}),
+	);
+
+	let skippedRows = 0;
+	const orderRows: SalesOrderUpsertRow[] = [];
+
+	for (const cols of rows) {
+		const fields: Partial<Record<OrderField, string>> = {};
+		for (let i = 0; i < cols.length; i++) {
+			const canonical = canonicalByIndex[i];
+			if (!canonical) continue;
+			const existing = fields[canonical];
+			const next = (cols[i] ?? '').trim();
+			if (!existing && next) fields[canonical] = next;
+		}
+
+		const orderNumber = (fields.order_number ?? '').trim();
+		if (!orderNumber) {
+			skippedRows++;
+			continue;
+		}
+
+		const totalAmount = fields.total_amount ? parseDecimal(fields.total_amount) : undefined;
+
+		orderRows.push({
+			tenant_id: tenantId,
+			order_number: orderNumber,
+			client_external_id: (fields.client_external_id ?? '').trim() || undefined,
+			seller_external_id: (fields.seller_external_id ?? '').trim() || undefined,
+			status: (fields.status ?? '').trim() || undefined,
+			total_amount: totalAmount,
+			sold_at: (fields.sold_at ?? '').trim() || undefined,
+		});
+	}
+
+	return {
+		preview,
+		rows: orderRows,
+		totalRows: rows.length,
+		validRows: orderRows.length,
+		skippedRows,
+		warnings,
+	};
+};
+
+type ItemField = 'order_number' | 'sku' | 'qty' | 'unit_price' | 'total_price';
+
+const ITEM_HEADER_ALIASES: Record<string, ItemField> = {
+	order_number: 'order_number',
+	numero_pedido: 'order_number',
+	pedido: 'order_number',
+	order_id: 'order_number',
+
+	sku: 'sku',
+	codigo_produto: 'sku',
+	produto_id: 'sku',
+	referencia: 'sku',
+	ref: 'sku',
+	codigo: 'sku',
+
+	qty: 'qty',
+	quantidade: 'qty',
+	qtd: 'qty',
+	quant: 'qty',
+
+	unit_price: 'unit_price',
+	preco_unitario: 'unit_price',
+	valor_unitario: 'unit_price',
+	preco: 'unit_price',
+	valor: 'unit_price',
+
+	total_price: 'total_price',
+	total: 'total_price',
+	valor_total: 'total_price',
+	total_item: 'total_price',
+};
+
+export const buildSalesItemsFromCsvText = (csvText: string, tenantId: string): CsvImportResult<SalesItemUpsertRow> => {
+	const { headers, rows } = parseCsvText(csvText);
+	const warnings: string[] = [];
+
+	if (!headers.length) {
+		return { preview: [], rows: [], totalRows: 0, validRows: 0, skippedRows: 0, warnings: ['CSV sem cabecalho.'] };
+	}
+
+	const canonicalByIndex: Array<ItemField | undefined> = headers.map((h) => {
+		const normalized = normalizeHeader(h);
+		return ITEM_HEADER_ALIASES[normalized];
+	});
+
+	const seenCanonicals = new Set(canonicalByIndex.filter(Boolean) as ItemField[]);
+	if (!seenCanonicals.has('order_number')) warnings.push('Coluna de numero do pedido nao detectada.');
+	if (!seenCanonicals.has('sku')) warnings.push('Coluna de SKU nao detectada.');
+
+	const preview = rows.slice(0, 5).map((cols) =>
+		headers.reduce<Record<string, string>>((acc, header, idx) => {
+			acc[header] = (cols[idx] ?? '').trim();
+			return acc;
+		}, {}),
+	);
+
+	let skippedRows = 0;
+	const itemRows: SalesItemUpsertRow[] = [];
+
+	for (const cols of rows) {
+		const fields: Partial<Record<ItemField, string>> = {};
+		for (let i = 0; i < cols.length; i++) {
+			const canonical = canonicalByIndex[i];
+			if (!canonical) continue;
+			const existing = fields[canonical];
+			const next = (cols[i] ?? '').trim();
+			if (!existing && next) fields[canonical] = next;
+		}
+
+		const orderNumber = (fields.order_number ?? '').trim();
+		const sku = (fields.sku ?? '').trim();
+		if (!orderNumber || !sku) {
+			skippedRows++;
+			continue;
+		}
+
+		const qty = fields.qty ? parseInteger(fields.qty) : undefined;
+		const unitPrice = fields.unit_price ? parseDecimal(fields.unit_price) : undefined;
+		const totalPrice = fields.total_price ? parseDecimal(fields.total_price) : undefined;
+
+		itemRows.push({
+			tenant_id: tenantId,
+			order_number: orderNumber,
+			sku,
+			qty: qty ?? undefined,
+			unit_price: unitPrice ?? undefined,
+			total_price: totalPrice ?? undefined,
+		});
+	}
+
+	return {
+		preview,
+		rows: itemRows,
+		totalRows: rows.length,
+		validRows: itemRows.length,
+		skippedRows,
+		warnings,
+	};
+};

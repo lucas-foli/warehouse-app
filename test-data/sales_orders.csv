@@ -1,0 +1,4 @@
+order_number,client_external_id,seller_external_id,status,total_amount,sold_at
+O-1001,C-001,S-001,PAID,680.00,2025-01-05
+O-1002,C-002,S-002,PAID,140.00,2025-01-12
+O-1003,C-003,S-003,BOLETO,54.00,2025-01-20

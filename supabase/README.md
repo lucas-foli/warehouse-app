@@ -55,6 +55,24 @@ O onboarding faz `upsert` em `public.products` usando o par `(tenant_id, sku)` c
 create unique index if not exists products_tenant_id_sku_uidx on public.products (tenant_id, sku);
 ```
 
+## Importacao de clientes e vendas
+
+Novas tabelas:
+
+- `clients` (clientes)
+- `sellers` (vendedores)
+- `sales_orders` (cabecalho de vendas)
+- `sales_items` (itens por pedido)
+
+O app tem uma tela "Importar dados" (admin-only) que aceita quatro tipos de CSV:
+
+- Clientes: `external_id`, `nome`, `email`, `telefone`, `cidade`, `ultima_compra`
+- Vendedores: `external_id`, `nome`, `email`
+- Vendas (Pedidos): `order_number`, `client_external_id`, `seller_external_id`, `status`, `total_amount`, `sold_at`
+- Itens de venda: `order_number`, `sku`, `qty`, `unit_price`, `total_price`
+
+O relacionamento e feito por `external_id` (clientes/vendedores) e `order_number` (pedidos).
+
 ## Tenant invites (bootstrap admin)
 
 Para criar um tenant via convite (sem SQL manual pelo usuario), gere um codigo e compartilhe com o cliente:
