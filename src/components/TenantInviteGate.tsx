@@ -8,15 +8,16 @@ const mapInviteError = (message: string) => {
 	if (normalized.includes('slug_required')) return 'Informe um slug valido para continuar.';
 	if (normalized.includes('slug_taken')) return 'Este slug ja esta em uso.';
 	if (normalized.includes('invalid_invite')) return 'Convite invalido ou expirado.';
+	if (normalized.includes('invite_slug_mismatch')) return 'Este convite nao e valido para este slug.';
 	if (normalized.includes('invite_exhausted')) return 'Este convite ja foi utilizado.';
 	if (normalized.includes('not_authenticated')) return 'Voce precisa estar logado.';
 	return message;
 };
 
-const TenantInviteGate = () => {
+const TenantInviteGate = ({ initialInviteCode }: { initialInviteCode?: string }) => {
 	const { tenantSlug, tenantError, refreshTenant } = useTenant();
 	const [companyName, setCompanyName] = useState('');
-	const [inviteCode, setInviteCode] = useState('');
+	const [inviteCode, setInviteCode] = useState(initialInviteCode ?? '');
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState('');
 	const [info, setInfo] = useState('');

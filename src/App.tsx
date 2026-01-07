@@ -5,6 +5,7 @@ import Dashboard from './components/Dashboard';
 import DataImport from './components/DataImport';
 import LoginForm from './components/LoginForm';
 import Onboarding from './components/Onboarding';
+import SlugNotFound from './components/SlugNotFound';
 import TenantInviteGate from './components/TenantInviteGate';
 import { useTenant } from './context/TenantContext';
 import { supabase } from './lib/supabaseClient';
@@ -92,11 +93,17 @@ const App = () => {
 
 	if (checkingSession || tenantLoading) return null;
 
-	if (!session) return <LoginForm onSuccess={handleSuccessAuth} />;
+	const inviteCode = typeof window !== 'undefined'
+		? new URLSearchParams(window.location.search).get('invite')?.trim()
+		: '';
 
 	if (tenantError) {
-		return <TenantInviteGate />;
+		if (!inviteCode) return <SlugNotFound />;
+		if (!session) return <LoginForm onSuccess={handleSuccessAuth} />;
+		return <TenantInviteGate initialInviteCode={inviteCode} />;
 	}
+
+	if (!session) return <LoginForm onSuccess={handleSuccessAuth} />;
 
 	if (!tenant) {
 		return (
