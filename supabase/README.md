@@ -82,10 +82,17 @@ insert into public.tenant_invites (code, max_uses, expires_at)
 values ('INVITE-ABC123', 1, now() + interval '7 days');
 ```
 
+Para atrelar o convite a um slug especifico:
+
+```sql
+insert into public.tenant_invites (code, max_uses, allowed_slug, expires_at)
+values ('INVITE-ACME', 1, 'acme', now() + interval '7 days');
+```
+
 Fluxo esperado:
 
 - Usuario cria conta e acessa o slug desejado (subdominio ou `VITE_TENANT_SLUG`).
-- Tela de "Empresa nao encontrada" solicita nome da empresa + codigo do convite.
+- Tela de "Empresa nao encontrada" solicita nome da empresa + codigo do convite (ou passe `?invite=CODIGO` na URL).
 - O app cria o tenant e adiciona o usuario como admin.
 
 Observacao: o slug precisa ter no maximo 32 caracteres.
