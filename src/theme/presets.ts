@@ -21,7 +21,7 @@ export type ThemeTokens = {
 	'shadow-card': string;
 };
 
-export const DEFAULT_UI_PRESET: UiPresetId = 'clean';
+export const DEFAULT_UI_PRESET: UiPresetId = 'warm';
 
 export const UI_PRESETS: Record<UiPresetId, { label: string; tokens: ThemeTokens }> = {
 	clean: {
@@ -96,7 +96,13 @@ export const UI_PRESETS: Record<UiPresetId, { label: string; tokens: ThemeTokens
 	},
 };
 
+const normalizePreset = (preset?: string | null): UiPresetId => {
+	const key = (preset || DEFAULT_UI_PRESET).toLowerCase();
+	if (key === 'clean') return 'warm';
+	return key as UiPresetId;
+};
+
 export const getPresetTokens = (preset?: string | null): ThemeTokens => {
-	const key = (preset || DEFAULT_UI_PRESET).toLowerCase() as UiPresetId;
+	const key = normalizePreset(preset);
 	return UI_PRESETS[key]?.tokens ?? UI_PRESETS[DEFAULT_UI_PRESET].tokens;
 };

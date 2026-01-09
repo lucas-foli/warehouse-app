@@ -21,8 +21,8 @@ interface ThemeContextType extends Theme {
 const defaultTheme: Theme = {
 	primaryColor: '#394e6b',
 	secondaryColor: '#46b280',
-	logoUrl: '/Stanley Brandmark Horizontal.avif',
-	companyName: 'Stanley',
+	logoUrl: '/made-by-sark-black.jpeg',
+	companyName: 'SARK',
 	uiPreset: DEFAULT_UI_PRESET,
 	themeTokens: getPresetTokens(DEFAULT_UI_PRESET),
 };

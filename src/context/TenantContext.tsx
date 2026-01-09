@@ -27,6 +27,12 @@ type TenantContextValue = {
 const TenantContext = createContext<TenantContextValue | undefined>(undefined);
 
 const resolveTenantSlug = () => {
+	if (typeof window !== 'undefined') {
+		const params = new URLSearchParams(window.location.search);
+		const querySlug = params.get('slug')?.trim().toLowerCase();
+		if (querySlug) return querySlug;
+	}
+
 	const explicit = import.meta.env.VITE_TENANT_SLUG as string | undefined;
 	if (explicit && explicit.trim()) return explicit.trim().toLowerCase();
 
