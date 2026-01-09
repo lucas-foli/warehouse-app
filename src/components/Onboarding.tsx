@@ -48,7 +48,7 @@ const normalizePreset = (value?: string | null) => {
 };
 
 const Onboarding = ({ onFinish, inviteCode }: OnboardingProps) => {
-	const { setTheme, primaryColor, secondaryColor, companyName, logoUrl, uiPreset } = useTheme();
+	const { setTheme, primaryColor, secondaryColor, companyName, uiPreset } = useTheme();
 	const { tenant, patchTenant, refreshTenant, tenantSlug } = useTenant();
 	const [step, setStep] = useState<1 | 2 | 3>(tenant ? 2 : 1);
 	const [localName, setLocalName] = useState(tenant ? companyName : '');
