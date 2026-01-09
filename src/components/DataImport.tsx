@@ -68,6 +68,8 @@ const normalizeDateInput = (value?: string) => {
 	return parsed.toISOString();
 };
 
+const normalizeKey = (value: string) => value.trim().toUpperCase();
+
 const DataImport = ({ onBack }: Props) => {
 	const { tenant } = useTenant();
 	const tenantId = tenant?.id;
@@ -83,6 +85,7 @@ const DataImport = ({ onBack }: Props) => {
 	const [importedRows, setImportedRows] = useState<number | null>(null);
 	const [loading, setLoading] = useState(false);
 	const [isDragging, setIsDragging] = useState(false);
+	const [clearBeforeImport, setClearBeforeImport] = useState(false);
 
 	const config = IMPORT_CONFIG[kind];
 	const isCsvInvalid = Boolean(csvFile && csvRows.length === 0);
@@ -97,6 +100,7 @@ const DataImport = ({ onBack }: Props) => {
 		setCsvError('');
 		setImportError('');
 		setImportedRows(null);
+		setClearBeforeImport(false);
 	};
 
 	const parseResult = (text: string): CsvImportResult<unknown> => {
@@ -209,15 +213,38 @@ const DataImport = ({ onBack }: Props) => {
 		setImportError('');
 
 		try {
+			if (clearBeforeImport) {
+				if (kind === 'orders') {
+					const { error: itemError } = await supabase.from('sales_items').delete().eq('tenant_id', tenantId);
+					if (itemError) throw itemError;
+				}
+				const { error: clearError } = await supabase.from(config.table).delete().eq('tenant_id', tenantId);
+				if (clearError) throw clearError;
+			}
+
 			if (kind === 'clients' || kind === 'sellers') {
-				const uploaded = await upsertRows(csvRows as Record<string, unknown>[]);
+				const sanitized = (csvRows as Array<Record<string, unknown>>).map((row) => {
+					const rawExternal = String(row.external_id ?? '').trim();
+					return {
+						...row,
+						external_id: rawExternal ? normalizeKey(rawExternal) : rawExternal,
+						name: String(row.name ?? '').trim(),
+					};
+				});
+				const uploaded = await upsertRows(sanitized);
 				setImportedRows(uploaded);
 				setLoading(false);
 				return;
 			}
 
 			if (kind === 'orders') {
-				const rows = csvRows as SalesOrderUpsertRow[];
+				const rows = (csvRows as SalesOrderUpsertRow[]).map((row) => ({
+					...row,
+					order_number: normalizeKey(row.order_number),
+					client_external_id: row.client_external_id ? normalizeKey(row.client_external_id) : undefined,
+					seller_external_id: row.seller_external_id ? normalizeKey(row.seller_external_id) : undefined,
+					status: row.status?.trim() || undefined,
+				}));
 				const clientKeys = rows.map((row) => row.client_external_id || '').filter(Boolean);
 				const sellerKeys = rows.map((row) => row.seller_external_id || '').filter(Boolean);
 				const clientMap = clientKeys.length ? await fetchIdMap('clients', 'external_id', clientKeys) : new Map();
@@ -236,7 +263,11 @@ const DataImport = ({ onBack }: Props) => {
 				return;
 			}
 
-			const rows = csvRows as SalesItemUpsertRow[];
+			const rows = (csvRows as SalesItemUpsertRow[]).map((row) => ({
+				...row,
+				order_number: normalizeKey(row.order_number),
+				sku: row.sku ? normalizeKey(row.sku) : undefined,
+			}));
 			const orderNumbers = rows.map((row) => row.order_number).filter(Boolean);
 			const skus = rows.map((row) => row.sku || '').filter(Boolean);
 			const orderMap = orderNumbers.length ? await fetchIdMap('sales_orders', 'order_number', orderNumbers) : new Map();
@@ -272,6 +303,12 @@ const DataImport = ({ onBack }: Props) => {
 			})),
 		[],
 	);
+
+	const clearHint = useMemo(() => {
+		if (kind === 'orders') return 'Limpa pedidos e itens deste tenant.';
+		if (kind === 'items') return 'Limpa todos os itens de venda antes do import.';
+		return 'Limpa os dados deste tipo antes do import.';
+	}, [kind]);
 
 	return (
 		<div className="min-h-screen bg-background text-foreground flex flex-col justify-center py-12 sm:px-6 lg:px-8">
@@ -369,6 +406,23 @@ const DataImport = ({ onBack }: Props) => {
 									/>
 								</div>
 							</div>
+						</div>
+
+						<div className="rounded-md border border-border/40 bg-muted/30 px-3 py-3">
+							<label className="flex items-start gap-3 text-sm text-foreground">
+								<input
+									type="checkbox"
+									className="mt-1 h-4 w-4 rounded border-border text-primary focus:ring-2 focus:ring-ring/25"
+									checked={clearBeforeImport}
+									onChange={(event) => setClearBeforeImport(event.target.checked)}
+								/>
+								<span>
+									<span className="font-medium">Limpar dados antes de importar</span>
+									<span className="mt-1 block text-xs text-muted-foreground">
+										{clearHint} Use com cuidado.
+									</span>
+								</span>
+							</label>
 						</div>
 
 						{csvError && (
