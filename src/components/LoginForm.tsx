@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import { supabase } from '../lib/supabaseClient';
 import type { AuthMode } from '../types';
-import { translateAuthError } from '../utils/helpers';
+import { resolveMadeBySarkUrl, translateAuthError } from '../utils/helpers';
 
 const INVITE_STORAGE_KEY = 'warehouse_invite_code';
 
@@ -57,6 +57,7 @@ const storeInvite = (invite: string) => {
 
 const LoginForm = ({ onSuccess }: { onSuccess: () => void }) => {
 	const { companyName, logoUrl } = useTheme();
+	const madeBySarkUrl = resolveMadeBySarkUrl();
 	const [mode, setMode] = useState<AuthMode>('signin');
 	const [email, setEmail] = useState('');
 	const [password, setPassword] = useState('');
@@ -301,11 +302,17 @@ const LoginForm = ({ onSuccess }: { onSuccess: () => void }) => {
 					</form>
 
 					<footer className="flex items-center justify-center border-t border-border/20 bg-card px-6 py-4 sm:px-10">
-						<img
-							src="/made-by-sark.jpeg"
-							alt="Made by SARK"
-							className="h-6 w-auto object-contain sm:h-8 scale-[0.50]"
-						/>
+						{madeBySarkUrl ? (
+							<img
+								src={madeBySarkUrl}
+								alt="Made by SARK"
+								className="h-6 w-auto object-contain sm:h-8 scale-[0.50]"
+							/>
+						) : (
+							<span className="text-xs uppercase tracking-[0.35em] text-muted-foreground">
+								Made by SARK
+							</span>
+						)}
 					</footer>
 				</motion.div>
 			</div>

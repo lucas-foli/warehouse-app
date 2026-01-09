@@ -29,6 +29,7 @@ import {
 	buildHistoryFromOrders,
 	buildHistoryFromProducts,
 	buildMultiSellerPerformance,
+	resolveMadeBySarkUrl,
 } from '../utils/helpers';
 import { Card, ListItem, Metric, Section, Title } from './ui/Primitives';
 
@@ -61,6 +62,7 @@ const Dashboard = ({
 	const { tenant } = useTenant();
 	const tenantId = tenant?.id;
 	const { logoUrl, primaryColor, secondaryColor, companyName, uiPreset } = useTheme();
+	const madeBySarkUrl = resolveMadeBySarkUrl();
 	const easynumbersLogo = uiPreset?.toLowerCase() === 'dark' ? '/easynumbers-white.png' : '/easynumbers.png';
 	const [loading, setLoading] = useState(false);
 	const [page, setPage] = useState<'overview' | 'clientes' | 'vendedores'>('overview');
@@ -1283,7 +1285,11 @@ const Dashboard = ({
 			</main>
 
 			<footer className="flex items-center justify-center border-t border-border/20 bg-card px-6 py-4 text-xs uppercase tracking-[0.3em] text-muted-foreground sm:px-10">
-				<img src="/made-by-sark.jpeg" alt="Made by SARK" className="h-6 w-auto object-contain sm:h-8 scale-[0.50]" />
+				{madeBySarkUrl ? (
+					<img src={madeBySarkUrl} alt="Made by SARK" className="h-6 w-auto object-contain sm:h-8 scale-[0.50]" />
+				) : (
+					<span>Made by SARK</span>
+				)}
 			</footer>
 		</div>
 	);

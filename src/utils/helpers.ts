@@ -13,6 +13,15 @@ export const translateAuthError = (message: string) => {
 	return message.replace(/\\n/g, '\n');
 };
 
+export const resolveMadeBySarkUrl = () => {
+	const explicit = import.meta.env.VITE_MADE_BY_SARK_URL ?? '';
+	if (explicit) return explicit;
+
+	const supabaseUrl = import.meta.env.VITE_SUPABASE_URL ?? '';
+	if (!supabaseUrl) return '';
+	return `${supabaseUrl}/storage/v1/object/public/tenant-logos/made-by-sark.png`;
+};
+
 export const buildCategorySalesFromProducts = (
 	items: Array<{
 		status: string;
