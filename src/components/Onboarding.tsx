@@ -11,6 +11,7 @@ interface OnboardingProps {
 }
 
 const INVITE_STORAGE_KEY = 'warehouse_invite_code';
+const LOGO_BUCKET = 'tenant-logos';
 const PRESET_OPTIONS: UiPresetId[] = ['warm', 'dark'];
 
 const readInviteFromUrl = () => {
@@ -47,7 +48,7 @@ const normalizePreset = (value?: string | null) => {
 };
 
 const Onboarding = ({ onFinish, inviteCode }: OnboardingProps) => {
-	const { setTheme, primaryColor, secondaryColor, companyName, logoUrl, uiPreset } = useTheme();
+	const { setTheme, primaryColor, secondaryColor, companyName, uiPreset } = useTheme();
 	const { tenant, patchTenant, refreshTenant, tenantSlug } = useTenant();
 	const [step, setStep] = useState<1 | 2 | 3>(tenant ? 2 : 1);
 	const [localName, setLocalName] = useState(tenant ? companyName : '');
@@ -70,12 +71,14 @@ const Onboarding = ({ onFinish, inviteCode }: OnboardingProps) => {
 	const [isDragging, setIsDragging] = useState(false);
 	const [inviteLoading, setInviteLoading] = useState(false);
 	const [inviteError, setInviteError] = useState('');
+	const [logoUploading, setLogoUploading] = useState(false);
+	const [logoError, setLogoError] = useState('');
 	const fileInputRef = useRef<HTMLInputElement | null>(null);
 	const isCsvInvalid = Boolean(csvFile && csvRows.length === 0);
 	const isFinishDisabled = loading || Boolean(csvError) || Boolean(importError) || isCsvInvalid || !tenant?.id;
 	const slugTooLong = tenantSlug.length > 32;
 	const isInviteDisabled = inviteLoading || !localName.trim() || !localInvite.trim() || slugTooLong;
-	const isIdentityDisabled = savingIdentity || !localName.trim();
+	const isIdentityDisabled = savingIdentity || logoUploading || !localName.trim();
 
 	useEffect(() => {
 		if (!tenant) return;
@@ -136,14 +139,15 @@ const Onboarding = ({ onFinish, inviteCode }: OnboardingProps) => {
 			return;
 		}
 
-		const nextLogoUrl = localLogo || logoUrl;
+		const tenantLogo = tenant?.logoUrl?.trim() || '';
+		const nextLogoUrl = localLogo || tenantLogo;
 		const nextTokens = getPresetTokens(localPreset);
 
 		const { error } = await supabase
 			.from('tenants')
-			.update({
-				company_name: localName,
-				logo_url: nextLogoUrl,
+				.update({
+					company_name: localName,
+					logo_url: localLogo ? nextLogoUrl : tenantLogo || null,
 				primary_color: localPrimary,
 				secondary_color: localSecondary,
 				ui_preset: localPreset,
@@ -178,15 +182,35 @@ const Onboarding = ({ onFinish, inviteCode }: OnboardingProps) => {
 		setSavingIdentity(false);
 	};
 
-	const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+	const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
 		const file = e.target.files?.[0];
-		if (file) {
-			const reader = new FileReader();
-			reader.onloadend = () => {
-				setLocalLogo(reader.result as string);
-			};
-			reader.readAsDataURL(file);
+		if (!file) return;
+
+		setLogoError('');
+		if (!tenant?.id) {
+			setLogoError('Tenant nao carregado ainda. Recarregue a pagina e tente novamente.');
+			return;
 		}
+
+		const extension = file.name.split('.').pop()?.toLowerCase() || 'png';
+		const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '-');
+		const path = `${tenant.id}/${Date.now()}-${safeName}`;
+
+		setLogoUploading(true);
+		const { error } = await supabase.storage.from(LOGO_BUCKET).upload(path, file, {
+			contentType: file.type || `image/${extension}`,
+			upsert: true,
+		});
+
+		if (error) {
+			setLogoError('Falha ao enviar logo. Verifique o bucket e tente novamente.');
+			setLogoUploading(false);
+			return;
+		}
+
+		const { data } = supabase.storage.from(LOGO_BUCKET).getPublicUrl(path);
+		setLocalLogo(data.publicUrl);
+		setLogoUploading(false);
 	};
 
 	const readFileText = (file: File) =>
@@ -419,6 +443,10 @@ const Onboarding = ({ onFinish, inviteCode }: OnboardingProps) => {
 					onChange={handleLogoUpload}
 					className="mt-1 block w-full text-sm text-muted-foreground file:mr-4 file:rounded-full file:border-0 file:bg-muted file:px-4 file:py-2 file:text-sm file:font-semibold file:text-foreground hover:file:bg-muted/70"
 				/>
+				{logoUploading && <p className="mt-2 text-xs text-muted-foreground">Enviando logo...</p>}
+				{logoError && (
+					<p className="mt-2 text-xs text-red-600">{logoError}</p>
+				)}
 				{localLogo && (
 					<div className="mt-4">
 						<p className="text-xs text-muted-foreground mb-2">Preview:</p>

@@ -21,11 +21,24 @@ interface ThemeContextType extends Theme {
 const defaultTheme: Theme = {
 	primaryColor: '#394e6b',
 	secondaryColor: '#46b280',
-	logoUrl: '/made-by-sark-black.jpeg',
+	logoUrl: '',
 	companyName: 'SARK',
 	uiPreset: DEFAULT_UI_PRESET,
 	themeTokens: getPresetTokens(DEFAULT_UI_PRESET),
 };
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL ?? '';
+const DEFAULT_LOGO_BLACK =
+	import.meta.env.VITE_SARK_LOGO_BLACK_URL ||
+	(SUPABASE_URL ? `${SUPABASE_URL}/storage/v1/object/public/tenant-logos/sark-preto.png` : '');
+const DEFAULT_LOGO_WHITE =
+	import.meta.env.VITE_SARK_LOGO_WHITE_URL ||
+	(SUPABASE_URL ? `${SUPABASE_URL}/storage/v1/object/public/tenant-logos/sark-branco.png` : '');
+
+const resolveDefaultLogo = (preset: string) =>
+	preset.toLowerCase() === 'dark' ? DEFAULT_LOGO_WHITE : DEFAULT_LOGO_BLACK;
+
+const isDefaultLogo = (url: string) => url === DEFAULT_LOGO_BLACK || url === DEFAULT_LOGO_WHITE;
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
@@ -44,21 +57,35 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
 	const [theme, setThemeState] = useState<Theme>(() => {
 		const stored = localStorage.getItem('app_theme');
 		const parsed = stored ? (JSON.parse(stored) as Partial<Theme>) : null;
-		if (!parsed) return defaultTheme;
+		if (!parsed) {
+			return {
+				...defaultTheme,
+				logoUrl: resolveDefaultLogo(defaultTheme.uiPreset),
+			};
+		}
 		return {
 			...defaultTheme,
 			...parsed,
 			uiPreset: parsed.uiPreset || defaultTheme.uiPreset,
-			themeTokens: parsed.themeTokens ? ({ ...defaultTheme.themeTokens, ...parsed.themeTokens } as ThemeTokens) : defaultTheme.themeTokens,
+			themeTokens: parsed.themeTokens
+				? ({ ...defaultTheme.themeTokens, ...parsed.themeTokens } as ThemeTokens)
+				: defaultTheme.themeTokens,
+			logoUrl:
+				parsed.logoUrl && parsed.logoUrl.trim()
+					? parsed.logoUrl
+					: resolveDefaultLogo(parsed.uiPreset || defaultTheme.uiPreset),
 		};
 	});
 
 	useEffect(() => {
 		if (!tenant) return;
+		const resolvedLogo = tenant.logoUrl?.trim()
+			? tenant.logoUrl
+			: resolveDefaultLogo(tenant.uiPreset || DEFAULT_UI_PRESET);
 		setThemeState({
 			primaryColor: tenant.primaryColor,
 			secondaryColor: tenant.secondaryColor,
-			logoUrl: tenant.logoUrl,
+			logoUrl: resolvedLogo,
 			companyName: tenant.companyName,
 			uiPreset: tenant.uiPreset,
 			themeTokens: tenant.themeTokens,
@@ -80,8 +107,15 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
 				: prev.uiPreset !== nextPreset
 					? presetTokens
 					: prev.themeTokens;
+			const currentLogo = newTheme.logoUrl ?? prev.logoUrl;
+			const nextLogo =
+				newTheme.logoUrl !== undefined
+					? newTheme.logoUrl
+					: isDefaultLogo(currentLogo) || !currentLogo
+						? resolveDefaultLogo(nextPreset)
+						: currentLogo;
 
-			return { ...prev, ...newTheme, uiPreset: nextPreset, themeTokens: nextTokens };
+			return { ...prev, ...newTheme, uiPreset: nextPreset, themeTokens: nextTokens, logoUrl: nextLogo };
 		});
 
 		if (!tenant) return;
@@ -93,9 +127,16 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
 		if (newTheme.uiPreset !== undefined) payload.ui_preset = newTheme.uiPreset;
 		if (newTheme.themeTokens !== undefined) payload.theme_tokens = newTheme.themeTokens;
 
+		const resolvedLogo =
+			newTheme.logoUrl !== undefined
+				? newTheme.logoUrl
+				: tenant.logoUrl?.trim()
+					? tenant.logoUrl
+					: resolveDefaultLogo(newTheme.uiPreset ?? tenant.uiPreset);
+
 		patchTenant({
 			companyName: newTheme.companyName ?? tenant.companyName,
-			logoUrl: newTheme.logoUrl ?? tenant.logoUrl,
+			logoUrl: resolvedLogo,
 			primaryColor: newTheme.primaryColor ?? tenant.primaryColor,
 			secondaryColor: newTheme.secondaryColor ?? tenant.secondaryColor,
 			uiPreset: newTheme.uiPreset ?? tenant.uiPreset,
