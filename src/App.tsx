@@ -6,10 +6,11 @@ import DataImport from './components/DataImport';
 import LoginForm from './components/LoginForm';
 import Onboarding from './components/Onboarding';
 import SlugNotFound from './components/SlugNotFound';
-import TenantInviteGate from './components/TenantInviteGate';
 import { useTenant } from './context/TenantContext';
 import { supabase } from './lib/supabaseClient';
 import StatusUpdateForm from './StatusUpdateForm';
+
+const INVITE_STORAGE_KEY = 'warehouse_invite_code';
 
 const App = () => {
 	const { tenant, tenantLoading, tenantError, refreshTenant } = useTenant();
@@ -18,6 +19,30 @@ const App = () => {
 	const [view, setView] = useState<'dashboard' | 'statusForm' | 'importData'>('dashboard');
 	const [membershipRole, setMembershipRole] = useState<'admin' | 'member' | null>(null);
 	const [checkingMembership, setCheckingMembership] = useState(false);
+
+	useEffect(() => {
+		if (typeof window === 'undefined') return;
+		const url = new URL(window.location.href);
+		if (!url.pathname.startsWith('/auth/callback')) return;
+
+		const inviteFromUrl = url.searchParams.get('invite')?.trim() ?? '';
+		const storedInvite = window.localStorage.getItem(INVITE_STORAGE_KEY) ?? '';
+		const inviteCode = inviteFromUrl || storedInvite;
+
+		if (inviteCode) {
+			window.localStorage.setItem(INVITE_STORAGE_KEY, inviteCode);
+		}
+
+		const finalizeCallback = async () => {
+			await supabase.auth.getSession();
+			const target = inviteCode
+				? `${window.location.origin}/?invite=${encodeURIComponent(inviteCode)}`
+				: `${window.location.origin}/`;
+			window.location.replace(target);
+		};
+
+		void finalizeCallback();
+	}, []);
 
 	useEffect(() => {
 		let isMounted = true;
@@ -94,13 +119,18 @@ const App = () => {
 	if (checkingSession || tenantLoading) return null;
 
 	const inviteCode = typeof window !== 'undefined'
-		? new URLSearchParams(window.location.search).get('invite')?.trim()
+		? new URLSearchParams(window.location.search).get('invite')?.trim() ||
+			window.localStorage.getItem(INVITE_STORAGE_KEY) ||
+			''
 		: '';
+
+	const isAuthCallback = typeof window !== 'undefined' && window.location.pathname.startsWith('/auth/callback');
+	if (isAuthCallback) return null;
 
 	if (tenantError) {
 		if (!inviteCode) return <SlugNotFound />;
 		if (!session) return <LoginForm onSuccess={handleSuccessAuth} />;
-		return <TenantInviteGate initialInviteCode={inviteCode} />;
+		return <Onboarding onFinish={() => void refreshTenant()} inviteCode={inviteCode} />;
 	}
 
 	if (!session) return <LoginForm onSuccess={handleSuccessAuth} />;

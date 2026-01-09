@@ -5,6 +5,24 @@ import { supabase } from '../lib/supabaseClient';
 import type { AuthMode } from '../types';
 import { translateAuthError } from '../utils/helpers';
 
+const INVITE_STORAGE_KEY = 'warehouse_invite_code';
+
+const readInviteFromUrl = () => {
+	if (typeof window === 'undefined') return '';
+	const params = new URLSearchParams(window.location.search);
+	return params.get('invite')?.trim() ?? '';
+};
+
+const readInviteFromStorage = () => {
+	if (typeof window === 'undefined') return '';
+	return window.localStorage.getItem(INVITE_STORAGE_KEY) ?? '';
+};
+
+const storeInvite = (invite: string) => {
+	if (typeof window === 'undefined') return;
+	if (invite) window.localStorage.setItem(INVITE_STORAGE_KEY, invite);
+};
+
 const LoginForm = ({ onSuccess }: { onSuccess: () => void }) => {
 	const { companyName, logoUrl } = useTheme();
 	const [mode, setMode] = useState<AuthMode>('signin');
@@ -14,6 +32,11 @@ const LoginForm = ({ onSuccess }: { onSuccess: () => void }) => {
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState('');
 	const [info, setInfo] = useState('');
+
+	useEffect(() => {
+		const invite = readInviteFromUrl();
+		if (invite) storeInvite(invite);
+	}, []);
 
 	useEffect(() => {
 		setError('');
@@ -27,6 +50,10 @@ const LoginForm = ({ onSuccess }: { onSuccess: () => void }) => {
 		setError('');
 		setLoading(true);
 
+		const inviteCode = readInviteFromUrl() || readInviteFromStorage();
+		const authRedirectTo = inviteCode
+			? `${window.location.origin}/auth/callback?invite=${encodeURIComponent(inviteCode)}`
+			: `${window.location.origin}/auth/callback`;
 		const validEmail = /.+@.+\..+/.test(email);
 		const validPass = password.length >= 6;
 
@@ -48,7 +75,7 @@ const LoginForm = ({ onSuccess }: { onSuccess: () => void }) => {
 
 		if (mode === 'reset') {
 			const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-				redirectTo: `${window.location.origin}/auth/callback`,
+				redirectTo: authRedirectTo,
 			});
 			if (resetError) {
 				setError(translateAuthError(resetError.message));
@@ -61,7 +88,13 @@ const LoginForm = ({ onSuccess }: { onSuccess: () => void }) => {
 		}
 
 		if (mode === 'signup') {
-			const { error: signUpError, data } = await supabase.auth.signUp({ email, password });
+			const { error: signUpError, data } = await supabase.auth.signUp({
+				email,
+				password,
+				options: {
+					emailRedirectTo: authRedirectTo,
+				},
+			});
 			if (signUpError) {
 				setInfo('');
 				setError(translateAuthError(signUpError.message));
