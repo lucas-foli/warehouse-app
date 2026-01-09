@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import { useTenant } from '../context/TenantContext';
 import { supabase } from '../lib/supabaseClient';
@@ -7,19 +7,51 @@ import { buildProductsFromCsvText, type ProductUpsertRow } from '../utils/csv';
 
 interface OnboardingProps {
 	onFinish: () => void;
+	inviteCode?: string;
 }
 
-const Onboarding = ({ onFinish }: OnboardingProps) => {
+const INVITE_STORAGE_KEY = 'warehouse_invite_code';
+
+const readInviteFromUrl = () => {
+	if (typeof window === 'undefined') return '';
+	const params = new URLSearchParams(window.location.search);
+	return params.get('invite')?.trim() ?? '';
+};
+
+const readInviteFromStorage = () => {
+	if (typeof window === 'undefined') return '';
+	return window.localStorage.getItem(INVITE_STORAGE_KEY) ?? '';
+};
+
+const storeInvite = (invite: string) => {
+	if (typeof window === 'undefined') return;
+	if (invite) window.localStorage.setItem(INVITE_STORAGE_KEY, invite);
+};
+
+const mapInviteError = (message: string) => {
+	const normalized = message.toLowerCase();
+	if (normalized.includes('slug_too_long')) return 'Este link esta invalido. Peça um novo convite.';
+	if (normalized.includes('slug_required')) return 'Este link esta incompleto. Peça um novo convite.';
+	if (normalized.includes('slug_taken')) return 'Este endereco ja esta em uso.';
+	if (normalized.includes('invalid_invite')) return 'Convite invalido ou expirado.';
+	if (normalized.includes('invite_slug_mismatch')) return 'Este convite nao corresponde a este link.';
+	if (normalized.includes('invite_exhausted')) return 'Este convite ja foi utilizado.';
+	if (normalized.includes('not_authenticated')) return 'Voce precisa estar logado.';
+	return message;
+};
+
+const Onboarding = ({ onFinish, inviteCode }: OnboardingProps) => {
 	const { setTheme, primaryColor, secondaryColor, companyName, logoUrl, uiPreset } = useTheme();
-	const { tenant, patchTenant } = useTenant();
-	const [step, setStep] = useState<1 | 2>(1);
-	const [localName, setLocalName] = useState(companyName);
+	const { tenant, patchTenant, refreshTenant, tenantSlug } = useTenant();
+	const [step, setStep] = useState<1 | 2 | 3>(tenant ? 2 : 1);
+	const [localName, setLocalName] = useState(tenant ? companyName : '');
 	const [localPrimary, setLocalPrimary] = useState(primaryColor);
 	const [localSecondary, setLocalSecondary] = useState(secondaryColor);
 	const [localPreset, setLocalPreset] = useState<UiPresetId>(
 		((uiPreset || DEFAULT_UI_PRESET).toLowerCase() as UiPresetId) ?? DEFAULT_UI_PRESET,
 	);
 	const [localLogo, setLocalLogo] = useState('');
+	const [localInvite, setLocalInvite] = useState(inviteCode || readInviteFromUrl() || readInviteFromStorage());
 	const [csvFile, setCsvFile] = useState<File | null>(null);
 	const [previewData, setPreviewData] = useState<Record<string, string>[]>([]);
 	const [csvRows, setCsvRows] = useState<ProductUpsertRow[]>([]);
@@ -32,46 +64,103 @@ const Onboarding = ({ onFinish }: OnboardingProps) => {
 	const [importError, setImportError] = useState('');
 	const [importedRows, setImportedRows] = useState<number | null>(null);
 	const [isDragging, setIsDragging] = useState(false);
+	const [inviteLoading, setInviteLoading] = useState(false);
+	const [inviteError, setInviteError] = useState('');
 	const fileInputRef = useRef<HTMLInputElement | null>(null);
 	const isCsvInvalid = Boolean(csvFile && csvRows.length === 0);
-	const isFinishDisabled = loading || Boolean(csvError) || Boolean(importError) || isCsvInvalid;
+	const isFinishDisabled = loading || Boolean(csvError) || Boolean(importError) || isCsvInvalid || !tenant?.id;
+	const slugTooLong = tenantSlug.length > 32;
+	const isInviteDisabled = inviteLoading || !localName.trim() || !localInvite.trim() || slugTooLong;
+	const isIdentityDisabled = savingIdentity || !localName.trim();
+
+	useEffect(() => {
+		if (!tenant) return;
+		if (localName.trim()) return;
+		setLocalName(tenant.companyName || companyName);
+	}, [tenant, companyName, localName]);
+
+	useEffect(() => {
+		if (localInvite) storeInvite(localInvite);
+	}, [localInvite]);
+
+	const handleInviteSubmit = async (event: React.FormEvent) => {
+		event.preventDefault();
+		setInviteError('');
+		setInviteLoading(true);
+
+		if (slugTooLong) {
+			setInviteError('Este link esta invalido. Peça um novo convite.');
+			setInviteLoading(false);
+			return;
+		}
+
+		const trimmedInvite = localInvite.trim();
+		if (!trimmedInvite) {
+			setInviteError('Informe o codigo do convite.');
+			setInviteLoading(false);
+			return;
+		}
+
+		const { error: rpcError } = await supabase.rpc('create_tenant_with_invite', {
+			invite_code: trimmedInvite,
+			slug: tenantSlug,
+			company_name: localName.trim(),
+		});
+
+		if (rpcError) {
+			setInviteError(mapInviteError(rpcError.message));
+			setInviteLoading(false);
+			return;
+		}
+
+		await refreshTenant();
+		if (typeof window !== 'undefined') {
+			window.localStorage.removeItem(INVITE_STORAGE_KEY);
+		}
+		setInviteLoading(false);
+		setStep(2);
+	};
 
 	const handleIdentitySubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 		setIdentityError('');
 		setSavingIdentity(true);
 
+		if (!tenant) {
+			setSavingIdentity(false);
+			setIdentityError('Tenant nao carregado ainda. Recarregue a pagina e tente novamente.');
+			return;
+		}
+
 		const nextLogoUrl = localLogo || logoUrl;
 		const nextTokens = getPresetTokens(localPreset);
 
-		if (tenant) {
-			const { error } = await supabase
-				.from('tenants')
-				.update({
-					company_name: localName,
-					logo_url: nextLogoUrl,
-					primary_color: localPrimary,
-					secondary_color: localSecondary,
-					ui_preset: localPreset,
-					theme_tokens: nextTokens,
-				})
-				.eq('id', tenant.id);
+		const { error } = await supabase
+			.from('tenants')
+			.update({
+				company_name: localName,
+				logo_url: nextLogoUrl,
+				primary_color: localPrimary,
+				secondary_color: localSecondary,
+				ui_preset: localPreset,
+				theme_tokens: nextTokens,
+			})
+			.eq('id', tenant.id);
 
-			if (error) {
-				setSavingIdentity(false);
-				setIdentityError(error.message || 'Não foi possível salvar as configurações.');
-				return;
-			}
-
-			patchTenant({
-				companyName: localName,
-				logoUrl: nextLogoUrl,
-				primaryColor: localPrimary,
-				secondaryColor: localSecondary,
-				uiPreset: localPreset,
-				themeTokens: nextTokens,
-			});
+		if (error) {
+			setSavingIdentity(false);
+			setIdentityError(error.message || 'Não foi possível salvar as configurações.');
+			return;
 		}
+
+		patchTenant({
+			companyName: localName,
+			logoUrl: nextLogoUrl,
+			primaryColor: localPrimary,
+			secondaryColor: localSecondary,
+			uiPreset: localPreset,
+			themeTokens: nextTokens,
+		});
 
 		setTheme({
 			companyName: localName,
@@ -81,7 +170,7 @@ const Onboarding = ({ onFinish }: OnboardingProps) => {
 			uiPreset: localPreset,
 			themeTokens: nextTokens,
 		});
-		setStep(2);
+		setStep(3);
 		setSavingIdentity(false);
 	};
 
@@ -217,82 +306,125 @@ const Onboarding = ({ onFinish }: OnboardingProps) => {
 		}
 	};
 
-	const step1_Identity = (
-			<div className="space-y-6">
-				<div>
-					<label className="block text-sm font-medium text-muted-foreground">Nome da Empresa</label>
-					<input
-						type="text"
-						value={localName}
-						onChange={(e) => setLocalName(e.target.value)}
-						className="mt-1 block w-full rounded-md border border-input bg-card p-2 text-sm text-foreground shadow-sm outline-none focus:border-ring/60 focus:ring-2 focus:ring-ring/25"
-					/>
+	const step1_Invite = (
+		<form onSubmit={handleInviteSubmit} className="space-y-6">
+			<div>
+				<label className="block text-sm font-medium text-muted-foreground">Nome da Empresa</label>
+				<input
+					type="text"
+					value={localName}
+					onChange={(e) => setLocalName(e.target.value)}
+					placeholder="Ex: Maxpharma"
+					className="mt-1 block w-full rounded-md border border-input bg-card p-2 text-sm text-foreground shadow-sm outline-none focus:border-ring/60 focus:ring-2 focus:ring-ring/25"
+				/>
+			</div>
+
+			<div>
+				<label className="block text-sm font-medium text-muted-foreground">Codigo do convite</label>
+				<input
+					type="text"
+					value={localInvite}
+					onChange={(e) => setLocalInvite(e.target.value)}
+					placeholder="Ex: INVITE-1234"
+					className="mt-1 block w-full rounded-md border border-input bg-card p-2 text-sm text-foreground shadow-sm outline-none focus:border-ring/60 focus:ring-2 focus:ring-ring/25"
+				/>
+				<p className="mt-2 text-xs text-muted-foreground">
+					Use o codigo enviado para liberar seu ambiente.
+				</p>
+			</div>
+
+			{inviteError && (
+				<div className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-700">
+					{inviteError}
 				</div>
+			)}
+
+			<button
+				type="submit"
+				disabled={isInviteDisabled}
+				className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-primary-foreground bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-ring/25 disabled:opacity-60"
+			>
+				{inviteLoading ? 'Validando...' : 'Continuar'}
+			</button>
+		</form>
+	);
+
+	const step2_Identity = (
+		<div className="space-y-6">
+			<div>
+				<label className="block text-sm font-medium text-muted-foreground">Nome da Empresa</label>
+				<input
+					type="text"
+					value={localName}
+					onChange={(e) => setLocalName(e.target.value)}
+					className="mt-1 block w-full rounded-md border border-input bg-card p-2 text-sm text-foreground shadow-sm outline-none focus:border-ring/60 focus:ring-2 focus:ring-ring/25"
+				/>
+			</div>
 
 			<div className="grid grid-cols-2 gap-4">
-					<div>
-						<label className="block text-sm font-medium text-muted-foreground">Cor Primária</label>
-						<div className="mt-1 flex items-center gap-2">
+				<div>
+					<label className="block text-sm font-medium text-muted-foreground">Cor Primaria</label>
+					<div className="mt-1 flex items-center gap-2">
 						<input
 							type="color"
 							value={localPrimary}
 							onChange={(e) => setLocalPrimary(e.target.value)}
 							className="h-10 w-10 cursor-pointer rounded border p-1"
 						/>
-							<span className="text-xs text-muted-foreground">{localPrimary}</span>
-						</div>
+						<span className="text-xs text-muted-foreground">{localPrimary}</span>
 					</div>
-					<div>
-						<label className="block text-sm font-medium text-muted-foreground">Cor Secundária</label>
-						<div className="mt-1 flex items-center gap-2">
+				</div>
+				<div>
+					<label className="block text-sm font-medium text-muted-foreground">Cor Secundaria</label>
+					<div className="mt-1 flex items-center gap-2">
 						<input
 							type="color"
 							value={localSecondary}
 							onChange={(e) => setLocalSecondary(e.target.value)}
 							className="h-10 w-10 cursor-pointer rounded border p-1"
 						/>
-							<span className="text-xs text-muted-foreground">{localSecondary}</span>
-						</div>
+						<span className="text-xs text-muted-foreground">{localSecondary}</span>
 					</div>
 				</div>
+			</div>
 
-				<div>
-					<label className="block text-sm font-medium text-muted-foreground">Estilo (UI Preset)</label>
-					<select
-						value={localPreset}
-						onChange={(e) => setLocalPreset(e.target.value as UiPresetId)}
-						className="mt-1 block w-full cursor-pointer rounded-md border border-input bg-card p-2 text-sm text-foreground shadow-sm outline-none transition hover:border-border/70 focus:border-ring/60 focus:ring-2 focus:ring-ring/25"
-					>
+			<div>
+				<label className="block text-sm font-medium text-muted-foreground">Estilo (UI Preset)</label>
+				<select
+					value={localPreset}
+					onChange={(e) => setLocalPreset(e.target.value as UiPresetId)}
+					className="mt-1 block w-full cursor-pointer rounded-md border border-input bg-card p-2 text-sm text-foreground shadow-sm outline-none transition hover:border-border/70 focus:border-ring/60 focus:ring-2 focus:ring-ring/25"
+				>
 					{(Object.keys(UI_PRESETS) as UiPresetId[]).map((key) => (
 						<option key={key} value={key}>
 							{UI_PRESETS[key].label}
 						</option>
 					))}
 				</select>
-				</div>
+			</div>
 
-				<div>
-					<label className="block text-sm font-medium text-muted-foreground">Logo (Upload)</label>
-					<input
-						type="file"
-						accept="image/*"
-						onChange={handleLogoUpload}
-						className="mt-1 block w-full text-sm text-muted-foreground file:mr-4 file:rounded-full file:border-0 file:bg-muted file:px-4 file:py-2 file:text-sm file:font-semibold file:text-foreground hover:file:bg-muted/70"
-					/>
-					{localLogo && (
-						<div className="mt-4">
-							<p className="text-xs text-muted-foreground mb-2">Preview:</p>
-							<img src={localLogo} alt="Logo Preview" className="h-12 w-auto object-contain" />
-						</div>
-					)}
-				</div>
+			<div>
+				<label className="block text-sm font-medium text-muted-foreground">Logo (Upload)</label>
+				<input
+					type="file"
+					accept="image/*"
+					onChange={handleLogoUpload}
+					className="mt-1 block w-full text-sm text-muted-foreground file:mr-4 file:rounded-full file:border-0 file:bg-muted file:px-4 file:py-2 file:text-sm file:font-semibold file:text-foreground hover:file:bg-muted/70"
+				/>
+				{localLogo && (
+					<div className="mt-4">
+						<p className="text-xs text-muted-foreground mb-2">Preview:</p>
+						<img src={localLogo} alt="Logo Preview" className="h-12 w-auto object-contain" />
+					</div>
+				)}
+			</div>
 
 			<button
 				onClick={handleIdentitySubmit}
-				disabled={savingIdentity}
+				disabled={isIdentityDisabled}
 				className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-primary-foreground bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-ring/25 disabled:opacity-60"
 			>
-				{savingIdentity ? 'Salvando…' : 'Próximo: Dados'}
+				{savingIdentity ? 'Salvando…' : 'Proximo: Dados'}
 			</button>
 
 			{identityError && (
@@ -303,8 +435,8 @@ const Onboarding = ({ onFinish }: OnboardingProps) => {
 		</div>
 	);
 
-			const step2_Data = (
-				<div className="space-y-6">
+	const step3_Data = (
+		<div className="space-y-6">
 					<div>
 						<label className="block text-sm font-medium text-muted-foreground">Upload de Dados (CSV)</label>
 						<div
@@ -460,11 +592,11 @@ const Onboarding = ({ onFinish }: OnboardingProps) => {
 				
 					<div className="flex justify-between gap-4">
 						<button
-							onClick={() => setStep(1)}
-						className="w-full inline-flex justify-center rounded-md border border-border/40 shadow-sm px-4 py-2 bg-card text-base font-medium text-foreground hover:bg-muted focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-ring/25 sm:text-sm"
-					>
-						Voltar
-					</button>
+							onClick={() => setStep(2)}
+							className="w-full inline-flex justify-center rounded-md border border-border/40 shadow-sm px-4 py-2 bg-card text-base font-medium text-foreground hover:bg-muted focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-ring/25 sm:text-sm"
+						>
+							Voltar
+						</button>
 							<button
 								onClick={handleFinish}
 								disabled={isFinishDisabled}
@@ -492,21 +624,30 @@ const Onboarding = ({ onFinish }: OnboardingProps) => {
 					<div className="mb-8">
 						<nav aria-label="Progress">
 							<ol role="list" className="flex items-center">
-								<li className={`relative pr-8 sm:pr-20 ${step === 1 ? 'text-primary' : 'text-muted-foreground'}`}>
+								<li className={`relative pr-6 sm:pr-12 ${step === 1 ? 'text-primary' : 'text-muted-foreground'}`}>
 									<div className="absolute inset-0 flex items-center" aria-hidden="true">
 										<div className="h-0.5 w-full bg-border/40"></div>
 									</div>
 									<a href="#" className={`relative flex h-8 w-8 items-center justify-center rounded-full ${step >= 1 ? 'bg-primary hover:bg-primary/90' : 'bg-border/40 hover:bg-border/60'}`}>
 										<span className="text-white" aria-hidden="true">1</span>
 									</a>
-									<span className="mt-2 absolute top-8 text-xs font-semibold">Identidade</span>
+									<span className="mt-2 absolute top-8 text-xs font-semibold">Convite</span>
 								</li>
-								<li className={`relative ${step === 2 ? 'text-primary' : 'text-muted-foreground'}`}>
+								<li className={`relative pr-6 sm:pr-12 ${step === 2 ? 'text-primary' : 'text-muted-foreground'}`}>
 									<div className="absolute inset-0 flex items-center" aria-hidden="true">
 										<div className="h-0.5 w-full bg-border/40"></div>
 									</div>
 									<a href="#" className={`relative flex h-8 w-8 items-center justify-center rounded-full ${step >= 2 ? 'bg-primary hover:bg-primary/90' : 'bg-border/40 hover:bg-border/60'}`}>
 										<span className="text-white" aria-hidden="true">2</span>
+									</a>
+									<span className="mt-2 absolute top-8 text-xs font-semibold">Identidade</span>
+								</li>
+								<li className={`relative ${step === 3 ? 'text-primary' : 'text-muted-foreground'}`}>
+									<div className="absolute inset-0 flex items-center" aria-hidden="true">
+										<div className="h-0.5 w-full bg-border/40"></div>
+									</div>
+									<a href="#" className={`relative flex h-8 w-8 items-center justify-center rounded-full ${step >= 3 ? 'bg-primary hover:bg-primary/90' : 'bg-border/40 hover:bg-border/60'}`}>
+										<span className="text-white" aria-hidden="true">3</span>
 									</a>
 									<span className="mt-2 absolute top-8 text-xs font-semibold text-center w-full">Dados</span>
 								</li>
@@ -514,7 +655,7 @@ const Onboarding = ({ onFinish }: OnboardingProps) => {
 						</nav>
 					</div>
 
-					{step === 1 ? step1_Identity : step2_Data}
+					{step === 1 ? step1_Invite : step === 2 ? step2_Identity : step3_Data}
 				</div>
 			</div>
 		</div>
