@@ -11,6 +11,7 @@ interface OnboardingProps {
 }
 
 const INVITE_STORAGE_KEY = 'warehouse_invite_code';
+const PRESET_OPTIONS: UiPresetId[] = ['warm', 'dark'];
 
 const readInviteFromUrl = () => {
 	if (typeof window === 'undefined') return '';
@@ -40,6 +41,11 @@ const mapInviteError = (message: string) => {
 	return message;
 };
 
+const normalizePreset = (value?: string | null) => {
+	const key = (value || DEFAULT_UI_PRESET).toLowerCase() as UiPresetId;
+	return key === 'clean' ? 'warm' : key;
+};
+
 const Onboarding = ({ onFinish, inviteCode }: OnboardingProps) => {
 	const { setTheme, primaryColor, secondaryColor, companyName, logoUrl, uiPreset } = useTheme();
 	const { tenant, patchTenant, refreshTenant, tenantSlug } = useTenant();
@@ -47,9 +53,7 @@ const Onboarding = ({ onFinish, inviteCode }: OnboardingProps) => {
 	const [localName, setLocalName] = useState(tenant ? companyName : '');
 	const [localPrimary, setLocalPrimary] = useState(primaryColor);
 	const [localSecondary, setLocalSecondary] = useState(secondaryColor);
-	const [localPreset, setLocalPreset] = useState<UiPresetId>(
-		((uiPreset || DEFAULT_UI_PRESET).toLowerCase() as UiPresetId) ?? DEFAULT_UI_PRESET,
-	);
+	const [localPreset, setLocalPreset] = useState<UiPresetId>(normalizePreset(uiPreset));
 	const [localLogo, setLocalLogo] = useState('');
 	const [localInvite, setLocalInvite] = useState(inviteCode || readInviteFromUrl() || readInviteFromStorage());
 	const [csvFile, setCsvFile] = useState<File | null>(null);
@@ -392,10 +396,14 @@ const Onboarding = ({ onFinish, inviteCode }: OnboardingProps) => {
 				<label className="block text-sm font-medium text-muted-foreground">Estilo (UI Preset)</label>
 				<select
 					value={localPreset}
-					onChange={(e) => setLocalPreset(e.target.value as UiPresetId)}
+					onChange={(e) => {
+						const nextPreset = e.target.value as UiPresetId;
+						setLocalPreset(nextPreset);
+						setTheme({ uiPreset: nextPreset, themeTokens: getPresetTokens(nextPreset) });
+					}}
 					className="mt-1 block w-full cursor-pointer rounded-md border border-input bg-card p-2 text-sm text-foreground shadow-sm outline-none transition hover:border-border/70 focus:border-ring/60 focus:ring-2 focus:ring-ring/25"
 				>
-					{(Object.keys(UI_PRESETS) as UiPresetId[]).map((key) => (
+					{PRESET_OPTIONS.map((key) => (
 						<option key={key} value={key}>
 							{UI_PRESETS[key].label}
 						</option>
@@ -626,28 +634,43 @@ const Onboarding = ({ onFinish, inviteCode }: OnboardingProps) => {
 							<ol role="list" className="flex items-center">
 								<li className={`relative pr-6 sm:pr-12 ${step === 1 ? 'text-primary' : 'text-muted-foreground'}`}>
 									<div className="absolute inset-0 flex items-center" aria-hidden="true">
-										<div className="h-0.5 w-full bg-border/40"></div>
+										<div className="h-0.5 w-full bg-border/30"></div>
 									</div>
-									<a href="#" className={`relative flex h-8 w-8 items-center justify-center rounded-full ${step >= 1 ? 'bg-primary hover:bg-primary/90' : 'bg-border/40 hover:bg-border/60'}`}>
-										<span className="text-white" aria-hidden="true">1</span>
+									<a
+										href="#"
+										className={`relative z-10 flex h-8 w-8 items-center justify-center rounded-full shadow-sm ${
+											step >= 1 ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground'
+										}`}
+									>
+										<span className="text-xs font-semibold" aria-hidden="true">1</span>
 									</a>
 									<span className="mt-2 absolute top-8 text-xs font-semibold">Convite</span>
 								</li>
 								<li className={`relative pr-6 sm:pr-12 ${step === 2 ? 'text-primary' : 'text-muted-foreground'}`}>
 									<div className="absolute inset-0 flex items-center" aria-hidden="true">
-										<div className="h-0.5 w-full bg-border/40"></div>
+										<div className="h-0.5 w-full bg-border/30"></div>
 									</div>
-									<a href="#" className={`relative flex h-8 w-8 items-center justify-center rounded-full ${step >= 2 ? 'bg-primary hover:bg-primary/90' : 'bg-border/40 hover:bg-border/60'}`}>
-										<span className="text-white" aria-hidden="true">2</span>
+									<a
+										href="#"
+										className={`relative z-10 flex h-8 w-8 items-center justify-center rounded-full shadow-sm ${
+											step >= 2 ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground'
+										}`}
+									>
+										<span className="text-xs font-semibold" aria-hidden="true">2</span>
 									</a>
 									<span className="mt-2 absolute top-8 text-xs font-semibold">Identidade</span>
 								</li>
 								<li className={`relative ${step === 3 ? 'text-primary' : 'text-muted-foreground'}`}>
 									<div className="absolute inset-0 flex items-center" aria-hidden="true">
-										<div className="h-0.5 w-full bg-border/40"></div>
+										<div className="h-0.5 w-full bg-border/30"></div>
 									</div>
-									<a href="#" className={`relative flex h-8 w-8 items-center justify-center rounded-full ${step >= 3 ? 'bg-primary hover:bg-primary/90' : 'bg-border/40 hover:bg-border/60'}`}>
-										<span className="text-white" aria-hidden="true">3</span>
+									<a
+										href="#"
+										className={`relative z-10 flex h-8 w-8 items-center justify-center rounded-full shadow-sm ${
+											step >= 3 ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground'
+										}`}
+									>
+										<span className="text-xs font-semibold" aria-hidden="true">3</span>
 									</a>
 									<span className="mt-2 absolute top-8 text-xs font-semibold text-center w-full">Dados</span>
 								</li>

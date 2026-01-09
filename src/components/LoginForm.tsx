@@ -13,6 +13,38 @@ const readInviteFromUrl = () => {
 	return params.get('invite')?.trim() ?? '';
 };
 
+const readSlugFromUrl = () => {
+	if (typeof window === 'undefined') return '';
+	const params = new URLSearchParams(window.location.search);
+	return params.get('slug')?.trim() ?? '';
+};
+
+const resolveSlugForRedirect = () => {
+	const fromQuery = readSlugFromUrl();
+	if (fromQuery) return fromQuery.toLowerCase();
+
+	const explicit = import.meta.env.VITE_TENANT_SLUG as string | undefined;
+	if (explicit && explicit.trim()) return explicit.trim().toLowerCase();
+
+	if (typeof window === 'undefined') return '';
+	const hostname = window.location.hostname.toLowerCase();
+	if (hostname === 'localhost' || /^\d{1,3}(\.\d{1,3}){3}$/.test(hostname)) {
+		return '';
+	}
+
+	const baseDomain = (import.meta.env.VITE_BASE_DOMAIN as string | undefined)?.trim().toLowerCase();
+	if (baseDomain && hostname.endsWith(baseDomain)) {
+		const remaining = hostname.slice(0, Math.max(0, hostname.length - baseDomain.length)).replace(/\.$/, '');
+		const parts = remaining.split('.').filter(Boolean);
+		return (parts[parts.length - 1] || '').toLowerCase();
+	}
+
+	const parts = hostname.split('.').filter(Boolean);
+	if (parts.length >= 3) return parts[0];
+
+	return '';
+};
+
 const readInviteFromStorage = () => {
 	if (typeof window === 'undefined') return '';
 	return window.localStorage.getItem(INVITE_STORAGE_KEY) ?? '';
@@ -51,9 +83,13 @@ const LoginForm = ({ onSuccess }: { onSuccess: () => void }) => {
 		setLoading(true);
 
 		const inviteCode = readInviteFromUrl() || readInviteFromStorage();
-		const authRedirectTo = inviteCode
-			? `${window.location.origin}/auth/callback?invite=${encodeURIComponent(inviteCode)}`
-			: `${window.location.origin}/auth/callback`;
+		const slugForRedirect = resolveSlugForRedirect();
+		const redirectParams = new URLSearchParams();
+		if (inviteCode) redirectParams.set('invite', inviteCode);
+		if (slugForRedirect) redirectParams.set('slug', slugForRedirect);
+		const authRedirectTo = redirectParams.toString()
+			? `${window.location.origin}/?${redirectParams.toString()}`
+			: `${window.location.origin}/`;
 		const validEmail = /.+@.+\..+/.test(email);
 		const validPass = password.length >= 6;
 
