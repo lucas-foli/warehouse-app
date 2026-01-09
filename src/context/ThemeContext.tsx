@@ -38,7 +38,11 @@ const DEFAULT_LOGO_WHITE =
 const resolveDefaultLogo = (preset: string) =>
 	preset.toLowerCase() === 'dark' ? DEFAULT_LOGO_WHITE : DEFAULT_LOGO_BLACK;
 
-const isDefaultLogo = (url: string) => url === DEFAULT_LOGO_BLACK || url === DEFAULT_LOGO_WHITE;
+const isDefaultLogo = (url: string) => {
+	if (!url) return true;
+	if (url === DEFAULT_LOGO_BLACK || url === DEFAULT_LOGO_WHITE) return true;
+	return url.includes('made-by-sark');
+};
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
@@ -71,7 +75,7 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
 				? ({ ...defaultTheme.themeTokens, ...parsed.themeTokens } as ThemeTokens)
 				: defaultTheme.themeTokens,
 			logoUrl:
-				parsed.logoUrl && parsed.logoUrl.trim()
+				parsed.logoUrl && parsed.logoUrl.trim() && !isDefaultLogo(parsed.logoUrl)
 					? parsed.logoUrl
 					: resolveDefaultLogo(parsed.uiPreset || defaultTheme.uiPreset),
 		};
@@ -79,9 +83,10 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
 
 	useEffect(() => {
 		if (!tenant) return;
-		const resolvedLogo = tenant.logoUrl?.trim()
-			? tenant.logoUrl
-			: resolveDefaultLogo(tenant.uiPreset || DEFAULT_UI_PRESET);
+		const resolvedLogo =
+			tenant.logoUrl?.trim() && !isDefaultLogo(tenant.logoUrl)
+				? tenant.logoUrl
+				: resolveDefaultLogo(tenant.uiPreset || DEFAULT_UI_PRESET);
 		setThemeState({
 			primaryColor: tenant.primaryColor,
 			secondaryColor: tenant.secondaryColor,
