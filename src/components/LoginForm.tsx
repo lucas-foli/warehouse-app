@@ -19,6 +19,13 @@ const readSlugFromUrl = () => {
 	return params.get('slug')?.trim() ?? '';
 };
 
+const resolveAuthRedirectBase = () => {
+	if (typeof window === 'undefined') return '';
+	const baseDomain = (import.meta.env.VITE_BASE_DOMAIN as string | undefined)?.trim().toLowerCase();
+	if (!baseDomain) return window.location.origin;
+	return `${window.location.protocol}//${baseDomain.replace(/\/+$/, '')}`;
+};
+
 const resolveSlugForRedirect = () => {
 	const fromQuery = readSlugFromUrl();
 	if (fromQuery) return fromQuery.toLowerCase();
@@ -101,9 +108,10 @@ const LoginForm = ({ onSuccess }: { onSuccess: () => void }) => {
 		const redirectParams = new URLSearchParams();
 		if (inviteCode) redirectParams.set('invite', inviteCode);
 		if (slugForRedirect) redirectParams.set('slug', slugForRedirect);
+		const authRedirectBase = resolveAuthRedirectBase();
 		const authRedirectTo = redirectParams.toString()
-			? `${window.location.origin}/?${redirectParams.toString()}`
-			: `${window.location.origin}/`;
+			? `${authRedirectBase}/?${redirectParams.toString()}`
+			: `${authRedirectBase}/`;
 		const validEmail = /.+@.+\..+/.test(email);
 		const validPass = password.length >= 6;
 

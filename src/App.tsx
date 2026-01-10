@@ -22,6 +22,47 @@ const App = () => {
 
 	useEffect(() => {
 		if (typeof window === 'undefined') return;
+		if (window.location.pathname.startsWith('/auth/callback')) return;
+
+		const params = new URLSearchParams(window.location.search);
+		const slug = params.get('slug')?.trim().toLowerCase();
+		if (!slug) return;
+		if (!/^[a-z0-9-]{1,32}$/.test(slug)) return;
+
+		const baseDomain = (import.meta.env.VITE_BASE_DOMAIN as string | undefined)?.trim().toLowerCase();
+		if (!baseDomain) return;
+
+		const hostname = window.location.hostname.toLowerCase();
+		if (hostname !== baseDomain) return;
+
+		params.delete('slug');
+		const query = params.toString();
+		const target = `${window.location.protocol}//${slug}.${baseDomain}${window.location.pathname}${
+			query ? `?${query}` : ''
+		}${window.location.hash}`;
+		window.location.replace(target);
+	}, []);
+
+	useEffect(() => {
+		if (typeof window === 'undefined') return;
+		if (window.location.pathname.startsWith('/auth/callback')) return;
+
+		const params = new URLSearchParams(window.location.search);
+		const slug = params.get('slug')?.trim().toLowerCase();
+		if (!slug) return;
+
+		const hostname = window.location.hostname.toLowerCase();
+		const currentSubdomain = hostname.split('.').filter(Boolean)[0] ?? '';
+		if (slug !== currentSubdomain) return;
+
+		params.delete('slug');
+		const query = params.toString();
+		const cleanUrl = `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`;
+		window.history.replaceState(null, document.title, cleanUrl);
+	}, []);
+
+	useEffect(() => {
+		if (typeof window === 'undefined') return;
 		const url = new URL(window.location.href);
 		if (!url.pathname.startsWith('/auth/callback')) return;
 
