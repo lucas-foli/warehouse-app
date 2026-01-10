@@ -1,5 +1,11 @@
 import type { Client, HistoryItem, Product, Seller } from '../types';
 
+export const isLocalhost = () => {
+	if (typeof window === 'undefined') return false;
+	const hostname = window.location.hostname.toLowerCase();
+	return hostname === 'localhost' || /^127\\./.test(hostname) || /^\\d{1,3}(\\.\\d{1,3}){3}$/.test(hostname);
+};
+
 export const translateAuthError = (message: string) => {
 	const normalized = message.toLowerCase();
 	if (normalized.includes('invalid login credentials')) return 'E-mail ou senha inválidos.';
@@ -18,9 +24,60 @@ export const resolveMadeBySarkUrl = () => {
 	if (explicit) return explicit;
 
 	const supabaseUrl = import.meta.env.VITE_SUPABASE_URL ?? '';
-	if (!supabaseUrl) return '';
-	return `${supabaseUrl}/storage/v1/object/public/tenant-logos/made-by-sark.png`;
+	const storageUrl = supabaseUrl
+		? `${supabaseUrl}/storage/v1/object/public/tenant-logos/made-by-sark.png`
+		: '';
+	if (isLocalhost()) return '/made-by-sark.png';
+	return storageUrl;
 };
+
+export const resolveMadeBySarkStorageUrl = () => {
+	const explicit = import.meta.env.VITE_MADE_BY_SARK_URL ?? '';
+	if (explicit) return explicit;
+
+	const supabaseUrl = import.meta.env.VITE_SUPABASE_URL ?? '';
+	return supabaseUrl ? `${supabaseUrl}/storage/v1/object/public/tenant-logos/made-by-sark.png` : '';
+};
+
+export const resolveSarkLogoStorageUrl = (preset?: string | null) => {
+	const isDark = (preset || '').toLowerCase() === 'dark';
+	const explicit = isDark
+		? import.meta.env.VITE_SARK_LOGO_WHITE_URL
+		: import.meta.env.VITE_SARK_LOGO_BLACK_URL;
+	if (explicit) return explicit;
+
+	const supabaseUrl = import.meta.env.VITE_SUPABASE_URL ?? '';
+	if (!supabaseUrl) return '';
+	return `${supabaseUrl}/storage/v1/object/public/tenant-logos/${isDark ? 'sark-branco.png' : 'sark-preto.png'}`;
+};
+
+export const resolveSarkLogoLocalUrl = (preset?: string | null) => {
+	const isDark = (preset || '').toLowerCase() === 'dark';
+	return isDark ? '/sark-branco.png' : '/sark-preto.png';
+};
+
+export const resolveSarkLogoUrl = (preset?: string | null) =>
+	isLocalhost() ? resolveSarkLogoLocalUrl(preset) : resolveSarkLogoStorageUrl(preset);
+
+export const resolveEasynumbersLogoStorageUrl = (preset?: string | null) => {
+	const isDark = (preset || '').toLowerCase() === 'dark';
+	const explicit = isDark
+		? import.meta.env.VITE_EASYNUMBERS_LOGO_WHITE_URL
+		: import.meta.env.VITE_EASYNUMBERS_LOGO_URL;
+	if (explicit) return explicit;
+
+	const supabaseUrl = import.meta.env.VITE_SUPABASE_URL ?? '';
+	if (!supabaseUrl) return '';
+	return `${supabaseUrl}/storage/v1/object/public/tenant-logos/${isDark ? 'easynumbers-white.png' : 'easynumbers.png'}`;
+};
+
+export const resolveEasynumbersLogoLocalUrl = (preset?: string | null) => {
+	const isDark = (preset || '').toLowerCase() === 'dark';
+	return isDark ? '/easynumbers-white.png' : '/easynumbers.png';
+};
+
+export const resolveEasynumbersLogoUrl = (preset?: string | null) =>
+	isLocalhost() ? resolveEasynumbersLogoLocalUrl(preset) : resolveEasynumbersLogoStorageUrl(preset);
 
 export const buildCategorySalesFromProducts = (
 	items: Array<{

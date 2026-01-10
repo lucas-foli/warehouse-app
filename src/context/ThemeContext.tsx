@@ -3,6 +3,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useTenant } from './TenantContext';
 import { supabase } from '../lib/supabaseClient';
 import { DEFAULT_UI_PRESET, getPresetTokens, type ThemeTokens } from '../theme/presets';
+import { isLocalhost, resolveSarkLogoLocalUrl, resolveSarkLogoStorageUrl, resolveSarkLogoUrl } from '../utils/helpers';
 
 interface Theme {
 	primaryColor: string;
@@ -27,20 +28,16 @@ const defaultTheme: Theme = {
 	themeTokens: getPresetTokens(DEFAULT_UI_PRESET),
 };
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL ?? '';
-const DEFAULT_LOGO_BLACK =
-	import.meta.env.VITE_SARK_LOGO_BLACK_URL ||
-	(SUPABASE_URL ? `${SUPABASE_URL}/storage/v1/object/public/tenant-logos/sark-preto.png` : '');
-const DEFAULT_LOGO_WHITE =
-	import.meta.env.VITE_SARK_LOGO_WHITE_URL ||
-	(SUPABASE_URL ? `${SUPABASE_URL}/storage/v1/object/public/tenant-logos/sark-branco.png` : '');
-
-const resolveDefaultLogo = (preset: string) =>
-	preset.toLowerCase() === 'dark' ? DEFAULT_LOGO_WHITE : DEFAULT_LOGO_BLACK;
+const resolveDefaultLogo = (preset: string) => resolveSarkLogoUrl(preset);
 
 const isDefaultLogo = (url: string) => {
 	if (!url) return true;
-	if (url === DEFAULT_LOGO_BLACK || url === DEFAULT_LOGO_WHITE) return true;
+	if (!isLocalhost() && url.startsWith('/')) return true;
+	const storageBlack = resolveSarkLogoStorageUrl('warm');
+	const storageWhite = resolveSarkLogoStorageUrl('dark');
+	const localBlack = resolveSarkLogoLocalUrl('warm');
+	const localWhite = resolveSarkLogoLocalUrl('dark');
+	if (url === storageBlack || url === storageWhite || url === localBlack || url === localWhite) return true;
 	return url.includes('made-by-sark');
 };
 

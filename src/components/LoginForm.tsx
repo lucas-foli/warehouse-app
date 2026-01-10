@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import { supabase } from '../lib/supabaseClient';
 import type { AuthMode } from '../types';
-import { resolveMadeBySarkUrl, translateAuthError } from '../utils/helpers';
+import { resolveMadeBySarkStorageUrl, resolveMadeBySarkUrl, resolveSarkLogoStorageUrl, translateAuthError } from '../utils/helpers';
 
 const INVITE_STORAGE_KEY = 'warehouse_invite_code';
 
@@ -56,8 +56,12 @@ const storeInvite = (invite: string) => {
 };
 
 const LoginForm = ({ onSuccess }: { onSuccess: () => void }) => {
-	const { companyName, logoUrl } = useTheme();
+	const { companyName, logoUrl, uiPreset } = useTheme();
 	const madeBySarkUrl = resolveMadeBySarkUrl();
+	const madeByFallbackUrl = resolveMadeBySarkStorageUrl();
+	const brandLogoFallback = resolveSarkLogoStorageUrl(uiPreset);
+	const [brandLogoSrc, setBrandLogoSrc] = useState(logoUrl);
+	const [madeBySrc, setMadeBySrc] = useState(madeBySarkUrl);
 	const [mode, setMode] = useState<AuthMode>('signin');
 	const [email, setEmail] = useState('');
 	const [password, setPassword] = useState('');
@@ -72,11 +76,20 @@ const LoginForm = ({ onSuccess }: { onSuccess: () => void }) => {
 	}, []);
 
 	useEffect(() => {
+		setBrandLogoSrc(logoUrl);
 		setError('');
 		setInfo('');
 		setPasswordConfirm('');
 		setPassword('');
 	}, [mode]);
+
+	useEffect(() => {
+		setBrandLogoSrc(logoUrl);
+	}, [logoUrl]);
+
+	useEffect(() => {
+		setMadeBySrc(madeBySarkUrl);
+	}, [madeBySarkUrl]);
 
 	const handleSubmit: React.FormEventHandler<HTMLFormElement> = async (e) => {
 		e.preventDefault();
@@ -191,8 +204,17 @@ const LoginForm = ({ onSuccess }: { onSuccess: () => void }) => {
 					transition={{ duration: 0.5, ease: 'easeOut' }}
 					className="w-full max-w-xl rounded-[var(--radius-card)] border border-border/40 bg-card p-8 shadow-[var(--shadow-card)]">
 					<div className="flex flex-col items-center gap-6 text-center">
-						{logoUrl ? (
-							<img src={logoUrl} alt={companyName} className="h-6 w-auto object-contain" />
+						{brandLogoSrc ? (
+							<img
+								src={brandLogoSrc}
+								alt={companyName}
+								className="h-6 w-auto object-contain"
+								onError={() => {
+									if (brandLogoFallback && brandLogoSrc !== brandLogoFallback) {
+										setBrandLogoSrc(brandLogoFallback);
+									}
+								}}
+							/>
 						) : (
 							<div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">
 								{companyName.trim().slice(0, 1).toUpperCase()}
@@ -302,11 +324,16 @@ const LoginForm = ({ onSuccess }: { onSuccess: () => void }) => {
 					</form>
 
 					<footer className="flex items-center justify-center border-t border-border/20 bg-card px-6 py-4 sm:px-10">
-						{madeBySarkUrl ? (
+						{madeBySrc ? (
 							<img
-								src={madeBySarkUrl}
+								src={madeBySrc}
 								alt="Made by SARK"
 								className="h-6 w-auto object-contain sm:h-8 scale-[0.50]"
+								onError={() => {
+									if (madeByFallbackUrl && madeBySrc !== madeByFallbackUrl) {
+										setMadeBySrc(madeByFallbackUrl);
+									}
+								}}
 							/>
 						) : (
 							<span className="text-xs uppercase tracking-[0.35em] text-muted-foreground">
