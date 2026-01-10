@@ -29,7 +29,11 @@ import {
 	buildHistoryFromOrders,
 	buildHistoryFromProducts,
 	buildMultiSellerPerformance,
+	resolveEasynumbersLogoStorageUrl,
+	resolveEasynumbersLogoUrl,
+	resolveMadeBySarkStorageUrl,
 	resolveMadeBySarkUrl,
+	resolveSarkLogoStorageUrl,
 } from '../utils/helpers';
 import { Card, ListItem, Metric, Section, Title } from './ui/Primitives';
 
@@ -63,7 +67,13 @@ const Dashboard = ({
 	const tenantId = tenant?.id;
 	const { logoUrl, primaryColor, secondaryColor, companyName, uiPreset } = useTheme();
 	const madeBySarkUrl = resolveMadeBySarkUrl();
-	const easynumbersLogo = uiPreset?.toLowerCase() === 'dark' ? '/easynumbers-white.png' : '/easynumbers.png';
+	const madeByFallbackUrl = resolveMadeBySarkStorageUrl();
+	const brandLogoFallback = resolveSarkLogoStorageUrl(uiPreset);
+	const easynumbersLogo = resolveEasynumbersLogoUrl(uiPreset);
+	const easynumbersFallback = resolveEasynumbersLogoStorageUrl(uiPreset);
+	const [brandLogoSrc, setBrandLogoSrc] = useState(logoUrl);
+	const [madeBySrc, setMadeBySrc] = useState(madeBySarkUrl);
+	const [easynumbersSrc, setEasynumbersSrc] = useState(easynumbersLogo);
 	const [loading, setLoading] = useState(false);
 	const [page, setPage] = useState<'overview' | 'clientes' | 'vendedores'>('overview');
 	const [surface, setSurface] = useState<'dashboard' | 'products'>('dashboard');
@@ -80,6 +90,17 @@ const Dashboard = ({
 		produtosDistintos: 214,
 	});
 	const [categorySales, setCategorySales] = useState<CategorySale[]>([]);
+	useEffect(() => {
+		setBrandLogoSrc(logoUrl);
+	}, [logoUrl]);
+
+	useEffect(() => {
+		setMadeBySrc(madeBySarkUrl);
+	}, [madeBySarkUrl]);
+
+	useEffect(() => {
+		setEasynumbersSrc(easynumbersLogo);
+	}, [easynumbersLogo]);
 	const [history, setHistory] = useState<HistoryItem[]>([]);
 	const [clientes, setClientes] = useState<Client[]>([]);
 	const [vendedores, setVendedores] = useState<Seller[]>([]);
@@ -556,11 +577,16 @@ const Dashboard = ({
 				<div className="flex w-full flex-col gap-4 px-4 py-5 sm:px-10 lg:px-16">
 					<div className="flex w-full flex-wrap items-center gap-4">
 								<div className="flex items-center gap-5">
-							{logoUrl ? (
+							{brandLogoSrc ? (
 								<img
-									src={logoUrl}
+									src={brandLogoSrc}
 									alt={companyName}
 									className="h-8 w-auto object-contain sm:h-9"
+									onError={() => {
+										if (brandLogoFallback && brandLogoSrc !== brandLogoFallback) {
+											setBrandLogoSrc(brandLogoFallback);
+										}
+									}}
 								/>
 								) : (
 									<h1 className="text-xl font-bold tracking-tight text-foreground">{companyName}</h1>
@@ -578,11 +604,18 @@ const Dashboard = ({
 								</select>
 							</div>
 							<div className="ml-auto flex items-center gap-3 text-foreground">
-								<img
-									src={easynumbersLogo}
-									alt="EasyNumbers"
-									className="pointer-events-none h-8 w-auto sm:h-10 scale-[5.75] z-[-0.5] mr-2"
-								/>
+								{easynumbersSrc ? (
+									<img
+										src={easynumbersSrc}
+										alt="EasyNumbers"
+										className="pointer-events-none h-8 w-auto sm:h-10 scale-[5.75] z-[-0.5] mr-2"
+										onError={() => {
+											if (easynumbersFallback && easynumbersSrc !== easynumbersFallback) {
+												setEasynumbersSrc(easynumbersFallback);
+											}
+										}}
+									/>
+								) : null}
 								{canImport && (
 									<button
 										type="button"
@@ -1285,8 +1318,17 @@ const Dashboard = ({
 			</main>
 
 			<footer className="flex items-center justify-center border-t border-border/20 bg-card px-6 py-4 text-xs uppercase tracking-[0.3em] text-muted-foreground sm:px-10">
-				{madeBySarkUrl ? (
-					<img src={madeBySarkUrl} alt="Made by SARK" className="h-6 w-auto object-contain sm:h-8 scale-[0.50]" />
+				{madeBySrc ? (
+					<img
+						src={madeBySrc}
+						alt="Made by SARK"
+						className="h-6 w-auto object-contain sm:h-8 scale-[0.50]"
+						onError={() => {
+							if (madeByFallbackUrl && madeBySrc !== madeByFallbackUrl) {
+								setMadeBySrc(madeByFallbackUrl);
+							}
+						}}
+					/>
 				) : (
 					<span>Made by SARK</span>
 				)}
