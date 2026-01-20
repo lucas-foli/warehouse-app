@@ -3,10 +3,12 @@ import { supabase } from '../lib/supabaseClient';
 import { useTenant } from '../context/TenantContext';
 import {
 	buildClientsFromCsvText,
+	buildProductsFromCsvText,
 	buildSalesItemsFromCsvText,
 	buildSalesOrdersFromCsvText,
 	buildSellersFromCsvText,
 	type CsvImportResult,
+	type ProductUpsertRow,
 	type SalesItemUpsertRow,
 	type SalesOrderUpsertRow,
 } from '../utils/csv';
@@ -15,7 +17,7 @@ type Props = {
 	onBack: () => void;
 };
 
-type ImportKind = 'clients' | 'sellers' | 'orders' | 'items';
+type ImportKind = 'clients' | 'sellers' | 'orders' | 'items' | 'products';
 
 type ImportConfig = {
 	label: string;
@@ -48,6 +50,12 @@ const IMPORT_CONFIG: Record<ImportKind, ImportConfig> = {
 		description: 'Importe itens por pedido para ranking de produtos.',
 		table: 'sales_items',
 		onConflict: 'tenant_id,order_number,sku',
+	},
+	products: {
+		label: 'Produtos',
+		description: 'Importe ou atualize produtos em estoque.',
+		table: 'products',
+		onConflict: 'tenant_id,sku',
 	},
 };
 
@@ -116,6 +124,8 @@ const DataImport = ({ onBack }: Props) => {
 				return buildSalesOrdersFromCsvText(text, tenantId) as CsvImportResult<unknown>;
 			case 'items':
 				return buildSalesItemsFromCsvText(text, tenantId) as CsvImportResult<unknown>;
+			case 'products':
+				return buildProductsFromCsvText(text, tenantId) as CsvImportResult<unknown>;
 		}
 	};
 
@@ -200,7 +210,9 @@ const DataImport = ({ onBack }: Props) => {
 		const batches = chunk(rows, 500);
 		let uploaded = 0;
 		for (const batch of batches) {
-			const { error } = await supabase.from(config.table).upsert(batch, { onConflict: config.onConflict });
+			const { error } = await supabase
+				.from(config.table)
+				.upsert(batch, { onConflict: config.onConflict, defaultToNull: false });
 			if (error) throw error;
 			uploaded += batch.length;
 		}
@@ -232,6 +244,20 @@ const DataImport = ({ onBack }: Props) => {
 					};
 				});
 				const uploaded = await upsertRows(sanitized);
+				setImportedRows(uploaded);
+				setLoading(false);
+				return;
+			}
+
+			if (kind === 'products') {
+				const rows = (csvRows as ProductUpsertRow[]).map((row) => ({
+					...row,
+					sku: row.sku.trim(),
+					name: row.name.trim(),
+					status: row.status?.trim() || undefined,
+					location: row.location?.trim() || undefined,
+				}));
+				const uploaded = await upsertRows(rows as Record<string, unknown>[]);
 				setImportedRows(uploaded);
 				setLoading(false);
 				return;
