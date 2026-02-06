@@ -24,6 +24,13 @@ type ImportConfig = {
 	onConflict: string;
 };
 
+type CsvGuide = {
+	required: string[];
+	optional: string[];
+	example: string;
+	notes?: string[];
+};
+
 const IMPORT_CONFIG: Record<ImportKind, ImportConfig> = {
 	clients: {
 		label: 'Clientes',
@@ -48,6 +55,33 @@ const IMPORT_CONFIG: Record<ImportKind, ImportConfig> = {
 		description: 'Importe itens por pedido para ranking de produtos.',
 		table: 'sales_items',
 		onConflict: 'tenant_id,order_number,sku',
+	},
+};
+
+const CSV_GUIDE: Record<ImportKind, CsvGuide> = {
+	clients: {
+		required: ['name'],
+		optional: ['external_id', 'email', 'phone', 'city', 'last_purchase_at'],
+		example: 'name,external_id,email,phone,city,last_purchase_at',
+		notes: ['external_id e recomendado para cruzar pedidos. Se nao vier, usamos email/telefone/nome.'],
+	},
+	sellers: {
+		required: ['name'],
+		optional: ['external_id', 'email'],
+		example: 'name,external_id,email',
+		notes: ['external_id e recomendado para vincular pedidos ao vendedor.'],
+	},
+	orders: {
+		required: ['order_number'],
+		optional: ['client_external_id', 'seller_external_id', 'status', 'total_amount', 'sold_at'],
+		example: 'order_number,client_external_id,seller_external_id,status,total_amount,sold_at',
+		notes: ['Use os mesmos external_id dos CSVs de clientes e vendedores para vincular.'],
+	},
+	items: {
+		required: ['order_number', 'sku'],
+		optional: ['qty', 'unit_price', 'total_price'],
+		example: 'order_number,sku,qty,unit_price,total_price',
+		notes: ['Se total_price estiver vazio, calculamos unit_price x qty (qty padrao = 1).'],
 	},
 };
 
@@ -88,6 +122,7 @@ const DataImport = ({ onBack }: Props) => {
 	const [clearBeforeImport, setClearBeforeImport] = useState(false);
 
 	const config = IMPORT_CONFIG[kind];
+	const csvGuide = CSV_GUIDE[kind];
 	const isCsvInvalid = Boolean(csvFile && csvRows.length === 0);
 	const isImportDisabled = loading || Boolean(csvError) || Boolean(importError) || !csvFile || isCsvInvalid;
 
@@ -311,16 +346,16 @@ const DataImport = ({ onBack }: Props) => {
 	}, [kind]);
 
 	return (
-		<div className="min-h-screen bg-background text-foreground flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-			<div className="sm:mx-auto sm:w-full sm:max-w-md">
+		<div className="min-h-screen bg-background text-foreground flex flex-col justify-center px-4 py-10 sm:px-6 sm:py-12 lg:px-10">
+			<div className="mx-auto w-full max-w-xl sm:max-w-2xl lg:max-w-3xl">
 				<h2 className="mt-6 text-center text-3xl font-extrabold text-foreground">Importar dados</h2>
 				<p className="mt-2 text-center text-sm text-muted-foreground">
 					Carregue arquivos CSV para alimentar as metricas.
 				</p>
 			</div>
 
-			<div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-				<div className="bg-card py-8 px-4 shadow-[var(--shadow-card)] sm:rounded-[var(--radius-card)] sm:px-10">
+			<div className="mt-8 mx-auto w-full max-w-xl sm:max-w-2xl lg:max-w-3xl">
+				<div className="bg-card py-8 px-4 shadow-[var(--shadow-card)] sm:rounded-[var(--radius-card)] sm:px-8 lg:px-10">
 					<div className="space-y-6">
 						<div>
 							<label className="block text-sm font-medium text-muted-foreground">Tipo de importacao</label>
@@ -408,6 +443,34 @@ const DataImport = ({ onBack }: Props) => {
 							</div>
 						</div>
 
+						<div className="rounded-md border border-border/40 bg-muted/30 px-3 py-3 text-xs text-muted-foreground leading-relaxed">
+							<p className="text-sm font-medium text-foreground">Como deve ser o CSV</p>
+							<p className="mt-1">
+								Cabecalho obrigatorio:{' '}
+								<span className="font-medium text-foreground break-all">{csvGuide.required.join(', ')}</span>
+								{csvGuide.optional.length > 0 ? (
+									<>
+										{' '}
+										• Opcionais:{' '}
+										<span className="font-medium text-foreground break-all">{csvGuide.optional.join(', ')}</span>
+									</>
+								) : null}
+							</p>
+							<p className="mt-1">
+								Exemplo de cabecalho:{' '}
+								<span className="font-medium text-foreground break-all">{csvGuide.example}</span>
+							</p>
+							{csvGuide.notes?.map((note) => (
+								<p key={note} className="mt-1">
+									{note}
+								</p>
+							))}
+							<p className="mt-1">
+								Aceitamos variacoes nos nomes das colunas (ex: nome, pedido). Separador pode ser virgula,
+								ponto e virgula ou tab. Numeros aceitam ponto ou virgula.
+							</p>
+						</div>
+
 						<div className="rounded-md border border-border/40 bg-muted/30 px-3 py-3">
 							<label className="flex items-start gap-3 text-sm text-foreground">
 								<input
@@ -483,7 +546,7 @@ const DataImport = ({ onBack }: Props) => {
 							</div>
 						)}
 
-						<div className="flex justify-between gap-4">
+						<div className="flex flex-col gap-4 sm:flex-row sm:justify-between">
 							<button
 								type="button"
 								onClick={onBack}
