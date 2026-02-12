@@ -2,11 +2,13 @@ import { useMemo, useRef, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useTenant } from '../context/TenantContext';
 import {
+	buildProductsFromCsvText,
 	buildClientsFromCsvText,
 	buildSalesItemsFromCsvText,
 	buildSalesOrdersFromCsvText,
 	buildSellersFromCsvText,
 	type CsvImportResult,
+	type ProductUpsertRow,
 	type SalesItemUpsertRow,
 	type SalesOrderUpsertRow,
 } from '../utils/csv';
@@ -15,7 +17,7 @@ type Props = {
 	onBack: () => void;
 };
 
-type ImportKind = 'clients' | 'sellers' | 'orders' | 'items';
+type ImportKind = 'products' | 'clients' | 'sellers' | 'orders' | 'items';
 
 type ImportConfig = {
 	label: string;
@@ -32,6 +34,12 @@ type CsvGuide = {
 };
 
 const IMPORT_CONFIG: Record<ImportKind, ImportConfig> = {
+	products: {
+		label: 'Produtos',
+		description: 'Importe a tabela mestre de produtos (SKU, nome, foto e status).',
+		table: 'products',
+		onConflict: 'tenant_id,sku',
+	},
 	clients: {
 		label: 'Clientes',
 		description: 'Importe clientes com nome, contato e cidade.',
@@ -59,6 +67,15 @@ const IMPORT_CONFIG: Record<ImportKind, ImportConfig> = {
 };
 
 const CSV_GUIDE: Record<ImportKind, CsvGuide> = {
+	products: {
+		required: ['sku', 'name'],
+		optional: ['barcode', 'status', 'is_active', 'location', 'qty', 'min', 'price', 'total_sold', 'image_url'],
+		example: 'sku,name,barcode,status,is_active,location,qty,min,price,total_sold,image_url',
+		notes: [
+			'Use este arquivo antes de importar itens de venda.',
+			'`is_active=false` bloqueia o SKU para novas vendas.',
+		],
+	},
 	clients: {
 		required: ['name'],
 		optional: ['external_id', 'email', 'phone', 'city', 'last_purchase_at'],
@@ -81,7 +98,10 @@ const CSV_GUIDE: Record<ImportKind, CsvGuide> = {
 		required: ['order_number', 'sku'],
 		optional: ['qty', 'unit_price', 'total_price'],
 		example: 'order_number,sku,qty,unit_price,total_price',
-		notes: ['Se total_price estiver vazio, calculamos unit_price x qty (qty padrao = 1).'],
+		notes: [
+			'Se total_price estiver vazio, calculamos unit_price x qty (qty padrao = 1).',
+			'Somente SKUs cadastrados e ativos em produtos sao aceitos.',
+		],
 	},
 };
 
@@ -103,6 +123,18 @@ const normalizeDateInput = (value?: string) => {
 };
 
 const normalizeKey = (value: string) => value.trim().toUpperCase();
+
+const isInactiveStatus = (status?: string) => {
+	const normalized = (status ?? '').trim().toLowerCase();
+	if (!normalized) return false;
+	return ['inativo', 'inativa', 'inactive', 'desativado', 'desativada', 'arquivado', 'archived'].includes(normalized);
+};
+
+const summarizeValues = (values: string[], limit = 8) => {
+	const unique = Array.from(new Set(values.filter(Boolean)));
+	if (unique.length <= limit) return unique.join(', ');
+	return `${unique.slice(0, limit).join(', ')}... (+${unique.length - limit})`;
+};
 
 const DataImport = ({ onBack }: Props) => {
 	const { tenant } = useTenant();
@@ -143,6 +175,8 @@ const DataImport = ({ onBack }: Props) => {
 			return { preview: [], rows: [], totalRows: 0, validRows: 0, skippedRows: 0, warnings: ['Tenant nao carregado.'] };
 		}
 		switch (kind) {
+			case 'products':
+				return buildProductsFromCsvText(text, tenantId) as CsvImportResult<unknown>;
 			case 'clients':
 				return buildClientsFromCsvText(text, tenantId) as CsvImportResult<unknown>;
 			case 'sellers':
@@ -219,13 +253,59 @@ const DataImport = ({ onBack }: Props) => {
 		values: string[],
 	) => {
 		const map = new Map<string, string>();
-		const batches = chunk(values.filter(Boolean), 200);
+		if (!tenantId) return map;
+		const uniqueValues = Array.from(new Set(values.filter(Boolean)));
+		const batches = chunk(uniqueValues, 200);
 		for (const batch of batches) {
-			const { data, error } = await supabase.from(table).select(`id, ${key}`).in(key, batch);
+			const { data, error } = await supabase.from(table).select(`id, ${key}`).eq('tenant_id', tenantId).in(key, batch);
 			if (error) throw error;
 			(data ?? []).forEach((row: Record<string, string>) => {
 				const rowKey = row[key];
-				if (rowKey) map.set(rowKey, row.id);
+				if (rowKey) map.set(normalizeKey(rowKey), row.id);
+			});
+		}
+		return map;
+	};
+
+	const fetchProductsBySku = async (values: string[]) => {
+		const map = new Map<string, { id: string; isActive: boolean }>();
+		if (!tenantId) return map;
+		const uniqueValues = Array.from(new Set(values.filter(Boolean)));
+		const batches = chunk(uniqueValues, 200);
+
+		for (const batch of batches) {
+			let data: Record<string, unknown>[] | null = null;
+			const primary = await supabase
+				.from('products')
+				.select('id, sku, is_active, status')
+				.eq('tenant_id', tenantId)
+				.in('sku', batch);
+
+			if (primary.error) {
+				if (primary.error.message.toLowerCase().includes('is_active')) {
+					const fallback = await supabase
+						.from('products')
+						.select('id, sku, status')
+						.eq('tenant_id', tenantId)
+						.in('sku', batch);
+					if (fallback.error) throw fallback.error;
+					data = fallback.data as Record<string, unknown>[] | null;
+				} else {
+					throw primary.error;
+				}
+			} else {
+				data = primary.data as Record<string, unknown>[] | null;
+			}
+
+			(data ?? []).forEach((row) => {
+				const sku = String(row.sku ?? '').trim();
+				const id = String(row.id ?? '').trim();
+				if (!sku || !id) return;
+				const status = String(row.status ?? '').trim();
+				const isActiveValue = row.is_active;
+				const isActive =
+					typeof isActiveValue === 'boolean' ? isActiveValue : status ? !isInactiveStatus(status) : true;
+				map.set(normalizeKey(sku), { id, isActive });
 			});
 		}
 		return map;
@@ -255,6 +335,26 @@ const DataImport = ({ onBack }: Props) => {
 				}
 				const { error: clearError } = await supabase.from(config.table).delete().eq('tenant_id', tenantId);
 				if (clearError) throw clearError;
+			}
+
+			if (kind === 'products') {
+				const sanitized = (csvRows as ProductUpsertRow[]).map((row) => {
+					const imageUrl = String(row.image_url ?? row.image ?? '').trim();
+					return {
+						...row,
+						sku: normalizeKey(row.sku),
+						name: String(row.name ?? '').trim(),
+						barcode: row.barcode?.trim() || undefined,
+						status: row.status?.trim() || undefined,
+						location: row.location?.trim() || undefined,
+						image_url: imageUrl || undefined,
+						image: imageUrl || undefined,
+					};
+				});
+				const uploaded = await upsertRows(sanitized as Record<string, unknown>[]);
+				setImportedRows(uploaded);
+				setLoading(false);
+				return;
 			}
 
 			if (kind === 'clients' || kind === 'sellers') {
@@ -306,7 +406,29 @@ const DataImport = ({ onBack }: Props) => {
 			const orderNumbers = rows.map((row) => row.order_number).filter(Boolean);
 			const skus = rows.map((row) => row.sku || '').filter(Boolean);
 			const orderMap = orderNumbers.length ? await fetchIdMap('sales_orders', 'order_number', orderNumbers) : new Map();
-			const productMap = skus.length ? await fetchIdMap('products', 'sku', skus) : new Map();
+			const productMap = skus.length ? await fetchProductsBySku(skus) : new Map();
+
+			const unknownSkus: string[] = [];
+			const inactiveSkus: string[] = [];
+			for (const sku of skus) {
+				const product = productMap.get(sku);
+				if (!product) {
+					unknownSkus.push(sku);
+					continue;
+				}
+				if (!product.isActive) inactiveSkus.push(sku);
+			}
+
+			if (unknownSkus.length || inactiveSkus.length) {
+				const messageParts: string[] = [];
+				if (unknownSkus.length) {
+					messageParts.push(`SKUs nao cadastrados: ${summarizeValues(unknownSkus)}`);
+				}
+				if (inactiveSkus.length) {
+					messageParts.push(`SKUs inativos: ${summarizeValues(inactiveSkus)}`);
+				}
+				throw new Error(`${messageParts.join(' | ')}. Importe/ative os produtos e tente novamente.`);
+			}
 
 			const payload = rows.map((row) => {
 				const qty = row.qty ?? 1;
@@ -316,7 +438,7 @@ const DataImport = ({ onBack }: Props) => {
 					qty,
 					total_price: total,
 					order_id: orderMap.get(row.order_number) ?? null,
-					product_id: row.sku ? productMap.get(row.sku) ?? null : null,
+					product_id: row.sku ? productMap.get(row.sku)?.id ?? null : null,
 				};
 			});
 
@@ -342,6 +464,7 @@ const DataImport = ({ onBack }: Props) => {
 	const clearHint = useMemo(() => {
 		if (kind === 'orders') return 'Limpa pedidos e itens deste tenant.';
 		if (kind === 'items') return 'Limpa todos os itens de venda antes do import.';
+		if (kind === 'products') return 'Limpa a tabela mestre de produtos deste tenant antes do import.';
 		return 'Limpa os dados deste tipo antes do import.';
 	}, [kind]);
 
