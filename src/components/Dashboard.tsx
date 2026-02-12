@@ -29,6 +29,7 @@ import {
 	buildHistoryFromOrders,
 	buildHistoryFromProducts,
 	buildMultiSellerPerformance,
+	buildRecentDailySalesFromOrders,
 	resolveEasynumbersLogoStorageUrl,
 	resolveEasynumbersLogoUrl,
 	resolveMadeBySarkStorageUrl,
@@ -102,6 +103,7 @@ const Dashboard = ({
 		setEasynumbersSrc(easynumbersLogo);
 	}, [easynumbersLogo]);
 	const [history, setHistory] = useState<HistoryItem[]>([]);
+	const [salesTrend, setSalesTrend] = useState<HistoryItem[]>([]);
 	const [clientes, setClientes] = useState<Client[]>([]);
 	const [vendedores, setVendedores] = useState<Seller[]>([]);
 
@@ -366,11 +368,13 @@ const Dashboard = ({
 
 			const historyFromOrders = salesOrders.length ? buildHistoryFromOrders(salesOrders) : [];
 			const historyFromProducts = hasProductsFromCsv ? buildHistoryFromProducts(parsedProducts) : [];
+			const recentDailySales = buildRecentDailySalesFromOrders(salesOrders, 20);
 
 			setCategorySales(
 				categoryFromItems.length ? categoryFromItems : categoryFromProducts.length ? categoryFromProducts : sampleCategory,
 			);
 			setHistory(historyFromOrders.length ? historyFromOrders : historyFromProducts.length ? historyFromProducts : SAMPLE_CLIENT_EVOLUTION);
+			setSalesTrend(recentDailySales);
 
 			if (salesOrders.length) {
 				const lastPurchaseByKey = new Map<string, string>();
@@ -801,11 +805,11 @@ const Dashboard = ({
 								<Section className="grid gap-10 xl:grid-cols-2">
 									<Card>
 										<p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-muted-foreground">
-											Tendência mensal
+											Tendência (últimos 20 dias)
 										</p>
 										<div className="mt-4 h-56 w-full rounded-xl bg-muted/60 p-4">
 										<ResponsiveContainer width="100%" height="100%">
-											<AreaChart data={history}>
+											<AreaChart data={salesTrend}>
 												<defs>
 													<linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
 														<stop offset="5%" stopColor={primaryColor} stopOpacity={0.3} />
@@ -817,6 +821,8 @@ const Dashboard = ({
 													axisLine={false}
 													tickLine={false}
 													tick={{ fill: primaryColor, fontSize: 10 }}
+													interval={3}
+													minTickGap={24}
 													dy={10}
 												/>
 												<YAxis

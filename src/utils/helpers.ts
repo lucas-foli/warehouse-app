@@ -202,6 +202,51 @@ export const buildHistoryFromOrders = (
 	return items.map(([, value]) => ({ month: value.label, value: value.value }));
 };
 
+export const buildRecentDailySalesFromOrders = (
+	orders: Array<{
+		sold_at?: string;
+		total_amount?: number;
+	}>,
+	daysBack = 20,
+	referenceDate?: Date,
+): HistoryItem[] => {
+	const today = referenceDate ? new Date(referenceDate) : new Date();
+	today.setHours(0, 0, 0, 0);
+
+	const start = new Date(today);
+	start.setDate(start.getDate() - daysBack);
+
+	const byDay = new Map<string, number>();
+
+	for (const order of orders) {
+		if (!Number.isFinite(order.total_amount)) continue;
+		const parsed = order.sold_at ? new Date(order.sold_at) : null;
+		if (!parsed || Number.isNaN(parsed.getTime())) continue;
+		parsed.setHours(0, 0, 0, 0);
+		if (parsed < start || parsed > today) continue;
+
+		const key = `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, '0')}-${String(
+			parsed.getDate(),
+		).padStart(2, '0')}`;
+		byDay.set(key, (byDay.get(key) ?? 0) + Number(order.total_amount));
+	}
+
+	const series: HistoryItem[] = [];
+	for (let offset = daysBack; offset >= 0; offset--) {
+		const date = new Date(today);
+		date.setDate(today.getDate() - offset);
+		const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(
+			date.getDate(),
+		).padStart(2, '0')}`;
+		series.push({
+			month: date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+			value: byDay.get(key) ?? 0,
+		});
+	}
+
+	return series;
+};
+
 export const buildClientEvolutionFromClients = (clients: Client[]): HistoryItem[] => {
 	if (!clients.length) return [];
 
