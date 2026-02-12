@@ -64,14 +64,16 @@ Novas tabelas:
 - `sales_orders` (cabecalho de vendas)
 - `sales_items` (itens por pedido)
 
-O app tem uma tela "Importar dados" (admin-only) que aceita quatro tipos de CSV:
+O app tem uma tela "Importar dados" (admin-only) que aceita cinco tipos de CSV:
 
+- Produtos (tabela mestre): `sku`, `name`, `status`, `is_active`, `image_url`, `qty`, `price`, ...
 - Clientes: `external_id`, `nome`, `email`, `telefone`, `cidade`, `ultima_compra`
 - Vendedores: `external_id`, `nome`, `email`
 - Vendas (Pedidos): `order_number`, `client_external_id`, `seller_external_id`, `status`, `total_amount`, `sold_at`
 - Itens de venda: `order_number`, `sku`, `qty`, `unit_price`, `total_price`
 
-O relacionamento e feito por `external_id` (clientes/vendedores) e `order_number` (pedidos).
+O relacionamento e feito por `external_id` (clientes/vendedores), `order_number` (pedidos) e `sku` (itens -> produtos).
+`sales_items` agora valida SKU existente e ativo na tabela `products`.
 
 ## Tenant invites (bootstrap admin)
 

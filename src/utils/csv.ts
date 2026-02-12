@@ -99,11 +99,14 @@ export type ProductUpsertRow = {
 	name: string;
 	barcode?: string;
 	status?: string;
+	is_active?: boolean;
 	location?: string;
 	qty?: number;
 	min?: number;
 	price?: number;
 	total_sold?: number;
+	image_url?: string;
+	// Legacy column kept for backward compatibility with older schemas.
 	image?: string;
 };
 
@@ -157,12 +160,13 @@ type CanonicalField =
 	| 'name'
 	| 'barcode'
 	| 'status'
+	| 'is_active'
 	| 'location'
 	| 'qty'
 	| 'min'
 	| 'price'
 	| 'total_sold'
-	| 'image';
+	| 'image_url';
 
 const HEADER_ALIASES: Record<string, CanonicalField> = {
 	sku: 'sku',
@@ -192,6 +196,13 @@ const HEADER_ALIASES: Record<string, CanonicalField> = {
 	status: 'status',
 	situacao: 'status',
 	estado: 'status',
+
+	is_active: 'is_active',
+	active: 'is_active',
+	ativo: 'is_active',
+	ativa: 'is_active',
+	status_ativo: 'is_active',
+	ativo_inativo: 'is_active',
 
 	location: 'location',
 	local: 'location',
@@ -224,12 +235,12 @@ const HEADER_ALIASES: Record<string, CanonicalField> = {
 	vendidos: 'total_sold',
 	qtd_vendida: 'total_sold',
 
-	image: 'image',
-	imagem: 'image',
-	foto: 'image',
-	photo: 'image',
-	image_url: 'image',
-	url_imagem: 'image',
+	image: 'image_url',
+	imagem: 'image_url',
+	foto: 'image_url',
+	photo: 'image_url',
+	image_url: 'image_url',
+	url_imagem: 'image_url',
 };
 
 const parseDecimal = (value: string) => {
@@ -260,6 +271,14 @@ const parseInteger = (value: string) => {
 	if (!match) return undefined;
 	const parsed = Number.parseInt(match[0], 10);
 	return Number.isFinite(parsed) ? parsed : undefined;
+};
+
+const parseBoolean = (value: string) => {
+	const normalized = value.trim().toLowerCase();
+	if (!normalized) return undefined;
+	if (['1', 'true', 't', 'yes', 'y', 'sim', 's', 'ativo', 'ativa'].includes(normalized)) return true;
+	if (['0', 'false', 'f', 'no', 'n', 'nao', 'não', 'inativo', 'inativa'].includes(normalized)) return false;
+	return undefined;
 };
 
 export type CsvProductsResult = {
@@ -337,6 +356,9 @@ export const buildProductsFromCsvText = (csvText: string, tenantId: string): Csv
 		const status = (fields.status ?? '').trim();
 		if (status) row.status = status;
 
+		const isActive = fields.is_active ? parseBoolean(fields.is_active) : undefined;
+		if (typeof isActive === 'boolean') row.is_active = isActive;
+
 		const location = (fields.location ?? '').trim();
 		if (location) row.location = location;
 
@@ -352,8 +374,11 @@ export const buildProductsFromCsvText = (csvText: string, tenantId: string): Csv
 		const totalSold = fields.total_sold ? parseInteger(fields.total_sold) : undefined;
 		if (totalSold !== undefined) row.total_sold = totalSold;
 
-		const image = (fields.image ?? '').trim();
-		if (image) row.image = image;
+		const imageUrl = (fields.image_url ?? '').trim();
+		if (imageUrl) {
+			row.image_url = imageUrl;
+			row.image = imageUrl;
+		}
 
 		productRows.push(row);
 	}

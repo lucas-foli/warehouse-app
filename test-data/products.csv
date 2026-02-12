@@ -1,0 +1,4 @@
+sku,name,barcode,status,is_active,location,qty,min,price,total_sold,image_url
+123,Produto A,7891234567890,ESTOQUE,true,Loja principal,80,5,20.00,140,https://images.unsplash.com/photo-1514996937319-344454492b37?auto=format&fit=crop&w=400&q=60
+214,Produto B,7899876543210,ESTOQUE,true,Loja principal,40,3,40.00,96,https://images.unsplash.com/photo-1565118531796-763e5082d113?auto=format&fit=crop&w=400&q=60
+777,Produto Inativo,7895550001234,INATIVO,false,Loja principal,0,2,15.00,12,

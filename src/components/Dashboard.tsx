@@ -223,51 +223,50 @@ const Dashboard = ({
 					throw error;
 				}
 
-					console.log('Supabase data received:', data?.length || 0, 'products');
+				console.log('Supabase data received:', data?.length || 0, 'products');
 
-					if (data && data.length > 0) {
-						// Map Supabase data to Product interface
-						parsedProducts = (data as Record<string, unknown>[]).map((row) => {
-							const str = (...keys: string[]) => {
-								for (const key of keys) {
-									const value = row[key];
-									if (typeof value === 'string' && value.trim()) return value.trim();
-									if (typeof value === 'number') return String(value);
-								}
-								return '';
-							};
+				if (data && data.length > 0) {
+					// Map Supabase data to Product interface
+					parsedProducts = (data as Record<string, unknown>[]).map((row) => {
+						const str = (...keys: string[]) => {
+							for (const key of keys) {
+								const value = row[key];
+								if (typeof value === 'string' && value.trim()) return value.trim();
+								if (typeof value === 'number') return String(value);
+							}
+							return '';
+						};
 
-							const num = (...keys: string[]) => {
-								const value = str(...keys);
-								const parsed = Number(value);
-								return Number.isFinite(parsed) ? parsed : undefined;
-							};
+						const num = (...keys: string[]) => {
+							const value = str(...keys);
+							const parsed = Number(value);
+							return Number.isFinite(parsed) ? parsed : undefined;
+						};
 
-							const currency = (...keys: string[]) => {
-								const value = str(...keys);
-								if (!value) return undefined;
-								const parsed = Number(value.replace(/[^\d,.-]/g, '').replace(',', '.'));
-								return Number.isFinite(parsed) ? parsed : undefined;
-							};
+						const currency = (...keys: string[]) => {
+							const value = str(...keys);
+							if (!value) return undefined;
+							const parsed = Number(value.replace(/[^\d,.-]/g, '').replace(',', '.'));
+							return Number.isFinite(parsed) ? parsed : undefined;
+						};
 
-							return {
-								id: str('id') || str('sku') || crypto.randomUUID(),
-								name: str('name', 'descricao', 'Descrição'),
-								sku: str('sku', 'SKU') || '—',
-								barcode: str('barcode', 'Barcode', 'BARCODE', 'codigo_barras') || undefined,
-								status: str('status', 'Status') || 'ESTOQUE',
-								location: str('location', 'local', 'Local') || 'Loja principal',
-								qty:
-									num('qty', 'quantidade_estoque', 'Quantidade_Estoque', 'total_estoque', 'Total_Estoque') ??
-									0,
-								min: num('min', 'estoque_minimo', 'Estoque_Minimo') ?? undefined,
-								price: num('price') ?? currency('preco_venda', 'Preço de Venda Normal') ?? undefined,
-								totalSold: num('total_sold') ?? undefined,
-								image: str('image', 'foto', 'Foto') || undefined,
-							};
-						});
-						console.log('Parsed products:', parsedProducts.length);
-					}
+						return {
+							id: str('id') || str('sku') || crypto.randomUUID(),
+							name: str('name', 'descricao', 'Descrição'),
+							sku: str('sku', 'SKU') || '—',
+							barcode: str('barcode', 'Barcode', 'BARCODE', 'codigo_barras') || undefined,
+							status: str('status', 'Status') || 'ESTOQUE',
+							location: str('location', 'local', 'Local') || 'Loja principal',
+							qty:
+								num('qty', 'quantidade_estoque', 'Quantidade_Estoque', 'total_estoque', 'Total_Estoque') ?? 0,
+							min: num('min', 'estoque_minimo', 'Estoque_Minimo') ?? undefined,
+							price: num('price') ?? currency('preco_venda', 'Preço de Venda Normal') ?? undefined,
+							totalSold: num('total_sold') ?? undefined,
+							image: str('image_url', 'image', 'foto', 'Foto') || undefined,
+						};
+					});
+					console.log('Parsed products:', parsedProducts.length);
+				}
 			} catch (err) {
 				console.error('Failed to load products from Supabase, using mock data.', err);
 			}
@@ -528,21 +527,42 @@ const Dashboard = ({
 	const clientPurchases = clientPurchasesSeries.length ? clientPurchasesSeries : SAMPLE_CLIENT_PURCHASES;
 	const maxClientPurchasesValue = clientPurchases.reduce((max, h) => (h.value > max ? h.value : max), 0);
 
-	const sellerPerformanceSeries = buildMultiSellerPerformance(vendedores);
+	const sellersSortedByRevenue = useMemo(
+		() => [...vendedores].sort((a, b) => (b.bruto || 0) - (a.bruto || 0)),
+		[vendedores],
+	);
+	const sellersForDisplay = useMemo(
+		() => (sellersSortedByRevenue.length > 15 ? sellersSortedByRevenue.slice(0, 15) : sellersSortedByRevenue),
+		[sellersSortedByRevenue],
+	);
+	const isSellerListCapped = sellersSortedByRevenue.length > 15;
+
+	const sellerPerformanceSeries = buildMultiSellerPerformance(sellersForDisplay);
 	const sellerPerformance = sellerPerformanceSeries.length ? sellerPerformanceSeries : [];
 
 	const sellerBarData = useMemo(
 		() =>
-			vendedores.map((v) => ({
+			sellersForDisplay.map((v) => ({
 				vendedor: v.nome,
 				bruto: v.bruto,
 				liquido: v.liquido,
 			})),
-		[vendedores],
+		[sellersForDisplay],
 	);
 
 	const formatCurrency = (value: number) =>
 		`R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+	const formatMonthYear = (value?: string) => {
+		if (!value) return '—';
+		const parsed = new Date(value);
+		if (!Number.isNaN(parsed.getTime())) {
+			return parsed.toLocaleDateString('pt-BR', { month: '2-digit', year: 'numeric' });
+		}
+		const direct = value.match(/^(\d{4})-(\d{2})/);
+		if (direct) return `${direct[2]}/${direct[1]}`;
+		return value;
+	};
 
 	const renderSellerTooltip = ({ active, payload, label }: TooltipContentProps<ValueType, NameType>) => {
 		if (!active || !payload?.length) return null;
@@ -1135,7 +1155,7 @@ const Dashboard = ({
 															<td className="px-4 py-3 font-semibold text-foreground">{c.nome}</td>
 															<td className="px-4 py-3 text-foreground">{c.cidade}</td>
 															<td className="px-4 py-3 text-foreground">{c.telefone ?? '—'}</td>
-															<td className="px-4 py-3 text-foreground">{c.ultimaCompra}</td>
+															<td className="px-4 py-3 text-foreground">{formatMonthYear(c.ultimaCompra)}</td>
 														</tr>
 													))}
 												</tbody>
@@ -1163,7 +1183,7 @@ const Dashboard = ({
 									/>
 								</Card>
 								<Card>
-									<Metric value={vendedores[0]?.nome ?? '—'} label="Maior faturamento" />
+									<Metric value={sellersSortedByRevenue[0]?.nome ?? '—'} label="Maior faturamento" />
 								</Card>
 								<Card>
 									<Metric value="—" label="Abaixo da meta" />
@@ -1179,7 +1199,7 @@ const Dashboard = ({
 										<ResponsiveContainer width="100%" height="100%">
 											<AreaChart data={sellerPerformance}>
 													<defs>
-														{vendedores.map((v) => (
+														{sellersForDisplay.map((v) => (
 															<linearGradient key={v.id} id={`color${v.id}`} x1="0" y1="0" x2="0" y2="1">
 																<stop offset="5%" stopColor={primaryColor} stopOpacity={0.3} />
 																<stop offset="95%" stopColor={primaryColor} stopOpacity={0} />
@@ -1211,7 +1231,7 @@ const Dashboard = ({
 														labelStyle={{ fontSize: '12px', color: 'hsl(var(--muted-foreground))', marginBottom: '8px' }}
 													/>
 													<Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
-													{vendedores.map((v) => (
+													{sellersForDisplay.map((v) => (
 														<Area
 															key={v.id}
 															type="monotone"
@@ -1284,10 +1304,15 @@ const Dashboard = ({
 								</Card>
 							</Section>
 
-								<Section>
-									<Card interactive={false} className="border border-border/30 bg-muted">
-										<div className="overflow-auto">
-											<table className="min-w-full divide-y divide-black/5 text-sm">
+									<Section>
+										<Card interactive={false} className="border border-border/30 bg-muted">
+											{isSellerListCapped && (
+												<p className="px-4 pt-4 text-xs text-muted-foreground">
+													Exibindo Top 15 de {sellersSortedByRevenue.length} vendedores por faturamento.
+												</p>
+											)}
+											<div className="overflow-auto">
+												<table className="min-w-full divide-y divide-black/5 text-sm">
 												<thead className="bg-muted text-left text-[11px] uppercase tracking-[0.25em] text-muted-foreground">
 													<tr>
 														<th className="px-4 py-3">Vendedor(a)</th>
@@ -1298,7 +1323,7 @@ const Dashboard = ({
 													</tr>
 												</thead>
 												<tbody className="divide-y divide-border/30 bg-card">
-													{vendedores.map((v) => (
+													{sellersForDisplay.map((v) => (
 														<tr key={v.id} className="hover:bg-muted/60">
 															<td className="px-4 py-3 font-semibold text-foreground">{v.nome}</td>
 															<td className="px-4 py-3 text-foreground">{v.itens}</td>
