@@ -12,6 +12,7 @@ import {
 	type SalesItemUpsertRow,
 	type SalesOrderUpsertRow,
 } from '../utils/csv';
+import { validateSalesItemSkus } from '../utils/salesIntegrity';
 
 type Props = {
 	onBack: () => void;
@@ -128,12 +129,6 @@ const isInactiveStatus = (status?: string) => {
 	const normalized = (status ?? '').trim().toLowerCase();
 	if (!normalized) return false;
 	return ['inativo', 'inativa', 'inactive', 'desativado', 'desativada', 'arquivado', 'archived'].includes(normalized);
-};
-
-const summarizeValues = (values: string[], limit = 8) => {
-	const unique = Array.from(new Set(values.filter(Boolean)));
-	if (unique.length <= limit) return unique.join(', ');
-	return `${unique.slice(0, limit).join(', ')}... (+${unique.length - limit})`;
 };
 
 const DataImport = ({ onBack }: Props) => {
@@ -407,27 +402,9 @@ const DataImport = ({ onBack }: Props) => {
 			const skus = rows.map((row) => row.sku || '').filter(Boolean);
 			const orderMap = orderNumbers.length ? await fetchIdMap('sales_orders', 'order_number', orderNumbers) : new Map();
 			const productMap = skus.length ? await fetchProductsBySku(skus) : new Map();
-
-			const unknownSkus: string[] = [];
-			const inactiveSkus: string[] = [];
-			for (const sku of skus) {
-				const product = productMap.get(sku);
-				if (!product) {
-					unknownSkus.push(sku);
-					continue;
-				}
-				if (!product.isActive) inactiveSkus.push(sku);
-			}
-
-			if (unknownSkus.length || inactiveSkus.length) {
-				const messageParts: string[] = [];
-				if (unknownSkus.length) {
-					messageParts.push(`SKUs nao cadastrados: ${summarizeValues(unknownSkus)}`);
-				}
-				if (inactiveSkus.length) {
-					messageParts.push(`SKUs inativos: ${summarizeValues(inactiveSkus)}`);
-				}
-				throw new Error(`${messageParts.join(' | ')}. Importe/ative os produtos e tente novamente.`);
+			const skuValidation = validateSalesItemSkus(skus, productMap);
+			if (!skuValidation.isValid) {
+				throw new Error(`${skuValidation.errorMessage ?? 'SKU invalido.'} Importe/ative os produtos e tente novamente.`);
 			}
 
 			const payload = rows.map((row) => {
