@@ -6,6 +6,7 @@ import {
 	fetchSalesOrders,
 	fetchSellers,
 } from '../services/dashboardService';
+import type { SalesItem, SalesOrder } from '../services/dashboardService';
 import type { CategorySale, Client, HistoryItem, Product, Seller } from '../types';
 import {
 	buildCategorySalesFromItems,
@@ -37,8 +38,8 @@ export const useDashboardData = (tenantId: string | undefined) => {
 			try { parsedClients = await fetchClients(tenantId); } catch { /* empty */ }
 			try { parsedSellers = await fetchSellers(tenantId); } catch { /* empty */ }
 
-			let salesOrders = [];
-			let salesItems = [];
+			let salesOrders: SalesOrder[] = [];
+			let salesItems: SalesItem[] = [];
 			try { salesOrders = await fetchSalesOrders(tenantId); } catch { /* empty */ }
 			try { salesItems = await fetchSalesItems(tenantId); } catch { /* empty */ }
 
