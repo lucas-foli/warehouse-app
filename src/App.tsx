@@ -1,5 +1,6 @@
 import type { Session } from '@supabase/supabase-js';
 import { useEffect, useState } from 'react';
+import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import './App.css';
 import Dashboard from './components/Dashboard';
 import DataImport from './components/DataImport';
@@ -16,9 +17,10 @@ const App = () => {
 	const { tenant, tenantLoading, tenantError, refreshTenant } = useTenant();
 	const [session, setSession] = useState<Session | null>(null);
 	const [checkingSession, setCheckingSession] = useState(true);
-	const [view, setView] = useState<'dashboard' | 'statusForm' | 'importData'>('dashboard');
 	const [membershipRole, setMembershipRole] = useState<'admin' | 'member' | null>(null);
 	const [checkingMembership, setCheckingMembership] = useState(false);
+	const navigate = useNavigate();
+	const location = useLocation();
 
 	useEffect(() => {
 		if (typeof window === 'undefined') return;
@@ -148,13 +150,12 @@ const App = () => {
 	const handleLogout = async () => {
 		await supabase.auth.signOut();
 		setSession(null);
-		setView('dashboard');
+		navigate('/');
 	};
 
 	const handleSuccessAuth = async () => {
 		const { data } = await supabase.auth.getSession();
 		setSession(data.session ?? null);
-		setView('dashboard');
 	};
 
 	if (checkingSession || tenantLoading) return null;
@@ -165,7 +166,7 @@ const App = () => {
 			''
 		: '';
 
-	const isAuthCallback = typeof window !== 'undefined' && window.location.pathname.startsWith('/auth/callback');
+	const isAuthCallback = typeof window !== 'undefined' && location.pathname.startsWith('/auth/callback');
 	if (isAuthCallback) return null;
 
 	if (tenantError) {
@@ -232,21 +233,75 @@ const App = () => {
 		return <Onboarding onFinish={() => void refreshTenant()} />;
 	}
 
-	if (view === 'statusForm') {
-		return <StatusUpdateForm session={session} onBack={() => setView('dashboard')} />;
-	}
-
-	if (view === 'importData') {
-		return <DataImport onBack={() => setView('dashboard')} />;
-	}
+	const isAdmin = membershipRole === 'admin';
 
 	return (
-		<Dashboard
-			onLogout={handleLogout}
-			onOpenStatusForm={() => setView('statusForm')}
-			onOpenImport={() => setView('importData')}
-			canImport={membershipRole === 'admin'}
-		/>
+		<Routes>
+			<Route
+				path="/"
+				element={
+					<Dashboard
+						onLogout={handleLogout}
+						onOpenStatusForm={() => navigate('/status-update')}
+						onOpenImport={() => navigate('/import')}
+						canImport={isAdmin}
+						canOpenStatusForm={isAdmin}
+					/>
+				}
+			/>
+			<Route
+				path="/products"
+				element={
+					<Dashboard
+						onLogout={handleLogout}
+						onOpenStatusForm={() => navigate('/status-update')}
+						onOpenImport={() => navigate('/import')}
+						canImport={isAdmin}
+						canOpenStatusForm={isAdmin}
+						initialSurface="products"
+					/>
+				}
+			/>
+			<Route
+				path="/clients"
+				element={
+					<Dashboard
+						onLogout={handleLogout}
+						onOpenStatusForm={() => navigate('/status-update')}
+						onOpenImport={() => navigate('/import')}
+						canImport={isAdmin}
+						canOpenStatusForm={isAdmin}
+						initialPage="clientes"
+					/>
+				}
+			/>
+			<Route
+				path="/sellers"
+				element={
+					<Dashboard
+						onLogout={handleLogout}
+						onOpenStatusForm={() => navigate('/status-update')}
+						onOpenImport={() => navigate('/import')}
+						canImport={isAdmin}
+						canOpenStatusForm={isAdmin}
+						initialPage="vendedores"
+					/>
+				}
+			/>
+			{isAdmin && (
+				<Route
+					path="/status-update"
+					element={<StatusUpdateForm session={session} onBack={() => navigate('/')} />}
+				/>
+			)}
+			{isAdmin && (
+				<Route
+					path="/import"
+					element={<DataImport onBack={() => navigate('/')} />}
+				/>
+			)}
+			<Route path="*" element={<Navigate to="/" replace />} />
+		</Routes>
 	);
 };
 

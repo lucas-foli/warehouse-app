@@ -1,0 +1,149 @@
+import { useEffect, useState } from 'react';
+import {
+	fetchClients,
+	fetchProducts,
+	fetchSalesItems,
+	fetchSalesOrders,
+	fetchSellers,
+} from '../services/dashboardService';
+import type { CategorySale, Client, HistoryItem, Product, Seller } from '../types';
+import {
+	buildCategorySalesFromItems,
+	buildCategorySalesFromProducts,
+	buildHistoryFromOrders,
+	buildHistoryFromProducts,
+	buildRecentDailySalesFromOrders,
+} from '../utils/helpers';
+
+export const useDashboardData = (tenantId: string | undefined) => {
+	const [products, setProducts] = useState<Product[]>([]);
+	const [clientes, setClientes] = useState<Client[]>([]);
+	const [vendedores, setVendedores] = useState<Seller[]>([]);
+	const [categorySales, setCategorySales] = useState<CategorySale[]>([]);
+	const [history, setHistory] = useState<HistoryItem[]>([]);
+	const [salesTrend, setSalesTrend] = useState<HistoryItem[]>([]);
+	const [loading, setLoading] = useState(false);
+
+	useEffect(() => {
+		const loadData = async () => {
+			if (!tenantId) return;
+			setLoading(true);
+
+			let parsedProducts: Product[] = [];
+			let parsedClients: Client[] = [];
+			let parsedSellers: Seller[] = [];
+
+			try { parsedProducts = await fetchProducts(tenantId); } catch { /* empty */ }
+			try { parsedClients = await fetchClients(tenantId); } catch { /* empty */ }
+			try { parsedSellers = await fetchSellers(tenantId); } catch { /* empty */ }
+
+			let salesOrders = [];
+			let salesItems = [];
+			try { salesOrders = await fetchSalesOrders(tenantId); } catch { /* empty */ }
+			try { salesItems = await fetchSalesItems(tenantId); } catch { /* empty */ }
+
+			// Enrich products with sold quantities from sales items
+			if (salesItems.length) {
+				const soldBySku = new Map<string, number>();
+				salesItems.forEach((item) => {
+					if (!item.sku) return;
+					const qty = Number.isFinite(item.qty) ? Number(item.qty) : 0;
+					const current = soldBySku.get(item.sku) ?? 0;
+					soldBySku.set(item.sku, current + qty);
+				});
+
+				parsedProducts = parsedProducts.map((product) => ({
+					...product,
+					totalSold: soldBySku.get(product.sku) ?? product.totalSold,
+				}));
+			}
+
+			setProducts(parsedProducts);
+
+			// Build category sales
+			const statusBySku = new Map(parsedProducts.map((p) => [p.sku, p.status]));
+			const categoryFromItems = salesItems.length ? buildCategorySalesFromItems(salesItems, statusBySku) : [];
+			const categoryFromProducts = parsedProducts.length ? buildCategorySalesFromProducts(parsedProducts) : [];
+			setCategorySales(categoryFromItems.length ? categoryFromItems : categoryFromProducts);
+
+			// Build history
+			const historyFromOrders = salesOrders.length ? buildHistoryFromOrders(salesOrders) : [];
+			const historyFromProducts = parsedProducts.length ? buildHistoryFromProducts(parsedProducts) : [];
+			setHistory(historyFromOrders.length ? historyFromOrders : historyFromProducts);
+			setSalesTrend(buildRecentDailySalesFromOrders(salesOrders, 20));
+
+			// Enrich clients with last purchase dates from orders
+			if (salesOrders.length && parsedClients.length) {
+				const lastPurchaseByKey = new Map<string, string>();
+				salesOrders.forEach((order) => {
+					const key = order.client_id || order.client_external_id;
+					if (!key || !order.sold_at) return;
+					const current = lastPurchaseByKey.get(key);
+					if (!current || new Date(order.sold_at) > new Date(current)) {
+						lastPurchaseByKey.set(key, order.sold_at);
+					}
+				});
+
+				parsedClients = parsedClients.map((client) => {
+					if (client.ultimaCompra) return client;
+					const key = client.id || client.externalId;
+					const lastPurchase = key ? lastPurchaseByKey.get(key) : undefined;
+					return lastPurchase ? { ...client, ultimaCompra: lastPurchase } : client;
+				});
+			}
+
+			setClientes(parsedClients);
+
+			// Build seller aggregates from orders + items
+			const sellerMap = new Map<string, Seller>();
+			parsedSellers.forEach((seller) => {
+				const key = seller.externalId || seller.id;
+				if (key) sellerMap.set(key, { ...seller });
+			});
+
+			const ordersByNumber = new Map<string, { sellerKey?: string }>();
+			salesOrders.forEach((order) => {
+				const sellerKey = order.seller_external_id || order.seller_id;
+				if (order.order_number) ordersByNumber.set(order.order_number, { sellerKey });
+				if (!sellerKey) return;
+				if (!sellerMap.has(sellerKey)) {
+					sellerMap.set(sellerKey, {
+						id: sellerKey,
+						externalId: order.seller_external_id,
+						nome: order.seller_external_id || sellerKey,
+						itens: 0,
+						bruto: 0,
+						liquido: 0,
+						boletos: 0,
+					});
+				}
+				const seller = sellerMap.get(sellerKey);
+				if (seller && Number.isFinite(order.total_amount)) {
+					seller.bruto += Number(order.total_amount);
+					seller.liquido = seller.bruto;
+				}
+				if (seller && order.status && order.status.toLowerCase().includes('boleto')) {
+					seller.boletos += 1;
+				}
+			});
+
+			salesItems.forEach((item) => {
+				const orderMeta = ordersByNumber.get(item.order_number);
+				const sellerKey = orderMeta?.sellerKey;
+				if (!sellerKey) return;
+				const seller = sellerMap.get(sellerKey);
+				if (!seller) return;
+				const qty = Number.isFinite(item.qty) ? Number(item.qty) : 0;
+				seller.itens += qty;
+			});
+
+			setVendedores(sellerMap.size ? Array.from(sellerMap.values()) : parsedSellers);
+
+			setLoading(false);
+		};
+
+		loadData();
+	}, [tenantId]);
+
+	return { products, clientes, vendedores, categorySales, history, salesTrend, loading };
+};

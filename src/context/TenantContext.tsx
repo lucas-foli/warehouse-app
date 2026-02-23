@@ -110,10 +110,30 @@ export const TenantProvider = ({ children }: { children: React.ReactNode }) => {
 		setTenantError(null);
 		setTenantLoading(true);
 		try {
+			// First try the full tenants table (works for authenticated members)
 			const { data, error } = await supabase.from('tenants').select('*').eq('slug', tenantSlug).maybeSingle();
-			if (error) throw error;
-			setTenant(data ? mapTenantRow(data) : null);
-			if (!data) setTenantError(`Tenant "${tenantSlug}" não encontrado.`);
+
+			if (data && !error) {
+				setTenant(mapTenantRow(data));
+				setTenantLoading(false);
+				return;
+			}
+
+			// Fall back to the branding-only view (works for anon/pre-auth — login page theming)
+			const { data: brandingData, error: brandingError } = await supabase
+				.from('tenant_branding')
+				.select('*')
+				.eq('slug', tenantSlug)
+				.maybeSingle();
+
+			if (brandingError) throw brandingError;
+
+			if (brandingData) {
+				setTenant(mapTenantRow({ ...brandingData, id: '', is_onboarded: false }));
+			} else {
+				setTenant(null);
+				setTenantError(`Tenant "${tenantSlug}" não encontrado.`);
+			}
 		} catch (err) {
 			const message = err instanceof Error ? err.message : 'Erro ao carregar tenant.';
 			setTenant(null);

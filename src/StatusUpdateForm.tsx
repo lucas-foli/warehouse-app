@@ -3,8 +3,8 @@ import { motion } from 'framer-motion';
 import { useState } from 'react';
 import { useTenant } from './context/TenantContext';
 
-const STATUS_UPDATE_WEBHOOK_URL =
-	import.meta.env.VITE_STATUS_UPDATE_WEBHOOK_URL ?? 'https://n8n.go-fly.ai/webhook/product-location';
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+const PROXY_WEBHOOK_URL = `${SUPABASE_URL}/functions/v1/proxy-webhook`;
 const STATUS_SUGGESTIONS = ['ESTOQUE', 'GAVETA', 'VM'];
 const GMT3_OFFSET_MINUTES = -180;
 
@@ -88,10 +88,10 @@ const StatusUpdateForm = ({ session, onBack }: Props) => {
 			return;
 		}
 
-		if (!STATUS_UPDATE_WEBHOOK_URL) {
+		if (!PROXY_WEBHOOK_URL) {
 			setFeedback({
 				type: 'error',
-				text: 'Configure VITE_STATUS_UPDATE_WEBHOOK_URL no .env para enviar o formulário.',
+				text: 'URL do Supabase não configurada.',
 			});
 			return;
 		}
@@ -122,7 +122,7 @@ const StatusUpdateForm = ({ session, onBack }: Props) => {
 				};
 			}
 
-			const response = await fetch(STATUS_UPDATE_WEBHOOK_URL, {
+			const response = await fetch(PROXY_WEBHOOK_URL, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
