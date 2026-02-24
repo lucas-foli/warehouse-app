@@ -87,6 +87,18 @@ const App = () => {
 		void finalizeCallback();
 	}, []);
 
+	// Strip auth tokens from URL hash (Supabase puts them there on magic link / recovery flows)
+	useEffect(() => {
+		if (typeof window === 'undefined') return;
+		const hash = window.location.hash;
+		if (hash && /access_token=/.test(hash)) {
+			// Supabase client reads these automatically via detectSessionInUrl;
+			// we just need to clean the URL so tokens aren't visible / logged / shared.
+			const cleanUrl = window.location.pathname + window.location.search;
+			window.history.replaceState(null, document.title, cleanUrl);
+		}
+	}, []);
+
 	useEffect(() => {
 		let isMounted = true;
 		supabase.auth.getSession().then(({ data }) => {
