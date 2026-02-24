@@ -28,23 +28,29 @@ Deno.serve(async (req) => {
     });
   }
 
-  const token = authHeader.replace("Bearer ", "");
-
-  // Verify JWT and extract user info via Supabase
+  // Validate the user's JWT using THEIR token (Supabase-recommended pattern)
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+  const supabaseUser = createClient(supabaseUrl, supabaseAnonKey, {
+    global: { headers: { Authorization: authHeader } },
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
 
   const {
     data: { user },
     error: authError,
-  } = await supabase.auth.getUser(token);
+  } = await supabaseUser.auth.getUser();
 
   if (authError || !user) {
-    return new Response(JSON.stringify({ error: "Invalid token" }), {
-      status: 401,
-      headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ error: "Invalid token", detail: authError?.message }),
+      {
+        status: 401,
+        headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+      }
+    );
   }
 
   // Parse and validate the payload
@@ -66,8 +72,12 @@ Deno.serve(async (req) => {
     });
   }
 
-  // Verify the user is an admin of the given tenant
-  const { data: membership, error: memberError } = await supabase
+  // Use service-role client for admin check (bypasses RLS)
+  const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+
+  const { data: membership, error: memberError } = await supabaseAdmin
     .from("tenant_members")
     .select("role")
     .eq("tenant_id", tenantId)
