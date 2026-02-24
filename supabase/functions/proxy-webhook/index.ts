@@ -28,32 +28,25 @@ Deno.serve(async (req) => {
     });
   }
 
-  // Validate the user's JWT using THEIR token (Supabase-recommended pattern)
-  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-  const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
-  const supabaseUser = createClient(supabaseUrl, supabaseAnonKey, {
-    global: { headers: { Authorization: authHeader } },
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
-
-  const {
-    data: { user },
-    error: authError,
-  } = await supabaseUser.auth.getUser();
-
-  if (authError || !user) {
-    return new Response(
-      JSON.stringify({ error: "Invalid token", detail: authError?.message }),
-      {
-        status: 401,
-        headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
-      }
-    );
+  // The Supabase API gateway already validated the JWT signature before
+  // this function runs. We can safely decode the payload to extract the
+  // user ID and email without an extra API round-trip.
+  const token = authHeader.replace("Bearer ", "");
+  let userId: string;
+  let userEmail: string | undefined;
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    userId = payload.sub;
+    userEmail = payload.email;
+    if (!userId) throw new Error("missing sub claim");
+  } catch {
+    return new Response(JSON.stringify({ error: "Malformed token" }), {
+      status: 401,
+      headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+    });
   }
 
-  // Parse and validate the payload
+  // Parse and validate the request body
   let payload: Record<string, unknown>;
   try {
     payload = await req.json();
@@ -72,7 +65,10 @@ Deno.serve(async (req) => {
     });
   }
 
-  // Use service-role client for admin check (bypasses RLS)
+  // Use service-role client to verify admin membership (bypasses RLS)
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
   const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
@@ -81,7 +77,7 @@ Deno.serve(async (req) => {
     .from("tenant_members")
     .select("role")
     .eq("tenant_id", tenantId)
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .maybeSingle();
 
   if (memberError || !membership || membership.role !== "admin") {
@@ -125,8 +121,8 @@ Deno.serve(async (req) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         ...payload,
-        submittedBy: user.email,
-        submittedById: user.id,
+        submittedBy: userEmail,
+        submittedById: userId,
       }),
     });
 
