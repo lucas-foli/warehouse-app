@@ -28,19 +28,31 @@ Deno.serve(async (req) => {
     });
   }
 
-  // The Supabase API gateway already validated the JWT signature before
-  // this function runs. We can safely decode the payload to extract the
-  // user ID and email without an extra API round-trip.
-  const token = authHeader.replace("Bearer ", "");
-  let userId: string;
-  let userEmail: string | undefined;
-  try {
-    const payload = JSON.parse(atob(token.split(".")[1]));
-    userId = payload.sub;
-    userEmail = payload.email;
-    if (!userId) throw new Error("missing sub claim");
-  } catch {
-    return new Response(JSON.stringify({ error: "Malformed token" }), {
+  // Verify the token by calling Supabase Auth directly (avoids ES256/HS256
+  // mismatch in the Edge Runtime's built-in JWT check).
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+  const authRes = await fetch(`${supabaseUrl}/auth/v1/user`, {
+    headers: {
+      Authorization: authHeader,
+      apikey: supabaseServiceKey,
+    },
+  });
+
+  if (!authRes.ok) {
+    return new Response(JSON.stringify({ error: "Invalid token" }), {
+      status: 401,
+      headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+    });
+  }
+
+  const user = await authRes.json();
+  const userId: string = user.id;
+  const userEmail: string | undefined = user.email;
+
+  if (!userId) {
+    return new Response(JSON.stringify({ error: "Invalid user" }), {
       status: 401,
       headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
     });
@@ -66,9 +78,6 @@ Deno.serve(async (req) => {
   }
 
   // Use service-role client to verify admin membership (bypasses RLS)
-  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-  const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
   const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
