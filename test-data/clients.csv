@@ -1,0 +1,4 @@
+external_id,nome,email,telefone,cidade,ultima_compra
+C-001,Acme Market,contact@acme.com,11999990001,Sao Paulo,2025-01-05
+C-002,Beta Store,beta@store.com,21988880002,Rio de Janeiro,2025-01-12
+C-003,Gamma Shop,,11977770003,Brasilia,2025-01-20
