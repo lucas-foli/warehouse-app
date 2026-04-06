@@ -14,7 +14,15 @@ function getCorsHeaders(req: Request): Record<string, string> {
     "Access-Control-Allow-Methods": "POST, OPTIONS",
   };
 
-  if (origin && allowedOrigins.includes(origin)) {
+  const isAllowed = origin && allowedOrigins.some((pattern) => {
+    if (pattern.includes("*")) {
+      const regex = new RegExp("^" + pattern.replace(/\./g, "\\.").replace("*", "[a-z0-9-]+") + "$");
+      return regex.test(origin);
+    }
+    return pattern === origin;
+  });
+
+  if (isAllowed) {
     headers["Access-Control-Allow-Origin"] = origin;
     headers["Vary"] = "Origin";
   }
