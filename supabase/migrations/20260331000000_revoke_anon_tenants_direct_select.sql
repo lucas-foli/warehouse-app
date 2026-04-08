@@ -11,6 +11,21 @@ drop policy if exists "Anon can read tenant by slug for branding" on public.tena
 -- SELECT. We only need the anon grant on the view itself (already in place).
 revoke select on public.tenants from anon;
 
+-- Recreate the view with SECURITY DEFINER so it can read the tenants table
+-- on behalf of anon users (since we just revoked their direct SELECT).
+create or replace view public.tenant_branding
+with (security_invoker = false)
+as
+select
+    slug,
+    company_name,
+    logo_url,
+    primary_color,
+    secondary_color,
+    ui_preset,
+    theme_tokens
+from public.tenants;
+
 -- Ensure the tenant_branding view grants are still in place (idempotent).
 grant select on public.tenant_branding to anon;
 grant select on public.tenant_branding to authenticated;
