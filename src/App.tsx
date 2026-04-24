@@ -13,12 +13,59 @@ import StatusUpdateForm from './StatusUpdateForm';
 
 const INVITE_STORAGE_KEY = 'warehouse_invite_code';
 
+// When Supabase's "Redirect URLs" allowlist only accepts the apex (the common
+// default), an email link initiated on acme.example.com gets sent back to
+// https://example.com/#access_token=... — losing the tenant slug. This helper
+// walks the user's memberships after the session is set, picks their tenant,
+// and forwards to the correct subdomain carrying the same hash tokens so
+// Supabase on the subdomain can re-establish the session there.
+const forwardApexSessionToTenantSubdomain = async (session: Session) => {
+	if (typeof window === 'undefined') return false;
+	const baseDomain = (import.meta.env.VITE_BASE_DOMAIN as string | undefined)?.trim().toLowerCase();
+	if (!baseDomain) return false;
+
+	const hostname = window.location.hostname.toLowerCase();
+	if (hostname !== baseDomain) return false;
+
+	const { data: memberRow, error: memberError } = await supabase
+		.from('tenant_members')
+		.select('tenant_id')
+		.eq('user_id', session.user.id)
+		.limit(1)
+		.maybeSingle();
+	if (memberError || !memberRow?.tenant_id) return false;
+
+	const { data: tenantRow, error: tenantError } = await supabase
+		.from('tenants')
+		.select('slug')
+		.eq('id', memberRow.tenant_id)
+		.maybeSingle();
+	const slugRaw = tenantRow?.slug;
+	if (tenantError || !slugRaw) return false;
+	const slug = slugRaw.trim().toLowerCase();
+	if (!/^[a-z0-9-]{1,32}$/.test(slug)) return false;
+
+	const hashParams = new URLSearchParams();
+	hashParams.set('access_token', session.access_token);
+	hashParams.set('refresh_token', session.refresh_token);
+	hashParams.set('token_type', session.token_type);
+	hashParams.set('expires_in', String(session.expires_in));
+	if (session.expires_at) hashParams.set('expires_at', String(session.expires_at));
+
+	await supabase.auth.signOut({ scope: 'local' });
+
+	const target = `${window.location.protocol}//${slug}.${baseDomain}/#${hashParams.toString()}`;
+	window.location.replace(target);
+	return true;
+};
+
 const App = () => {
 	const { tenant, tenantLoading, tenantError, refreshTenant } = useTenant();
 	const [session, setSession] = useState<Session | null>(null);
 	const [checkingSession, setCheckingSession] = useState(true);
 	const [membershipRole, setMembershipRole] = useState<'admin' | 'member' | null>(null);
 	const [checkingMembership, setCheckingMembership] = useState(false);
+	const [forwardingSession, setForwardingSession] = useState(false);
 	const navigate = useNavigate();
 	const location = useLocation();
 
@@ -101,17 +148,29 @@ const App = () => {
 
 	useEffect(() => {
 		let isMounted = true;
-		supabase.auth.getSession().then(({ data }) => {
-			if (isMounted) {
-				setSession(data.session ?? null);
-				setCheckingSession(false);
+
+		const handleSession = async (nextSession: Session | null) => {
+			if (!isMounted) return;
+			if (nextSession) {
+				const forwarded = await forwardApexSessionToTenantSubdomain(nextSession);
+				if (forwarded) {
+					if (isMounted) setForwardingSession(true);
+					return;
+				}
 			}
+			if (!isMounted) return;
+			setSession(nextSession);
+			setCheckingSession(false);
+		};
+
+		supabase.auth.getSession().then(({ data }) => {
+			void handleSession(data.session ?? null);
 		});
 
 		const {
 			data: { subscription },
 		} = supabase.auth.onAuthStateChange((_event, currentSession) => {
-			setSession(currentSession);
+			void handleSession(currentSession);
 		});
 
 		return () => {
@@ -170,7 +229,7 @@ const App = () => {
 		setSession(data.session ?? null);
 	};
 
-	if (checkingSession || tenantLoading) return null;
+	if (forwardingSession || checkingSession || tenantLoading) return null;
 
 	const inviteCode = typeof window !== 'undefined'
 		? new URLSearchParams(window.location.search).get('invite')?.trim() ||
