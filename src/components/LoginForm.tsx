@@ -19,11 +19,13 @@ const readSlugFromUrl = () => {
 	return params.get('slug')?.trim() ?? '';
 };
 
+// The redirect must stay on the origin that initiated the flow: Supabase uses
+// PKCE, and the code_verifier lives in localStorage which is per-origin. If we
+// bounce the user to a different host (e.g. the apex instead of their tenant
+// subdomain) the verifier is unavailable and the code exchange fails silently.
 const resolveAuthRedirectBase = () => {
 	if (typeof window === 'undefined') return '';
-	const baseDomain = (import.meta.env.VITE_BASE_DOMAIN as string | undefined)?.trim().toLowerCase();
-	if (!baseDomain) return window.location.origin;
-	return `${window.location.protocol}//${baseDomain.replace(/\/+$/, '')}`;
+	return window.location.origin;
 };
 
 const resolveSlugForRedirect = () => {
