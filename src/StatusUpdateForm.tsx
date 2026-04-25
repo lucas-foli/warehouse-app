@@ -2,9 +2,7 @@ import type { Session } from '@supabase/supabase-js';
 import { motion } from 'framer-motion';
 import { useState } from 'react';
 import { useTenant } from './context/TenantContext';
-
-const STATUS_UPDATE_WEBHOOK_URL =
-	import.meta.env.VITE_STATUS_UPDATE_WEBHOOK_URL ?? 'https://n8n.go-fly.ai/webhook/product-location';
+import { supabase } from './lib/supabaseClient';
 const STATUS_SUGGESTIONS = ['ESTOQUE', 'GAVETA', 'VM'];
 const GMT3_OFFSET_MINUTES = -180;
 
@@ -88,13 +86,6 @@ const StatusUpdateForm = ({ session, onBack }: Props) => {
 			return;
 		}
 
-		if (!STATUS_UPDATE_WEBHOOK_URL) {
-			setFeedback({
-				type: 'error',
-				text: 'Configure VITE_STATUS_UPDATE_WEBHOOK_URL no .env para enviar o formulário.',
-			});
-			return;
-		}
 
 		const basePayload: Record<string, unknown> = {
 			tenantId: tenant?.id,
@@ -122,18 +113,12 @@ const StatusUpdateForm = ({ session, onBack }: Props) => {
 				};
 			}
 
-			const response = await fetch(STATUS_UPDATE_WEBHOOK_URL, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					Authorization: `Bearer ${session.access_token}`,
-				},
-				body: JSON.stringify(payload),
+			const { error } = await supabase.functions.invoke('proxy-webhook', {
+				body: payload,
 			});
 
-			if (!response.ok) {
-				const errorText = await response.text();
-				throw new Error(errorText || 'Falha ao enviar dados.');
+			if (error) {
+				throw new Error(error.message || 'Falha ao enviar dados.');
 			}
 		};
 

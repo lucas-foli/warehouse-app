@@ -1,5 +1,6 @@
 import type { Session } from '@supabase/supabase-js';
 import { useEffect, useState } from 'react';
+import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import './App.css';
 import Dashboard from './components/Dashboard';
 import DataImport from './components/DataImport';
@@ -12,13 +13,61 @@ import StatusUpdateForm from './StatusUpdateForm';
 
 const INVITE_STORAGE_KEY = 'warehouse_invite_code';
 
+// When Supabase's "Redirect URLs" allowlist only accepts the apex (the common
+// default), an email link initiated on acme.example.com gets sent back to
+// https://example.com/#access_token=... — losing the tenant slug. This helper
+// walks the user's memberships after the session is set, picks their tenant,
+// and forwards to the correct subdomain carrying the same hash tokens so
+// Supabase on the subdomain can re-establish the session there.
+const forwardApexSessionToTenantSubdomain = async (session: Session) => {
+	if (typeof window === 'undefined') return false;
+	const baseDomain = (import.meta.env.VITE_BASE_DOMAIN as string | undefined)?.trim().toLowerCase();
+	if (!baseDomain) return false;
+
+	const hostname = window.location.hostname.toLowerCase();
+	if (hostname !== baseDomain) return false;
+
+	const { data: memberRow, error: memberError } = await supabase
+		.from('tenant_members')
+		.select('tenant_id')
+		.eq('user_id', session.user.id)
+		.limit(1)
+		.maybeSingle();
+	if (memberError || !memberRow?.tenant_id) return false;
+
+	const { data: tenantRow, error: tenantError } = await supabase
+		.from('tenants')
+		.select('slug')
+		.eq('id', memberRow.tenant_id)
+		.maybeSingle();
+	const slugRaw = tenantRow?.slug;
+	if (tenantError || !slugRaw) return false;
+	const slug = slugRaw.trim().toLowerCase();
+	if (!/^[a-z0-9-]{1,32}$/.test(slug)) return false;
+
+	const hashParams = new URLSearchParams();
+	hashParams.set('access_token', session.access_token);
+	hashParams.set('refresh_token', session.refresh_token);
+	hashParams.set('token_type', session.token_type);
+	hashParams.set('expires_in', String(session.expires_in));
+	if (session.expires_at) hashParams.set('expires_at', String(session.expires_at));
+
+	await supabase.auth.signOut({ scope: 'local' });
+
+	const target = `${window.location.protocol}//${slug}.${baseDomain}/#${hashParams.toString()}`;
+	window.location.replace(target);
+	return true;
+};
+
 const App = () => {
 	const { tenant, tenantLoading, tenantError, refreshTenant } = useTenant();
 	const [session, setSession] = useState<Session | null>(null);
 	const [checkingSession, setCheckingSession] = useState(true);
-	const [view, setView] = useState<'dashboard' | 'statusForm' | 'importData'>('dashboard');
 	const [membershipRole, setMembershipRole] = useState<'admin' | 'member' | null>(null);
 	const [checkingMembership, setCheckingMembership] = useState(false);
+	const [forwardingSession, setForwardingSession] = useState(false);
+	const navigate = useNavigate();
+	const location = useLocation();
 
 	useEffect(() => {
 		if (typeof window === 'undefined') return;
@@ -85,19 +134,43 @@ const App = () => {
 		void finalizeCallback();
 	}, []);
 
+	// Strip auth tokens from URL hash (Supabase puts them there on magic link / recovery flows)
+	useEffect(() => {
+		if (typeof window === 'undefined') return;
+		const hash = window.location.hash;
+		if (hash && /access_token=/.test(hash)) {
+			// Supabase client reads these automatically via detectSessionInUrl;
+			// we just need to clean the URL so tokens aren't visible / logged / shared.
+			const cleanUrl = window.location.pathname + window.location.search;
+			window.history.replaceState(null, document.title, cleanUrl);
+		}
+	}, []);
+
 	useEffect(() => {
 		let isMounted = true;
-		supabase.auth.getSession().then(({ data }) => {
-			if (isMounted) {
-				setSession(data.session ?? null);
-				setCheckingSession(false);
+
+		const handleSession = async (nextSession: Session | null) => {
+			if (!isMounted) return;
+			if (nextSession) {
+				const forwarded = await forwardApexSessionToTenantSubdomain(nextSession);
+				if (forwarded) {
+					if (isMounted) setForwardingSession(true);
+					return;
+				}
 			}
+			if (!isMounted) return;
+			setSession(nextSession);
+			setCheckingSession(false);
+		};
+
+		supabase.auth.getSession().then(({ data }) => {
+			void handleSession(data.session ?? null);
 		});
 
 		const {
 			data: { subscription },
 		} = supabase.auth.onAuthStateChange((_event, currentSession) => {
-			setSession(currentSession);
+			void handleSession(currentSession);
 		});
 
 		return () => {
@@ -148,16 +221,15 @@ const App = () => {
 	const handleLogout = async () => {
 		await supabase.auth.signOut();
 		setSession(null);
-		setView('dashboard');
+		navigate('/');
 	};
 
 	const handleSuccessAuth = async () => {
 		const { data } = await supabase.auth.getSession();
 		setSession(data.session ?? null);
-		setView('dashboard');
 	};
 
-	if (checkingSession || tenantLoading) return null;
+	if (forwardingSession || checkingSession || tenantLoading) return null;
 
 	const inviteCode = typeof window !== 'undefined'
 		? new URLSearchParams(window.location.search).get('invite')?.trim() ||
@@ -165,7 +237,7 @@ const App = () => {
 			''
 		: '';
 
-	const isAuthCallback = typeof window !== 'undefined' && window.location.pathname.startsWith('/auth/callback');
+	const isAuthCallback = typeof window !== 'undefined' && location.pathname.startsWith('/auth/callback');
 	if (isAuthCallback) return null;
 
 	if (tenantError) {
@@ -232,21 +304,75 @@ const App = () => {
 		return <Onboarding onFinish={() => void refreshTenant()} />;
 	}
 
-	if (view === 'statusForm') {
-		return <StatusUpdateForm session={session} onBack={() => setView('dashboard')} />;
-	}
-
-	if (view === 'importData') {
-		return <DataImport onBack={() => setView('dashboard')} />;
-	}
+	const isAdmin = membershipRole === 'admin';
 
 	return (
-		<Dashboard
-			onLogout={handleLogout}
-			onOpenStatusForm={() => setView('statusForm')}
-			onOpenImport={() => setView('importData')}
-			canImport={membershipRole === 'admin'}
-		/>
+		<Routes>
+			<Route
+				path="/"
+				element={
+					<Dashboard
+						onLogout={handleLogout}
+						onOpenStatusForm={() => navigate('/status-update')}
+						onOpenImport={() => navigate('/import')}
+						canImport={isAdmin}
+						canOpenStatusForm={isAdmin}
+					/>
+				}
+			/>
+			<Route
+				path="/products"
+				element={
+					<Dashboard
+						onLogout={handleLogout}
+						onOpenStatusForm={() => navigate('/status-update')}
+						onOpenImport={() => navigate('/import')}
+						canImport={isAdmin}
+						canOpenStatusForm={isAdmin}
+						initialSurface="products"
+					/>
+				}
+			/>
+			<Route
+				path="/clients"
+				element={
+					<Dashboard
+						onLogout={handleLogout}
+						onOpenStatusForm={() => navigate('/status-update')}
+						onOpenImport={() => navigate('/import')}
+						canImport={isAdmin}
+						canOpenStatusForm={isAdmin}
+						initialPage="clientes"
+					/>
+				}
+			/>
+			<Route
+				path="/sellers"
+				element={
+					<Dashboard
+						onLogout={handleLogout}
+						onOpenStatusForm={() => navigate('/status-update')}
+						onOpenImport={() => navigate('/import')}
+						canImport={isAdmin}
+						canOpenStatusForm={isAdmin}
+						initialPage="vendedores"
+					/>
+				}
+			/>
+			{isAdmin && (
+				<Route
+					path="/status-update"
+					element={<StatusUpdateForm session={session} onBack={() => navigate('/')} />}
+				/>
+			)}
+			{isAdmin && (
+				<Route
+					path="/import"
+					element={<DataImport onBack={() => navigate('/')} />}
+				/>
+			)}
+			<Route path="*" element={<Navigate to="/" replace />} />
+		</Routes>
 	);
 };
 

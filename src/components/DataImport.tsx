@@ -2,8 +2,8 @@ import { useMemo, useRef, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useTenant } from '../context/TenantContext';
 import {
-	buildClientsFromCsvText,
 	buildProductsFromCsvText,
+	buildClientsFromCsvText,
 	buildSalesItemsFromCsvText,
 	buildSalesOrdersFromCsvText,
 	buildSellersFromCsvText,
@@ -12,12 +12,13 @@ import {
 	type SalesItemUpsertRow,
 	type SalesOrderUpsertRow,
 } from '../utils/csv';
+import { validateSalesItemSkus } from '../utils/salesIntegrity';
 
 type Props = {
 	onBack: () => void;
 };
 
-type ImportKind = 'clients' | 'sellers' | 'orders' | 'items' | 'products';
+type ImportKind = 'products' | 'clients' | 'sellers' | 'orders' | 'items';
 
 type ImportConfig = {
 	label: string;
@@ -26,7 +27,20 @@ type ImportConfig = {
 	onConflict: string;
 };
 
+type CsvGuide = {
+	required: string[];
+	optional: string[];
+	example: string;
+	notes?: string[];
+};
+
 const IMPORT_CONFIG: Record<ImportKind, ImportConfig> = {
+	products: {
+		label: 'Produtos',
+		description: 'Importe a tabela mestre de produtos (SKU, nome, foto e status).',
+		table: 'products',
+		onConflict: 'tenant_id,sku',
+	},
 	clients: {
 		label: 'Clientes',
 		description: 'Importe clientes com nome, contato e cidade.',
@@ -51,11 +65,44 @@ const IMPORT_CONFIG: Record<ImportKind, ImportConfig> = {
 		table: 'sales_items',
 		onConflict: 'tenant_id,order_number,sku',
 	},
+};
+
+const CSV_GUIDE: Record<ImportKind, CsvGuide> = {
 	products: {
-		label: 'Produtos',
-		description: 'Importe ou atualize produtos em estoque.',
-		table: 'products',
-		onConflict: 'tenant_id,sku',
+		required: ['sku', 'name'],
+		optional: ['barcode', 'status', 'is_active', 'location', 'qty', 'min', 'price', 'total_sold', 'image_url'],
+		example: 'sku,name,barcode,status,is_active,location,qty,min,price,total_sold,image_url',
+		notes: [
+			'Use este arquivo antes de importar itens de venda.',
+			'`is_active=false` bloqueia o SKU para novas vendas.',
+		],
+	},
+	clients: {
+		required: ['name'],
+		optional: ['external_id', 'email', 'phone', 'city', 'last_purchase_at'],
+		example: 'name,external_id,email,phone,city,last_purchase_at',
+		notes: ['external_id e recomendado para cruzar pedidos. Se nao vier, usamos email/telefone/nome.'],
+	},
+	sellers: {
+		required: ['name'],
+		optional: ['external_id', 'email'],
+		example: 'name,external_id,email',
+		notes: ['external_id e recomendado para vincular pedidos ao vendedor.'],
+	},
+	orders: {
+		required: ['order_number'],
+		optional: ['client_external_id', 'seller_external_id', 'status', 'total_amount', 'sold_at'],
+		example: 'order_number,client_external_id,seller_external_id,status,total_amount,sold_at',
+		notes: ['Use os mesmos external_id dos CSVs de clientes e vendedores para vincular.'],
+	},
+	items: {
+		required: ['order_number', 'sku'],
+		optional: ['qty', 'unit_price', 'total_price'],
+		example: 'order_number,sku,qty,unit_price,total_price',
+		notes: [
+			'Se total_price estiver vazio, calculamos unit_price x qty (qty padrao = 1).',
+			'Somente SKUs cadastrados e ativos em produtos sao aceitos.',
+		],
 	},
 };
 
@@ -78,6 +125,12 @@ const normalizeDateInput = (value?: string) => {
 
 const normalizeKey = (value: string) => value.trim().toUpperCase();
 
+const isInactiveStatus = (status?: string) => {
+	const normalized = (status ?? '').trim().toLowerCase();
+	if (!normalized) return false;
+	return ['inativo', 'inativa', 'inactive', 'desativado', 'desativada', 'arquivado', 'archived'].includes(normalized);
+};
+
 const DataImport = ({ onBack }: Props) => {
 	const { tenant } = useTenant();
 	const tenantId = tenant?.id;
@@ -96,6 +149,7 @@ const DataImport = ({ onBack }: Props) => {
 	const [clearBeforeImport, setClearBeforeImport] = useState(false);
 
 	const config = IMPORT_CONFIG[kind];
+	const csvGuide = CSV_GUIDE[kind];
 	const isCsvInvalid = Boolean(csvFile && csvRows.length === 0);
 	const isImportDisabled = loading || Boolean(csvError) || Boolean(importError) || !csvFile || isCsvInvalid;
 
@@ -116,6 +170,8 @@ const DataImport = ({ onBack }: Props) => {
 			return { preview: [], rows: [], totalRows: 0, validRows: 0, skippedRows: 0, warnings: ['Tenant nao carregado.'] };
 		}
 		switch (kind) {
+			case 'products':
+				return buildProductsFromCsvText(text, tenantId) as CsvImportResult<unknown>;
 			case 'clients':
 				return buildClientsFromCsvText(text, tenantId) as CsvImportResult<unknown>;
 			case 'sellers':
@@ -124,8 +180,6 @@ const DataImport = ({ onBack }: Props) => {
 				return buildSalesOrdersFromCsvText(text, tenantId) as CsvImportResult<unknown>;
 			case 'items':
 				return buildSalesItemsFromCsvText(text, tenantId) as CsvImportResult<unknown>;
-			case 'products':
-				return buildProductsFromCsvText(text, tenantId) as CsvImportResult<unknown>;
 		}
 	};
 
@@ -194,13 +248,59 @@ const DataImport = ({ onBack }: Props) => {
 		values: string[],
 	) => {
 		const map = new Map<string, string>();
-		const batches = chunk(values.filter(Boolean), 200);
+		if (!tenantId) return map;
+		const uniqueValues = Array.from(new Set(values.filter(Boolean)));
+		const batches = chunk(uniqueValues, 200);
 		for (const batch of batches) {
-			const { data, error } = await supabase.from(table).select(`id, ${key}`).in(key, batch);
+			const { data, error } = await supabase.from(table).select(`id, ${key}`).eq('tenant_id', tenantId).in(key, batch);
 			if (error) throw error;
 			(data ?? []).forEach((row: Record<string, string>) => {
 				const rowKey = row[key];
-				if (rowKey) map.set(rowKey, row.id);
+				if (rowKey) map.set(normalizeKey(rowKey), row.id);
+			});
+		}
+		return map;
+	};
+
+	const fetchProductsBySku = async (values: string[]) => {
+		const map = new Map<string, { id: string; isActive: boolean }>();
+		if (!tenantId) return map;
+		const uniqueValues = Array.from(new Set(values.filter(Boolean)));
+		const batches = chunk(uniqueValues, 200);
+
+		for (const batch of batches) {
+			let data: Record<string, unknown>[] | null = null;
+			const primary = await supabase
+				.from('products')
+				.select('id, sku, is_active, status')
+				.eq('tenant_id', tenantId)
+				.in('sku', batch);
+
+			if (primary.error) {
+				if (primary.error.message.toLowerCase().includes('is_active')) {
+					const fallback = await supabase
+						.from('products')
+						.select('id, sku, status')
+						.eq('tenant_id', tenantId)
+						.in('sku', batch);
+					if (fallback.error) throw fallback.error;
+					data = fallback.data as Record<string, unknown>[] | null;
+				} else {
+					throw primary.error;
+				}
+			} else {
+				data = primary.data as Record<string, unknown>[] | null;
+			}
+
+			(data ?? []).forEach((row) => {
+				const sku = String(row.sku ?? '').trim();
+				const id = String(row.id ?? '').trim();
+				if (!sku || !id) return;
+				const status = String(row.status ?? '').trim();
+				const isActiveValue = row.is_active;
+				const isActive =
+					typeof isActiveValue === 'boolean' ? isActiveValue : status ? !isInactiveStatus(status) : true;
+				map.set(normalizeKey(sku), { id, isActive });
 			});
 		}
 		return map;
@@ -234,6 +334,26 @@ const DataImport = ({ onBack }: Props) => {
 				if (clearError) throw clearError;
 			}
 
+			if (kind === 'products') {
+				const sanitized = (csvRows as ProductUpsertRow[]).map((row) => {
+					const imageUrl = String(row.image_url ?? row.image ?? '').trim();
+					return {
+						...row,
+						sku: normalizeKey(row.sku),
+						name: String(row.name ?? '').trim(),
+						barcode: row.barcode?.trim() || undefined,
+						status: row.status?.trim() || undefined,
+						location: row.location?.trim() || undefined,
+						image_url: imageUrl || undefined,
+						image: imageUrl || undefined,
+					};
+				});
+				const uploaded = await upsertRows(sanitized as Record<string, unknown>[]);
+				setImportedRows(uploaded);
+				setLoading(false);
+				return;
+			}
+
 			if (kind === 'clients' || kind === 'sellers') {
 				const sanitized = (csvRows as Array<Record<string, unknown>>).map((row) => {
 					const rawExternal = String(row.external_id ?? '').trim();
@@ -244,20 +364,6 @@ const DataImport = ({ onBack }: Props) => {
 					};
 				});
 				const uploaded = await upsertRows(sanitized);
-				setImportedRows(uploaded);
-				setLoading(false);
-				return;
-			}
-
-			if (kind === 'products') {
-				const rows = (csvRows as ProductUpsertRow[]).map((row) => ({
-					...row,
-					sku: row.sku.trim(),
-					name: row.name.trim(),
-					status: row.status?.trim() || undefined,
-					location: row.location?.trim() || undefined,
-				}));
-				const uploaded = await upsertRows(rows as Record<string, unknown>[]);
 				setImportedRows(uploaded);
 				setLoading(false);
 				return;
@@ -297,7 +403,11 @@ const DataImport = ({ onBack }: Props) => {
 			const orderNumbers = rows.map((row) => row.order_number).filter(Boolean);
 			const skus = rows.map((row) => row.sku || '').filter(Boolean);
 			const orderMap = orderNumbers.length ? await fetchIdMap('sales_orders', 'order_number', orderNumbers) : new Map();
-			const productMap = skus.length ? await fetchIdMap('products', 'sku', skus) : new Map();
+			const productMap = skus.length ? await fetchProductsBySku(skus) : new Map();
+			const skuValidation = validateSalesItemSkus(skus, productMap);
+			if (!skuValidation.isValid) {
+				throw new Error(`${skuValidation.errorMessage ?? 'SKU invalido.'} Importe/ative os produtos e tente novamente.`);
+			}
 
 			const payload = rows.map((row) => {
 				const qty = row.qty ?? 1;
@@ -307,7 +417,7 @@ const DataImport = ({ onBack }: Props) => {
 					qty,
 					total_price: total,
 					order_id: orderMap.get(row.order_number) ?? null,
-					product_id: row.sku ? productMap.get(row.sku) ?? null : null,
+					product_id: row.sku ? productMap.get(row.sku)?.id ?? null : null,
 				};
 			});
 
@@ -333,20 +443,21 @@ const DataImport = ({ onBack }: Props) => {
 	const clearHint = useMemo(() => {
 		if (kind === 'orders') return 'Limpa pedidos e itens deste tenant.';
 		if (kind === 'items') return 'Limpa todos os itens de venda antes do import.';
+		if (kind === 'products') return 'Limpa a tabela mestre de produtos deste tenant antes do import.';
 		return 'Limpa os dados deste tipo antes do import.';
 	}, [kind]);
 
 	return (
-		<div className="min-h-screen bg-background text-foreground flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-			<div className="sm:mx-auto sm:w-full sm:max-w-md">
+		<div className="min-h-screen bg-background text-foreground flex flex-col justify-center px-4 py-10 sm:px-6 sm:py-12 lg:px-10">
+			<div className="mx-auto w-full max-w-xl sm:max-w-2xl lg:max-w-3xl">
 				<h2 className="mt-6 text-center text-3xl font-extrabold text-foreground">Importar dados</h2>
 				<p className="mt-2 text-center text-sm text-muted-foreground">
 					Carregue arquivos CSV para alimentar as metricas.
 				</p>
 			</div>
 
-			<div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-				<div className="bg-card py-8 px-4 shadow-[var(--shadow-card)] sm:rounded-[var(--radius-card)] sm:px-10">
+			<div className="mt-8 mx-auto w-full max-w-xl sm:max-w-2xl lg:max-w-3xl">
+				<div className="bg-card py-8 px-4 shadow-[var(--shadow-card)] sm:rounded-[var(--radius-card)] sm:px-8 lg:px-10">
 					<div className="space-y-6">
 						<div>
 							<label className="block text-sm font-medium text-muted-foreground">Tipo de importacao</label>
@@ -434,6 +545,34 @@ const DataImport = ({ onBack }: Props) => {
 							</div>
 						</div>
 
+						<div className="rounded-md border border-border/40 bg-muted/30 px-3 py-3 text-xs text-muted-foreground leading-relaxed">
+							<p className="text-sm font-medium text-foreground">Como deve ser o CSV</p>
+							<p className="mt-1">
+								Cabecalho obrigatorio:{' '}
+								<span className="font-medium text-foreground break-all">{csvGuide.required.join(', ')}</span>
+								{csvGuide.optional.length > 0 ? (
+									<>
+										{' '}
+										• Opcionais:{' '}
+										<span className="font-medium text-foreground break-all">{csvGuide.optional.join(', ')}</span>
+									</>
+								) : null}
+							</p>
+							<p className="mt-1">
+								Exemplo de cabecalho:{' '}
+								<span className="font-medium text-foreground break-all">{csvGuide.example}</span>
+							</p>
+							{csvGuide.notes?.map((note) => (
+								<p key={note} className="mt-1">
+									{note}
+								</p>
+							))}
+							<p className="mt-1">
+								Aceitamos variacoes nos nomes das colunas (ex: nome, pedido). Separador pode ser virgula,
+								ponto e virgula ou tab. Numeros aceitam ponto ou virgula.
+							</p>
+						</div>
+
 						<div className="rounded-md border border-border/40 bg-muted/30 px-3 py-3">
 							<label className="flex items-start gap-3 text-sm text-foreground">
 								<input
@@ -509,7 +648,7 @@ const DataImport = ({ onBack }: Props) => {
 							</div>
 						)}
 
-						<div className="flex justify-between gap-4">
+						<div className="flex flex-col gap-4 sm:flex-row sm:justify-between">
 							<button
 								type="button"
 								onClick={onBack}
