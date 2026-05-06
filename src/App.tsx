@@ -9,6 +9,7 @@ import Onboarding from './components/Onboarding';
 import SignupPage from './components/SignupPage';
 import SlugNotFound from './components/SlugNotFound';
 import AcceptInvitePage from './components/AcceptInvitePage';
+import MembersPage from './components/members/MembersPage';
 import AdminLayout from './components/admin/AdminLayout';
 import RequestsPage from './components/admin/RequestsPage';
 import { useTenant } from './context/TenantContext';
@@ -394,7 +395,11 @@ const App = () => {
 					element={<DataImport onBack={() => navigate('/')} />}
 				/>
 			)}
-			<Route path="*" element={<Navigate to="/" replace />} />
+			<Route
+					path="/members"
+					element={<MembersPage canInvite={isAdmin} />}
+				/>
+				<Route path="*" element={<Navigate to="/" replace />} />
 		</Routes>
 	);
 };
