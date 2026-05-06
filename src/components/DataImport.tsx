@@ -310,7 +310,9 @@ const DataImport = ({ onBack }: Props) => {
 		const batches = chunk(rows, 500);
 		let uploaded = 0;
 		for (const batch of batches) {
-			const { error } = await supabase.from(config.table).upsert(batch, { onConflict: config.onConflict });
+			const { error } = await supabase
+				.from(config.table)
+				.upsert(batch, { onConflict: config.onConflict, defaultToNull: false });
 			if (error) throw error;
 			uploaded += batch.length;
 		}

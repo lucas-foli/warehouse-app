@@ -60,6 +60,12 @@ const OverviewPage = ({
 			: monthlyChange > 0
 				? `Crescimento de ${(monthlyChange * 100).toFixed(1)}% vs mês anterior.`
 				: `Queda de ${Math.abs(monthlyChange * 100).toFixed(1)}% vs mês anterior.`;
+	const operationStatusClass = useMemo(() => {
+		const length = operationStatusLabel.trim().length;
+		if (length <= 7) return 'text-2xl sm:text-3xl';
+		if (length <= 10) return 'text-lg sm:text-xl';
+		return 'text-base sm:text-lg';
+	}, [operationStatusLabel]);
 
 	const topProducts = useMemo(() => {
 		const withSales = [...products]
@@ -103,7 +109,7 @@ const OverviewPage = ({
 						value={operationStatusLabel}
 						label="Status da operação"
 						detail={operationStatusDetail}
-						valueClassName="text-3xl sm:text-4xl"
+						valueClassName={`${operationStatusClass} leading-tight tracking-tight`}
 					/>
 				</Card>
 			</Section>
