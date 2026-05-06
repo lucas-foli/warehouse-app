@@ -114,6 +114,25 @@ alter table public.tenants add column if not exists ui_preset text not null defa
 alter table public.tenants add column if not exists theme_tokens jsonb not null default '{}'::jsonb;
 ```
 
+## Auth — rate limits de email
+
+O arquivo `supabase/config.toml` é a fonte de verdade para os limites de envio de email e proteções por IP do Auth. Valores atuais:
+
+- `auth.email.max_frequency = "20s"` — intervalo mínimo entre dois emails para o MESMO endereço.
+- `auth.rate_limit.email_sent = 100` — teto global de emails por hora (signup, recovery, change email, magic link, invite). **Requer SMTP próprio** configurado em `Authentication → SMTP Settings`; o SMTP embutido do Supabase tem cap fixo de 2/hora e é para dev.
+- `auth.rate_limit.sign_in_sign_ups = 30` — tentativas de signup/sign-in por **IP** a cada 5 min.
+- `auth.rate_limit.token_verifications = 30` — verificações de OTP/magic link por **IP** a cada 5 min.
+- `auth.rate_limit.token_refresh = 150` — refresh de sessão por **IP** a cada 5 min.
+- `auth.rate_limit.anonymous_users = 30` — sign-ins anônimos por **IP** por hora.
+
+Aplicar ao projeto hospedado (após revisar o diff):
+
+```sh
+supabase config push
+```
+
+Como alternativa, replique os mesmos valores em `Authentication → Rate Limits` e `Authentication → Emails` no Dashboard.
+
 ## Se aparecer “infinite recursion detected in policy for relation tenant_members”
 
 Isso acontece quando uma policy de `tenant_members` consulta a própria tabela (recursão de RLS). A migração já inclui a função `public.is_tenant_admin(...)` para evitar isso, mas se você rodou uma versão antiga do SQL, rode este patch:
