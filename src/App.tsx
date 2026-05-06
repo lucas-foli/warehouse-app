@@ -8,6 +8,7 @@ import LoginForm from './components/LoginForm';
 import Onboarding from './components/Onboarding';
 import SignupPage from './components/SignupPage';
 import SlugNotFound from './components/SlugNotFound';
+import AcceptInvitePage from './components/AcceptInvitePage';
 import AdminLayout from './components/admin/AdminLayout';
 import RequestsPage from './components/admin/RequestsPage';
 import { useTenant } from './context/TenantContext';
@@ -233,6 +234,8 @@ const App = () => {
 	};
 
 	if (forwardingSession || checkingSession || tenantLoading) return null;
+
+	if (location.pathname === '/accept-invite') return <AcceptInvitePage />;
 
 	// Platform admin surface — accessible from any host as long as the user is signed in.
 	const isAdminRoute = location.pathname.startsWith('/admin');
