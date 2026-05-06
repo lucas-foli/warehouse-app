@@ -306,7 +306,9 @@ const Onboarding = ({ onFinish, inviteCode }: OnboardingProps) => {
 
 				for (let i = 0; i < csvRows.length; i += chunkSize) {
 					const chunk = csvRows.slice(i, i + chunkSize);
-					const { error } = await supabase.from('products').upsert(chunk, { onConflict: 'tenant_id,sku' });
+					const { error } = await supabase
+						.from('products')
+						.upsert(chunk, { onConflict: 'tenant_id,sku', defaultToNull: false });
 					if (error) {
 						const message =
 							error.message?.includes('there is no unique or exclusion constraint') ||

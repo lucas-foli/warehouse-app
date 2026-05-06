@@ -146,5 +146,5 @@ export const useDashboardData = (tenantId: string | undefined) => {
 		loadData();
 	}, [tenantId]);
 
-	return { products, clientes, vendedores, categorySales, history, salesTrend, loading };
+	return { products, setProducts, clientes, vendedores, categorySales, history, salesTrend, loading };
 };

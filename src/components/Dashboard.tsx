@@ -52,7 +52,7 @@ const Dashboard = ({
 	const [page, setPage] = useState<'overview' | 'clientes' | 'vendedores'>(initialPage);
 	const [surface, setSurface] = useState<'dashboard' | 'products'>(initialSurface);
 
-	const { products, clientes, vendedores, categorySales, history, salesTrend, loading } =
+	const { products, setProducts, clientes, vendedores, categorySales, history, salesTrend, loading } =
 		useDashboardData(tenantId);
 
 	const locations = useMemo(
@@ -206,6 +206,12 @@ const Dashboard = ({
 						<ProductsPage
 							products={products}
 							loading={loading}
+							tenantId={tenantId}
+							onProductUpdated={(updated) =>
+								setProducts((current) =>
+									current.map((item) => (item.id === updated.id ? { ...item, ...updated } : item)),
+								)
+							}
 							onBack={() => {
 								setSurface('dashboard');
 								navigate('/');

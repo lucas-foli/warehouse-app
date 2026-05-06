@@ -1,21 +1,45 @@
 import { useMemo, useState } from 'react';
+import { supabase } from '../lib/supabaseClient';
 import type { Product } from '../types';
 import { Card, Section } from './ui/Primitives';
+
+type ProductDraft = {
+	id: string;
+	name: string;
+	sku: string;
+	status: string;
+	location: string;
+	qty: string;
+	min: string;
+	price: string;
+	barcode: string;
+	image: string;
+};
 
 const ProductsPage = ({
 	products,
 	loading,
 	onBack,
+	tenantId,
+	onProductUpdated,
 }: {
 	products: Product[];
 	loading: boolean;
 	onBack: () => void;
+	tenantId?: string;
+	onProductUpdated?: (product: Product) => void;
 }) => {
 	const [productQuery, setProductQuery] = useState('');
 	const [productStatusFilter, setProductStatusFilter] = useState<'all' | 'critical' | 'no-photo' | 'zero-stock'>(
 		'all',
 	);
 	const [productLocationFilter, setProductLocationFilter] = useState<'all' | string>('all');
+	const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+	const [editDraft, setEditDraft] = useState<ProductDraft | null>(null);
+	const [editDirty, setEditDirty] = useState(false);
+	const [editSaving, setEditSaving] = useState(false);
+	const [editError, setEditError] = useState('');
+	const [isEditPanelOpen, setIsEditPanelOpen] = useState(false);
 
 	const isCriticalProduct = (p: Product) => {
 		const zeroStock = (p.qty || 0) <= 0;
@@ -47,6 +71,107 @@ const ProductsPage = ({
 		});
 	}, [products, productLocationFilter, productQuery, productStatusFilter]);
 
+	const startEditProduct = (product: Product) => {
+		setSelectedProductId(product.id);
+		setEditDraft({
+			id: product.id,
+			name: product.name,
+			sku: product.sku,
+			status: product.status || 'ESTOQUE',
+			location: product.location || 'Loja principal',
+			qty: Number.isFinite(product.qty) ? String(product.qty) : '0',
+			min: product.min !== undefined ? String(product.min) : '',
+			price: product.price !== undefined ? String(product.price) : '',
+			barcode: product.barcode ?? '',
+			image: product.image ?? '',
+		});
+		setEditDirty(false);
+		setEditError('');
+		setIsEditPanelOpen(true);
+	};
+
+	const updateDraft = (partial: Partial<ProductDraft>) => {
+		setEditDraft((current) => (current ? { ...current, ...partial } : current));
+		setEditDirty(true);
+	};
+
+	const resetDraft = () => {
+		if (!selectedProductId) return;
+		const product = products.find((item) => item.id === selectedProductId);
+		if (product) startEditProduct(product);
+	};
+
+	const closeEditPanel = () => {
+		setIsEditPanelOpen(false);
+		setSelectedProductId(null);
+		setEditDraft(null);
+		setEditDirty(false);
+		setEditError('');
+	};
+
+	const parseOptionalNumber = (value: string) => {
+		const trimmed = value.trim().replace(',', '.');
+		if (!trimmed) return null;
+		const parsed = Number(trimmed);
+		return Number.isFinite(parsed) ? parsed : null;
+	};
+
+	const parseOptionalInteger = (value: string) => {
+		const trimmed = value.trim();
+		if (!trimmed) return null;
+		const parsed = Number.parseInt(trimmed, 10);
+		return Number.isFinite(parsed) ? parsed : null;
+	};
+
+	const handleSaveDraft = async () => {
+		if (!tenantId || !editDraft) return;
+		setEditSaving(true);
+		setEditError('');
+
+		const qty = parseOptionalInteger(editDraft.qty) ?? 0;
+		const min = parseOptionalInteger(editDraft.min);
+		const price = parseOptionalNumber(editDraft.price);
+		const status = editDraft.status.trim() || 'ESTOQUE';
+		const location = editDraft.location.trim() || 'Loja principal';
+		const barcode = editDraft.barcode.trim();
+		const image = editDraft.image.trim();
+
+		const payload = {
+			status,
+			location,
+			qty,
+			min,
+			price,
+			barcode: barcode ? barcode : null,
+			image: image ? image : null,
+		};
+
+		try {
+			const { error } = await supabase.from('products').update(payload).eq('id', editDraft.id).eq('tenant_id', tenantId);
+			if (error) throw error;
+
+			const existing = products.find((item) => item.id === editDraft.id);
+			if (existing && onProductUpdated) {
+				onProductUpdated({
+					...existing,
+					status,
+					location,
+					qty,
+					min: min ?? undefined,
+					price: price ?? undefined,
+					barcode: barcode ? barcode : undefined,
+					image: image ? image : undefined,
+				});
+			}
+			setEditDirty(false);
+		} catch (err) {
+			const message = err instanceof Error ? err.message : 'Falha ao salvar ajustes.';
+			setEditError(message);
+		} finally {
+			setEditSaving(false);
+		}
+	};
+
 	return (
 		<Section className="mt-8 space-y-8">
 			<div className="flex flex-wrap items-center justify-between gap-4">
@@ -55,12 +180,20 @@ const ProductsPage = ({
 							Lista completa de produtos
 						</p>
 					</div>
-					<button
-						type="button"
-						onClick={onBack}
-						className="rounded-full border border-border/40 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-foreground transition hover:bg-primary hover:text-primary-foreground">
-						Voltar ao dashboard
-					</button>
+					<div className="flex flex-wrap gap-2">
+						<button
+							type="button"
+							onClick={onBack}
+							className="rounded-full border border-border/40 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-foreground transition hover:bg-primary hover:text-primary-foreground">
+							Voltar ao dashboard
+						</button>
+						<button
+							type="button"
+							onClick={() => setIsEditPanelOpen((current) => !current)}
+							className="rounded-full border border-border/40 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-foreground transition hover:bg-primary hover:text-primary-foreground">
+							{isEditPanelOpen ? 'Fechar ajustes' : 'Ajustes rápidos'}
+						</button>
+					</div>
 				</div>
 				<div className="flex flex-wrap items-center gap-3">
 				<input
@@ -103,80 +236,256 @@ const ProductsPage = ({
 					</select>
 				)}
 			</div>
-				<Card interactive={false} className="border border-border/30 bg-muted">
-					<div className="overflow-auto max-h-[640px]">
-						<table className="min-w-full divide-y divide-black/5 text-sm">
-							<thead className="sticky top-0 z-10 bg-muted text-left text-[11px] uppercase tracking-[0.25em] text-muted-foreground">
-								<tr>
-								<th className="px-4 py-3">Foto</th>
-								<th className="px-4 py-3">SKU</th>
-								<th className="px-4 py-3">Produto</th>
-								<th className="px-4 py-3">Status</th>
-								<th className="px-4 py-3">Local</th>
-								<th className="px-4 py-3">Qtd</th>
-								<th className="px-4 py-3">Mínimo</th>
-								<th className="px-4 py-3">Preço</th>
-								<th className="px-4 py-3">Total vendido</th>
-								<th className="px-4 py-3">Código de barras</th>
-							</tr>
-						</thead>
-							<tbody className="divide-y divide-border/30 bg-card">
-								{loading && (
+				<div className={`grid gap-6 ${isEditPanelOpen ? 'lg:grid-cols-[minmax(0,1fr)_340px]' : ''}`}>
+					<Card interactive={false} className="border border-border/30 bg-muted">
+						<div className="overflow-auto max-h-[640px]">
+							<table className="min-w-full divide-y divide-black/5 text-sm">
+								<thead className="sticky top-0 z-10 bg-muted text-left text-[11px] uppercase tracking-[0.25em] text-muted-foreground">
 									<tr>
-										<td colSpan={10} className="px-4 py-6 text-center text-muted-foreground">
-											Carregando…
-										</td>
-									</tr>
-								)}
-								{!loading &&
-									filteredProducts.map((product) => (
-										<tr key={product.id} className="hover:bg-muted/60">
-											<td className="px-4 py-3">
-												<div className="h-12 w-12 overflow-hidden rounded-xl bg-black/5">
-												{product.image ? (
-													<img
-														src={product.image}
-														alt={product.name}
-														className="h-full w-full object-cover"
-														loading="lazy"
-													/>
-												) : (
-														<div className="flex h-full w-full items-center justify-center text-[10px] uppercase tracking-[0.2em] text-muted-foreground/70">
-															—
-														</div>
-													)}
-												</div>
+									<th className="px-4 py-3">Foto</th>
+									<th className="px-4 py-3">SKU</th>
+									<th className="px-4 py-3">Produto</th>
+									<th className="px-4 py-3">Status</th>
+									<th className="px-4 py-3">Local</th>
+									<th className="px-4 py-3">Qtd</th>
+									<th className="px-4 py-3">Mínimo</th>
+									<th className="px-4 py-3">Preço</th>
+									<th className="px-4 py-3">Total vendido</th>
+									<th className="px-4 py-3">Código de barras</th>
+									<th className="px-4 py-3 text-right">Ajustes</th>
+								</tr>
+							</thead>
+								<tbody className="divide-y divide-border/30 bg-card">
+									{loading && (
+										<tr>
+											<td colSpan={11} className="px-4 py-6 text-center text-muted-foreground">
+												Carregando…
 											</td>
-											<td className="px-4 py-3 font-semibold text-foreground">{product.sku}</td>
-											<td className="px-4 py-3 text-foreground">{product.name}</td>
-											<td className="px-4 py-3">
-												<span className="rounded-full bg-black/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground">
-													{product.status}
-												</span>
-											</td>
-											<td className="px-4 py-3 text-foreground">{product.location}</td>
-											<td className="px-4 py-3 text-foreground">{product.qty}</td>
-											<td className="px-4 py-3 text-foreground">{product.min ?? '—'}</td>
-											<td className="px-4 py-3 text-foreground">
-												{product.price ? `R$ ${product.price.toLocaleString('pt-BR')}` : '—'}
-											</td>
-											<td className="px-4 py-3 text-foreground">
-												{product.totalSold ? product.totalSold.toLocaleString('pt-BR') : '—'}
-											</td>
-											<td className="px-4 py-3 text-foreground">{product.barcode ?? '—'}</td>
 										</tr>
-									))}
-								{!loading && filteredProducts.length === 0 && (
-									<tr>
-										<td colSpan={10} className="px-4 py-6 text-center text-muted-foreground">
-											Nenhum produto encontrado com os filtros atuais.
-										</td>
-									</tr>
-								)}
-						</tbody>
-					</table>
-				</div>
-			</Card>
+									)}
+									{!loading &&
+										filteredProducts.map((product) => {
+											const isSelected = selectedProductId === product.id;
+											return (
+												<tr
+													key={product.id}
+													onClick={() => startEditProduct(product)}
+													className={`cursor-pointer hover:bg-muted/60 ${isSelected ? 'bg-primary/10' : ''}`}>
+													<td className="px-4 py-3">
+														<div className="h-12 w-12 overflow-hidden rounded-xl bg-black/5">
+															{product.image ? (
+																<img
+																	src={product.image}
+																	alt={product.name}
+																	className="h-full w-full object-cover"
+																	loading="lazy"
+																/>
+															) : (
+																<div className="flex h-full w-full items-center justify-center text-[10px] uppercase tracking-[0.2em] text-muted-foreground/70">
+																	—
+																</div>
+															)}
+														</div>
+													</td>
+													<td className="px-4 py-3 font-semibold text-foreground">{product.sku}</td>
+													<td className="px-4 py-3 text-foreground">{product.name}</td>
+													<td className="px-4 py-3">
+														<span className="rounded-full bg-black/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground">
+															{product.status}
+														</span>
+													</td>
+													<td className="px-4 py-3 text-foreground">{product.location}</td>
+													<td className="px-4 py-3 text-foreground">{product.qty}</td>
+													<td className="px-4 py-3 text-foreground">{product.min ?? '—'}</td>
+													<td className="px-4 py-3 text-foreground">
+														{product.price ? `R$ ${product.price.toLocaleString('pt-BR')}` : '—'}
+													</td>
+													<td className="px-4 py-3 text-foreground">
+														{product.totalSold ? product.totalSold.toLocaleString('pt-BR') : '—'}
+													</td>
+													<td className="px-4 py-3 text-foreground">{product.barcode ?? '—'}</td>
+													<td className="px-4 py-3 text-right">
+														<button
+															type="button"
+															onClick={(event) => {
+																event.stopPropagation();
+																startEditProduct(product);
+															}}
+															className="rounded-full border border-border/50 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-foreground transition hover:bg-primary hover:text-primary-foreground">
+															Ajustar
+														</button>
+													</td>
+												</tr>
+											);
+										})}
+									{!loading && filteredProducts.length === 0 && (
+										<tr>
+											<td colSpan={11} className="px-4 py-6 text-center text-muted-foreground">
+												Nenhum produto encontrado com os filtros atuais.
+											</td>
+										</tr>
+									)}
+							</tbody>
+						</table>
+					</div>
+				</Card>
+				{isEditPanelOpen && (
+					<Card interactive={false} className="border border-border/30 bg-muted">
+						<div className="space-y-6">
+							<div className="flex items-start justify-between gap-4">
+								<div>
+									<p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-muted-foreground">
+										Ajustes rápidos
+									</p>
+									<p className="mt-2 text-sm text-muted-foreground">
+										Atualize estoque, status e preço sem depender de CSV.
+									</p>
+								</div>
+								<button
+									type="button"
+									onClick={closeEditPanel}
+									className="rounded-full border border-border/60 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-foreground transition hover:bg-card">
+									Fechar
+								</button>
+							</div>
+
+							{editDraft ? (
+								<>
+									<div className="flex items-center gap-3 rounded-2xl bg-card px-4 py-3">
+										<div className="h-12 w-12 overflow-hidden rounded-xl bg-black/5">
+											{editDraft.image ? (
+												<img
+													src={editDraft.image}
+													alt={editDraft.name}
+													className="h-full w-full object-cover"
+													loading="lazy"
+												/>
+											) : (
+												<div className="flex h-full w-full items-center justify-center text-[10px] uppercase tracking-[0.2em] text-muted-foreground/70">
+													—
+												</div>
+											)}
+										</div>
+										<div>
+											<p className="text-sm font-semibold text-foreground">{editDraft.name}</p>
+											<p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+												SKU {editDraft.sku}
+											</p>
+										</div>
+									</div>
+
+									<div className="grid gap-4">
+										<div>
+											<label className="block text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+												Status
+											</label>
+											<input
+												value={editDraft.status}
+												onChange={(event) => updateDraft({ status: event.target.value })}
+												className="mt-2 block w-full rounded-xl border border-input bg-card px-3 py-2 text-sm text-foreground outline-none transition focus:border-ring/60 focus:ring-2 focus:ring-ring/25"
+											/>
+										</div>
+										<div>
+											<label className="block text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+												Local
+											</label>
+											<input
+												value={editDraft.location}
+												onChange={(event) => updateDraft({ location: event.target.value })}
+												className="mt-2 block w-full rounded-xl border border-input bg-card px-3 py-2 text-sm text-foreground outline-none transition focus:border-ring/60 focus:ring-2 focus:ring-ring/25"
+											/>
+										</div>
+										<div className="grid grid-cols-2 gap-3">
+											<div>
+												<label className="block text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+													Qtd
+												</label>
+												<input
+													type="number"
+													value={editDraft.qty}
+													onChange={(event) => updateDraft({ qty: event.target.value })}
+													className="mt-2 block w-full rounded-xl border border-input bg-card px-3 py-2 text-sm text-foreground outline-none transition focus:border-ring/60 focus:ring-2 focus:ring-ring/25"
+												/>
+											</div>
+											<div>
+												<label className="block text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+													Mínimo
+												</label>
+												<input
+													type="number"
+													value={editDraft.min}
+													onChange={(event) => updateDraft({ min: event.target.value })}
+													className="mt-2 block w-full rounded-xl border border-input bg-card px-3 py-2 text-sm text-foreground outline-none transition focus:border-ring/60 focus:ring-2 focus:ring-ring/25"
+												/>
+											</div>
+										</div>
+										<div className="grid grid-cols-2 gap-3">
+											<div>
+												<label className="block text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+													Preço
+												</label>
+												<input
+													type="number"
+													step="0.01"
+													value={editDraft.price}
+													onChange={(event) => updateDraft({ price: event.target.value })}
+													className="mt-2 block w-full rounded-xl border border-input bg-card px-3 py-2 text-sm text-foreground outline-none transition focus:border-ring/60 focus:ring-2 focus:ring-ring/25"
+												/>
+											</div>
+											<div>
+												<label className="block text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+													Código de barras
+												</label>
+												<input
+													value={editDraft.barcode}
+													onChange={(event) => updateDraft({ barcode: event.target.value })}
+													className="mt-2 block w-full rounded-xl border border-input bg-card px-3 py-2 text-sm text-foreground outline-none transition focus:border-ring/60 focus:ring-2 focus:ring-ring/25"
+												/>
+											</div>
+										</div>
+										<div>
+											<label className="block text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+												URL da imagem
+											</label>
+											<input
+												value={editDraft.image}
+												onChange={(event) => updateDraft({ image: event.target.value })}
+												className="mt-2 block w-full rounded-xl border border-input bg-card px-3 py-2 text-sm text-foreground outline-none transition focus:border-ring/60 focus:ring-2 focus:ring-ring/25"
+											/>
+										</div>
+									</div>
+
+									<div className="flex flex-wrap items-center gap-2">
+										<button
+											type="button"
+											onClick={handleSaveDraft}
+											disabled={!editDirty || editSaving || !tenantId}
+											className="rounded-full bg-primary px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50">
+											{editSaving ? 'Salvando…' : 'Salvar ajustes'}
+										</button>
+										<button
+											type="button"
+											onClick={resetDraft}
+											disabled={!editDirty || editSaving}
+											className="rounded-full border border-border/60 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50">
+											Descartar
+										</button>
+										{editDirty && !editSaving && (
+											<span className="text-xs text-muted-foreground">Alterações pendentes</span>
+										)}
+									</div>
+
+									{editError && <p className="text-xs text-rose-500">{editError}</p>}
+								</>
+							) : (
+								<div className="rounded-2xl border border-dashed border-border/60 bg-card px-4 py-6 text-sm text-muted-foreground">
+									Selecione um produto na lista para ajustar.
+								</div>
+							)}
+						</div>
+					</Card>
+				)}
+			</div>
 		</Section>
 	);
 };
