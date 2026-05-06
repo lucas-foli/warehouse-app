@@ -17,8 +17,6 @@ import { useTenant } from './context/TenantContext';
 import { supabase } from './lib/supabaseClient';
 import StatusUpdateForm from './StatusUpdateForm';
 
-const INVITE_STORAGE_KEY = 'warehouse_invite_code';
-
 // When Supabase's "Redirect URLs" allowlist only accepts the apex (the common
 // default), an email link initiated on acme.example.com gets sent back to
 // https://example.com/#access_token=... — losing the tenant slug. This helper
@@ -121,20 +119,9 @@ const App = () => {
 		const url = new URL(window.location.href);
 		if (!url.pathname.startsWith('/auth/callback')) return;
 
-		const inviteFromUrl = url.searchParams.get('invite')?.trim() ?? '';
-		const storedInvite = window.localStorage.getItem(INVITE_STORAGE_KEY) ?? '';
-		const inviteCode = inviteFromUrl || storedInvite;
-
-		if (inviteCode) {
-			window.localStorage.setItem(INVITE_STORAGE_KEY, inviteCode);
-		}
-
 		const finalizeCallback = async () => {
 			await supabase.auth.getSession();
-			const target = inviteCode
-				? `${window.location.origin}/?invite=${encodeURIComponent(inviteCode)}`
-				: `${window.location.origin}/`;
-			window.location.replace(target);
+			window.location.replace(`${window.location.origin}/`);
 		};
 
 		void finalizeCallback();
@@ -253,12 +240,6 @@ const App = () => {
 		);
 	}
 
-	const inviteCode = typeof window !== 'undefined'
-		? new URLSearchParams(window.location.search).get('invite')?.trim() ||
-			window.localStorage.getItem(INVITE_STORAGE_KEY) ||
-			''
-		: '';
-
 	const isAuthCallback = typeof window !== 'undefined' && location.pathname.startsWith('/auth/callback');
 	if (isAuthCallback) return null;
 
@@ -266,9 +247,9 @@ const App = () => {
 		if (typeof window !== 'undefined' && location.pathname === '/signup') {
 			return <SignupPage />;
 		}
-		if (!inviteCode) return <SlugNotFound />;
-		if (!session) return <LoginForm onSuccess={handleSuccessAuth} />;
-		return <Onboarding onFinish={() => void refreshTenant()} inviteCode={inviteCode} />;
+		// Apex /signup is handled above. For all other apex/subdomain mismatches,
+		// SlugNotFound is the right answer.
+		return <SlugNotFound />;
 	}
 
 	if (!session) return <LoginForm onSuccess={handleSuccessAuth} />;
