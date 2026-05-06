@@ -8,6 +8,8 @@ import LoginForm from './components/LoginForm';
 import Onboarding from './components/Onboarding';
 import SignupPage from './components/SignupPage';
 import SlugNotFound from './components/SlugNotFound';
+import AdminLayout from './components/admin/AdminLayout';
+import RequestsPage from './components/admin/RequestsPage';
 import { useTenant } from './context/TenantContext';
 import { supabase } from './lib/supabaseClient';
 import StatusUpdateForm from './StatusUpdateForm';
@@ -231,6 +233,20 @@ const App = () => {
 	};
 
 	if (forwardingSession || checkingSession || tenantLoading) return null;
+
+	// Platform admin surface — accessible from any host as long as the user is signed in.
+	const isAdminRoute = location.pathname.startsWith('/admin');
+	if (isAdminRoute) {
+		if (!session) return <LoginForm onSuccess={handleSuccessAuth} />;
+		return (
+			<Routes>
+				<Route element={<AdminLayout />}>
+					<Route path="/admin/requests" element={<RequestsPage />} />
+					<Route path="/admin" element={<Navigate to="/admin/requests" replace />} />
+				</Route>
+			</Routes>
+		);
+	}
 
 	const inviteCode = typeof window !== 'undefined'
 		? new URLSearchParams(window.location.search).get('invite')?.trim() ||
