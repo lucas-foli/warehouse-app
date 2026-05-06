@@ -10,6 +10,7 @@ import SignupPage from './components/SignupPage';
 import SlugNotFound from './components/SlugNotFound';
 import AcceptInvitePage from './components/AcceptInvitePage';
 import MembersPage from './components/members/MembersPage';
+import WorkspaceLockedWall from './components/WorkspaceLockedWall';
 import AdminLayout from './components/admin/AdminLayout';
 import RequestsPage from './components/admin/RequestsPage';
 import { useTenant } from './context/TenantContext';
@@ -303,6 +304,12 @@ const App = () => {
 				</div>
 			</div>
 		);
+	}
+
+	const grantedUntil = tenant.grantedUntil ? new Date(tenant.grantedUntil) : null;
+	const isExpired = !grantedUntil || grantedUntil <= new Date();
+	if (isExpired) {
+		return <WorkspaceLockedWall reason={grantedUntil ? 'expired' : 'locked'} />;
 	}
 
 	if (!tenant.isOnboarded) {
