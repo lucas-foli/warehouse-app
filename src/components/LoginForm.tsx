@@ -5,14 +5,6 @@ import { supabase } from '../lib/supabaseClient';
 import type { AuthMode } from '../types';
 import { resolveMadeBySarkStorageUrl, resolveMadeBySarkUrl, resolveSarkLogoStorageUrl, translateAuthError } from '../utils/helpers';
 
-const INVITE_STORAGE_KEY = 'warehouse_invite_code';
-
-const readInviteFromUrl = () => {
-	if (typeof window === 'undefined') return '';
-	const params = new URLSearchParams(window.location.search);
-	return params.get('invite')?.trim() ?? '';
-};
-
 const readSlugFromUrl = () => {
 	if (typeof window === 'undefined') return '';
 	const params = new URLSearchParams(window.location.search);
@@ -54,14 +46,10 @@ const resolveSlugForRedirect = () => {
 	return '';
 };
 
-const readInviteFromStorage = () => {
-	if (typeof window === 'undefined') return '';
-	return window.localStorage.getItem(INVITE_STORAGE_KEY) ?? '';
-};
-
-const storeInvite = (invite: string) => {
-	if (typeof window === 'undefined') return;
-	if (invite) window.localStorage.setItem(INVITE_STORAGE_KEY, invite);
+const resolveSignupHref = () => {
+	const baseDomain = (import.meta.env.VITE_BASE_DOMAIN as string | undefined)?.trim();
+	if (!baseDomain) return '/signup';
+	return `https://${baseDomain}/signup`;
 };
 
 const LoginForm = ({ onSuccess }: { onSuccess: () => void }) => {
@@ -74,21 +62,14 @@ const LoginForm = ({ onSuccess }: { onSuccess: () => void }) => {
 	const [mode, setMode] = useState<AuthMode>('signin');
 	const [email, setEmail] = useState('');
 	const [password, setPassword] = useState('');
-	const [passwordConfirm, setPasswordConfirm] = useState('');
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState('');
 	const [info, setInfo] = useState('');
 
 	useEffect(() => {
-		const invite = readInviteFromUrl();
-		if (invite) storeInvite(invite);
-	}, []);
-
-	useEffect(() => {
 		setBrandLogoSrc(logoUrl);
 		setError('');
 		setInfo('');
-		setPasswordConfirm('');
 		setPassword('');
 	}, [mode]);
 
@@ -105,10 +86,8 @@ const LoginForm = ({ onSuccess }: { onSuccess: () => void }) => {
 		setError('');
 		setLoading(true);
 
-		const inviteCode = readInviteFromUrl() || readInviteFromStorage();
 		const slugForRedirect = resolveSlugForRedirect();
 		const redirectParams = new URLSearchParams();
-		if (inviteCode) redirectParams.set('invite', inviteCode);
 		if (slugForRedirect) redirectParams.set('slug', slugForRedirect);
 		const authRedirectBase = resolveAuthRedirectBase();
 		const authRedirectTo = redirectParams.toString()
@@ -127,12 +106,6 @@ const LoginForm = ({ onSuccess }: { onSuccess: () => void }) => {
 			setLoading(false);
 			return;
 		}
-		if (mode === 'signup' && password !== passwordConfirm) {
-			setError('As senhas precisam coincidir.');
-			setLoading(false);
-			return;
-		}
-
 		if (mode === 'reset') {
 			const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
 				redirectTo: authRedirectTo,
@@ -143,45 +116,6 @@ const LoginForm = ({ onSuccess }: { onSuccess: () => void }) => {
 				return;
 			}
 			setInfo('Enviamos um e-mail com instruções para logar no portal.');
-			setLoading(false);
-			return;
-		}
-
-		if (mode === 'signup') {
-			const { error: signUpError, data } = await supabase.auth.signUp({
-				email,
-				password,
-				options: {
-					emailRedirectTo: authRedirectTo,
-				},
-			});
-			if (signUpError) {
-				setInfo('');
-				setError(translateAuthError(signUpError.message));
-				setLoading(false);
-				return;
-			}
-
-			const userAlreadyExists = data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0;
-
-			if (userAlreadyExists) {
-				setMode('signin');
-				setInfo('Este e-mail já está cadastrado. Utilize sua senha para entrar.');
-				setError('');
-				setLoading(false);
-				return;
-			}
-
-			if (data.session) {
-				onSuccess();
-				setLoading(false);
-				return;
-			}
-
-			setInfo(
-				data.user?.email_confirmed_at ? 'Conta criada com sucesso.' : 'Verifique seu e-mail para confirmar o cadastro.',
-			);
-			setError('');
 			setLoading(false);
 			return;
 		}
@@ -197,7 +131,7 @@ const LoginForm = ({ onSuccess }: { onSuccess: () => void }) => {
 		setLoading(false);
 	};
 
-	const isSignup = mode === 'signup';
+	const signupHref = resolveSignupHref();
 
 	return (
 		<div className="relative min-h-screen overflow-hidden bg-background text-foreground">
@@ -232,33 +166,11 @@ const LoginForm = ({ onSuccess }: { onSuccess: () => void }) => {
 						)}
 						<div className="text-[11px] uppercase tracking-[0.35em] text-muted-foreground">{companyName} Portal</div>
 
-						<div className="inline-flex rounded-full border border-border/40 bg-muted p-1 text-xs font-semibold uppercase tracking-[0.25em] text-foreground">
-							<button
-								type="button"
-								onClick={() => setMode('signin')}
-								className={`rounded-full px-5 py-2 transition ${
-									!isSignup
-										? 'bg-primary text-primary-foreground shadow-[0_10px_30px_hsl(var(--foreground)/0.18)]'
-										: 'text-muted-foreground hover:text-foreground'
-								}`}>
-								Entrar
-							</button>
-							<button
-								type="button"
-								onClick={() => setMode('signup')}
-								className={`rounded-full px-5 py-2 transition ${
-									isSignup
-										? 'bg-primary text-primary-foreground shadow-[0_10px_30px_hsl(var(--foreground)/0.18)]'
-										: 'text-muted-foreground hover:text-foreground'
-								}`}>
-								Criar conta
-							</button>
-						</div>
 						<button
 							type="button"
-							onClick={() => setMode('reset')}
+							onClick={() => setMode(mode === 'reset' ? 'signin' : 'reset')}
 							className="text-[11px] font-semibold uppercase tracking-[0.3em] text-muted-foreground transition hover:text-foreground">
-							Esqueci minha senha
+							{mode === 'reset' ? 'Voltar para entrar' : 'Esqueci minha senha'}
 						</button>
 					</div>
 
@@ -285,23 +197,7 @@ const LoginForm = ({ onSuccess }: { onSuccess: () => void }) => {
 									onChange={(e) => setPassword(e.target.value)}
 									placeholder="••••••••"
 									className="mt-2 w-full rounded-2xl border border-input bg-card px-4 py-3 text-sm text-foreground outline-none transition focus:border-ring/60 focus:ring-2 focus:ring-ring/25"
-									autoComplete={isSignup ? 'new-password' : 'current-password'}
-									required
-									minLength={6}
-								/>
-							</label>
-						)}
-
-						{mode === 'signup' && (
-							<label className="block text-left text-[10px] font-semibold uppercase tracking-[0.25em] text-muted-foreground sm:text-[11px] sm:tracking-[0.3em]">
-								Confirmar senha
-								<input
-									type="password"
-									value={passwordConfirm}
-									onChange={(e) => setPasswordConfirm(e.target.value)}
-									placeholder="Confirme sua senha"
-									className="mt-2 w-full rounded-2xl border border-input bg-card px-4 py-3 text-sm text-foreground outline-none transition focus:border-ring/60 focus:ring-2 focus:ring-ring/25"
-									autoComplete="new-password"
+									autoComplete="current-password"
 									required
 									minLength={6}
 								/>
@@ -323,15 +219,16 @@ const LoginForm = ({ onSuccess }: { onSuccess: () => void }) => {
 							type="submit"
 							className="w-full rounded-2xl bg-primary px-4 py-3 text-sm font-semibold uppercase tracking-[0.35em] text-primary-foreground transition hover:bg-primary/90 disabled:opacity-60"
 							disabled={loading}>
-							{loading
-								? 'Processando…'
-								: mode === 'signup'
-								? 'Criar acesso'
-								: mode === 'reset'
-								? 'Enviar instruções'
-								: 'Entrar'}
+							{loading ? 'Processando…' : mode === 'reset' ? 'Enviar instruções' : 'Entrar'}
 						</button>
 					</form>
+
+					<div className="mt-6 text-center text-[11px] uppercase tracking-[0.3em] text-muted-foreground">
+						Precisa de conta?{' '}
+						<a href={signupHref} className="font-semibold text-foreground underline-offset-4 hover:underline">
+							Solicitar acesso
+						</a>
+					</div>
 
 					<footer className="flex items-center justify-center border-t border-border/20 bg-card px-6 py-4 sm:px-10">
 						{madeBySrc ? (

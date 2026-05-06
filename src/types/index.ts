@@ -1,4 +1,4 @@
-export type AuthMode = 'signin' | 'signup' | 'reset';
+export type AuthMode = 'signin' | 'reset';
 
 export interface Product {
 	id: string;
