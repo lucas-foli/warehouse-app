@@ -6,6 +6,7 @@ import Dashboard from './components/Dashboard';
 import DataImport from './components/DataImport';
 import LoginForm from './components/LoginForm';
 import Onboarding from './components/Onboarding';
+import SignupPage from './components/SignupPage';
 import SlugNotFound from './components/SlugNotFound';
 import { useTenant } from './context/TenantContext';
 import { supabase } from './lib/supabaseClient';
@@ -241,6 +242,9 @@ const App = () => {
 	if (isAuthCallback) return null;
 
 	if (tenantError) {
+		if (typeof window !== 'undefined' && location.pathname === '/signup') {
+			return <SignupPage />;
+		}
 		if (!inviteCode) return <SlugNotFound />;
 		if (!session) return <LoginForm onSuccess={handleSuccessAuth} />;
 		return <Onboarding onFinish={() => void refreshTenant()} inviteCode={inviteCode} />;
