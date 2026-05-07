@@ -6,6 +6,7 @@ import Dashboard from './components/Dashboard';
 import DataImport from './components/DataImport';
 import LoginForm from './components/LoginForm';
 import Onboarding from './components/Onboarding';
+import SetPassword from './components/SetPassword';
 import SignupPage from './components/SignupPage';
 import SlugNotFound from './components/SlugNotFound';
 import AcceptInvitePage from './components/AcceptInvitePage';
@@ -56,8 +57,7 @@ const forwardApexSessionToTenantSubdomain = async (session: Session) => {
 	hashParams.set('expires_in', String(session.expires_in));
 	if (session.expires_at) hashParams.set('expires_at', String(session.expires_at));
 
-	await supabase.auth.signOut({ scope: 'local' });
-
+	// No signOut: a local apex session is harmless and signOut races the destination's hash read.
 	const target = `${window.location.protocol}//${slug}.${baseDomain}/#${hashParams.toString()}`;
 	window.location.replace(target);
 	return true;
@@ -127,20 +127,29 @@ const App = () => {
 		void finalizeCallback();
 	}, []);
 
-	// Strip auth tokens from URL hash (Supabase puts them there on magic link / recovery flows)
-	useEffect(() => {
-		if (typeof window === 'undefined') return;
-		const hash = window.location.hash;
-		if (hash && /access_token=/.test(hash)) {
-			// Supabase client reads these automatically via detectSessionInUrl;
-			// we just need to clean the URL so tokens aren't visible / logged / shared.
-			const cleanUrl = window.location.pathname + window.location.search;
-			window.history.replaceState(null, document.title, cleanUrl);
-		}
-	}, []);
-
 	useEffect(() => {
 		let isMounted = true;
+
+		// Captured once at mount: whether the page loaded with a recovery hash.
+		// Used to skip apex→tenant forwarding for recovery flows even if the
+		// initial getSession() resolves before the PASSWORD_RECOVERY event fires.
+		const initialHadRecoveryHash =
+			typeof window !== 'undefined' && /type=recovery/.test(window.location.hash);
+
+		const cleanAuthHashFromUrl = () => {
+			if (typeof window === 'undefined') return;
+			const hash = window.location.hash;
+			if (hash && /access_token=/.test(hash)) {
+				const cleanUrl = window.location.pathname + window.location.search;
+				window.history.replaceState(null, document.title, cleanUrl);
+			}
+		};
+
+		const acceptSessionLocally = (nextSession: Session | null) => {
+			if (!isMounted) return;
+			setSession(nextSession);
+			setCheckingSession(false);
+		};
 
 		const handleSession = async (nextSession: Session | null) => {
 			if (!isMounted) return;
@@ -151,18 +160,33 @@ const App = () => {
 					return;
 				}
 			}
-			if (!isMounted) return;
-			setSession(nextSession);
-			setCheckingSession(false);
+			acceptSessionLocally(nextSession);
 		};
 
 		supabase.auth.getSession().then(({ data }) => {
+			if (data.session) cleanAuthHashFromUrl();
+			if (initialHadRecoveryHash && data.session) {
+				acceptSessionLocally(data.session);
+				navigate('/set-password', { replace: true });
+				return;
+			}
 			void handleSession(data.session ?? null);
 		});
 
 		const {
 			data: { subscription },
-		} = supabase.auth.onAuthStateChange((_event, currentSession) => {
+		} = supabase.auth.onAuthStateChange((event, currentSession) => {
+			// Clean the URL hash only AFTER Supabase has read tokens from it (race fix).
+			if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'PASSWORD_RECOVERY') {
+				cleanAuthHashFromUrl();
+			}
+
+			if (event === 'PASSWORD_RECOVERY') {
+				acceptSessionLocally(currentSession);
+				navigate('/set-password', { replace: true });
+				return;
+			}
+
 			void handleSession(currentSession);
 		});
 
@@ -170,7 +194,7 @@ const App = () => {
 			isMounted = false;
 			subscription.unsubscribe();
 		};
-	}, []);
+	}, [navigate]);
 
 	useEffect(() => {
 		let isMounted = true;
@@ -222,7 +246,14 @@ const App = () => {
 		setSession(data.session ?? null);
 	};
 
-	if (forwardingSession || checkingSession || tenantLoading) return null;
+	if (forwardingSession || checkingSession) return null;
+
+	if (location.pathname === '/set-password') {
+		if (!session) return <LoginForm onSuccess={handleSuccessAuth} />;
+		return <SetPassword />;
+	}
+
+	if (tenantLoading) return null;
 
 	if (location.pathname === '/accept-invite') return <AcceptInvitePage />;
 
