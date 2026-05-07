@@ -38,7 +38,12 @@ const resolveTenantSlug = () => {
 	if (explicit && explicit.trim()) return explicit.trim().toLowerCase();
 
 	const hostname = window.location.hostname.toLowerCase();
-	const defaultSlug = (import.meta.env.VITE_DEFAULT_TENANT_SLUG as string | undefined)?.trim().toLowerCase() || 'default';
+	// On /signup, suppress the default-slug fallback so apex resolves to no tenant
+	// (tenantError stays set, letting App.tsx's apex check be the only gate).
+	const isSignupPath = typeof window !== 'undefined' && window.location.pathname === '/signup';
+	const defaultSlug = isSignupPath
+		? ''
+		: (import.meta.env.VITE_DEFAULT_TENANT_SLUG as string | undefined)?.trim().toLowerCase() || 'default';
 
 	if (hostname === 'localhost' || /^\d{1,3}(\.\d{1,3}){3}$/.test(hostname)) {
 		return defaultSlug;
