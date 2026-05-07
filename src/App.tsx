@@ -7,12 +7,16 @@ import DataImport from './components/DataImport';
 import LoginForm from './components/LoginForm';
 import Onboarding from './components/Onboarding';
 import SetPassword from './components/SetPassword';
+import SignupPage from './components/SignupPage';
 import SlugNotFound from './components/SlugNotFound';
+import AcceptInvitePage from './components/AcceptInvitePage';
+import MembersPage from './components/members/MembersPage';
+import WorkspaceLockedWall from './components/WorkspaceLockedWall';
+import AdminLayout from './components/admin/AdminLayout';
+import RequestsPage from './components/admin/RequestsPage';
 import { useTenant } from './context/TenantContext';
 import { supabase } from './lib/supabaseClient';
 import StatusUpdateForm from './StatusUpdateForm';
-
-const INVITE_STORAGE_KEY = 'warehouse_invite_code';
 
 // When Supabase's "Redirect URLs" allowlist only accepts the apex (the common
 // default), an email link initiated on acme.example.com gets sent back to
@@ -115,20 +119,9 @@ const App = () => {
 		const url = new URL(window.location.href);
 		if (!url.pathname.startsWith('/auth/callback')) return;
 
-		const inviteFromUrl = url.searchParams.get('invite')?.trim() ?? '';
-		const storedInvite = window.localStorage.getItem(INVITE_STORAGE_KEY) ?? '';
-		const inviteCode = inviteFromUrl || storedInvite;
-
-		if (inviteCode) {
-			window.localStorage.setItem(INVITE_STORAGE_KEY, inviteCode);
-		}
-
 		const finalizeCallback = async () => {
 			await supabase.auth.getSession();
-			const target = inviteCode
-				? `${window.location.origin}/?invite=${encodeURIComponent(inviteCode)}`
-				: `${window.location.origin}/`;
-			window.location.replace(target);
+			window.location.replace(`${window.location.origin}/`);
 		};
 
 		void finalizeCallback();
@@ -262,19 +255,32 @@ const App = () => {
 
 	if (tenantLoading) return null;
 
-	const inviteCode = typeof window !== 'undefined'
-		? new URLSearchParams(window.location.search).get('invite')?.trim() ||
-			window.localStorage.getItem(INVITE_STORAGE_KEY) ||
-			''
-		: '';
+	if (location.pathname === '/accept-invite') return <AcceptInvitePage />;
+
+	// Platform admin surface — accessible from any host as long as the user is signed in.
+	const isAdminRoute = location.pathname.startsWith('/admin');
+	if (isAdminRoute) {
+		if (!session) return <LoginForm onSuccess={handleSuccessAuth} />;
+		return (
+			<Routes>
+				<Route element={<AdminLayout />}>
+					<Route path="/admin/requests" element={<RequestsPage />} />
+					<Route path="/admin" element={<Navigate to="/admin/requests" replace />} />
+				</Route>
+			</Routes>
+		);
+	}
 
 	const isAuthCallback = typeof window !== 'undefined' && location.pathname.startsWith('/auth/callback');
 	if (isAuthCallback) return null;
 
 	if (tenantError) {
-		if (!inviteCode) return <SlugNotFound />;
-		if (!session) return <LoginForm onSuccess={handleSuccessAuth} />;
-		return <Onboarding onFinish={() => void refreshTenant()} inviteCode={inviteCode} />;
+		if (typeof window !== 'undefined' && location.pathname === '/signup') {
+			return <SignupPage />;
+		}
+		// Apex /signup is handled above. For all other apex/subdomain mismatches,
+		// SlugNotFound is the right answer.
+		return <SlugNotFound />;
 	}
 
 	if (!session) return <LoginForm onSuccess={handleSuccessAuth} />;
@@ -310,6 +316,12 @@ const App = () => {
 				</div>
 			</div>
 		);
+	}
+
+	const grantedUntil = tenant.grantedUntil ? new Date(tenant.grantedUntil) : null;
+	const isExpired = !grantedUntil || grantedUntil <= new Date();
+	if (isExpired) {
+		return <WorkspaceLockedWall reason={grantedUntil ? 'expired' : 'locked'} />;
 	}
 
 	if (!tenant.isOnboarded) {
@@ -402,7 +414,11 @@ const App = () => {
 					element={<DataImport onBack={() => navigate('/')} />}
 				/>
 			)}
-			<Route path="*" element={<Navigate to="/" replace />} />
+			<Route
+					path="/members"
+					element={<MembersPage canInvite={isAdmin} />}
+				/>
+				<Route path="*" element={<Navigate to="/" replace />} />
 		</Routes>
 	);
 };

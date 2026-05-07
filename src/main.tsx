@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import { TenantProvider } from './context/TenantContext';
 import { ThemeProvider } from './context/ThemeContext';
+import { PlatformAdminProvider } from './context/PlatformAdminContext';
 import './index.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
@@ -11,7 +12,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
 		<BrowserRouter>
 			<TenantProvider>
 				<ThemeProvider>
-					<App />
+					<PlatformAdminProvider>
+						<App />
+					</PlatformAdminProvider>
 				</ThemeProvider>
 			</TenantProvider>
 		</BrowserRouter>
