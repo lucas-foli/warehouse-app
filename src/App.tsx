@@ -253,12 +253,17 @@ const App = () => {
 	const isAuthCallback = typeof window !== 'undefined' && location.pathname.startsWith('/auth/callback');
 	if (isAuthCallback) return null;
 
-	if (tenantError) {
-		if (typeof window !== 'undefined' && location.pathname === '/signup') {
+	// SignupPage is apex-only and does not depend on tenant context, so gate it
+	// before the tenantError branch. On a real subdomain (existing or typo'd),
+	// fall through and let the normal tenant flow render LoginForm or SlugNotFound.
+	if (location.pathname === '/signup' && typeof window !== 'undefined') {
+		const baseDomain = (import.meta.env.VITE_BASE_DOMAIN as string | undefined)?.trim().toLowerCase();
+		if (baseDomain && window.location.hostname.toLowerCase() === baseDomain) {
 			return <SignupPage />;
 		}
-		// Apex /signup is handled above. For all other apex/subdomain mismatches,
-		// SlugNotFound is the right answer.
+	}
+
+	if (tenantError) {
 		return <SlugNotFound />;
 	}
 
