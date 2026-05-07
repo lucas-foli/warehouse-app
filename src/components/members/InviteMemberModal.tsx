@@ -1,6 +1,7 @@
 // src/components/members/InviteMemberModal.tsx
 import { useState } from "react";
 import { createInvitation } from "../../services/invitations";
+import { messageForEdgeErrorCode } from "../../utils/edgeErrors";
 
 interface Props {
   tenantId: string;
@@ -21,7 +22,7 @@ const InviteMemberModal = ({ tenantId, onClose, onInvited }: Props) => {
     setSubmitting(true);
     const result = await createInvitation({ tenant_id: tenantId, email, role });
     setSubmitting(false);
-    if (!result.ok) { setError(translateError(result.error)); return; }
+    if (!result.ok) { setError(messageForEdgeErrorCode(result.error)); return; }
     onInvited();
   };
 
@@ -57,15 +58,6 @@ const InviteMemberModal = ({ tenantId, onClose, onInvited }: Props) => {
       </div>
     </div>
   );
-};
-
-const translateError = (code: string) => {
-  switch (code) {
-    case "already_invited": return "There's already a pending invite for that email.";
-    case "already_member": return "That user is already a member of this workspace.";
-    case "invalid_email": return "Enter a valid email.";
-    default: return "Something went wrong. Please try again.";
-  }
 };
 
 export default InviteMemberModal;

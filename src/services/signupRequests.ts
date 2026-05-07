@@ -1,5 +1,6 @@
 // src/services/signupRequests.ts
 import { supabase } from "../lib/supabaseClient";
+import { parseEdgeErrorCode } from "../utils/edgeErrors";
 
 export type SignupRequestStatus = "pending" | "approved" | "declined";
 
@@ -61,7 +62,7 @@ export async function approveSignupRequest(input: {
   const { data, error } = await supabase.functions.invoke("approve_signup_request", {
     body: input,
   });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: (await parseEdgeErrorCode(error)) ?? error.message };
   if (data?.error) return { ok: false, error: data.error };
   return { ok: true, tenant_id: data.tenant_id };
 }
@@ -73,7 +74,7 @@ export async function declineSignupRequest(input: {
   const { data, error } = await supabase.functions.invoke("decline_signup_request", {
     body: input,
   });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: (await parseEdgeErrorCode(error)) ?? error.message };
   if (data?.error) return { ok: false, error: data.error };
   return { ok: true };
 }

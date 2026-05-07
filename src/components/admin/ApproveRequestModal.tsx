@@ -1,6 +1,7 @@
 // src/components/admin/ApproveRequestModal.tsx
 import { useEffect, useState } from "react";
 import { approveSignupRequest, type SignupRequest } from "../../services/signupRequests";
+import { messageForEdgeErrorCode } from "../../utils/edgeErrors";
 import { SLUG_RE, slugify } from "../../utils/slug";
 
 const DURATIONS = [
@@ -45,7 +46,7 @@ const ApproveRequestModal = ({ request, onClose, onApproved }: Props) => {
     });
     setSubmitting(false);
     if (!result.ok) {
-      setError(result.error);
+      setError(messageForEdgeErrorCode(result.error));
       return;
     }
     onApproved();
@@ -73,7 +74,7 @@ const ApproveRequestModal = ({ request, onClose, onApproved }: Props) => {
 
         {error && (
           <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs font-semibold uppercase tracking-[0.25em] text-red-600">
-            {error === "slug_taken" ? "That slug is already taken — try another." : error}
+            {error}
           </div>
         )}
 
