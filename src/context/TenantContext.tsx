@@ -13,6 +13,7 @@ export type Tenant = {
 	uiPreset: string;
 	themeTokens: ThemeTokens;
 	isOnboarded: boolean;
+	grantedUntil: string | null;
 };
 
 type TenantContextValue = {
@@ -81,6 +82,11 @@ const mapTenantRow = (row: Record<string, unknown>): Tenant => {
 		return Boolean(value);
 	};
 
+	const nullableStr = (key: string): string | null => {
+		const value = row[key];
+		return typeof value === 'string' ? value : null;
+	};
+
 	const preset = str('ui_preset') || DEFAULT_UI_PRESET;
 
 	return {
@@ -93,6 +99,7 @@ const mapTenantRow = (row: Record<string, unknown>): Tenant => {
 		uiPreset: preset,
 		themeTokens: mergeThemeTokens(preset, row['theme_tokens']),
 		isOnboarded: bool('is_onboarded') || bool('isOnboarded'),
+		grantedUntil: nullableStr('granted_until'),
 	};
 };
 
