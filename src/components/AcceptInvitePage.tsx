@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { acceptInvitation } from "../services/invitations";
 import { supabase } from "../lib/supabaseClient";
+import { messageForEdgeErrorCode } from "../utils/edgeErrors";
 import LoginForm from "./LoginForm";
 
 const TOKEN_STORAGE_KEY = "tenant_invitation_token";
@@ -42,7 +43,7 @@ const AcceptInvitePage = () => {
       const result = await acceptInvitation(token);
       if (cancelled) return;
       if (!result.ok) {
-        setError(translateError(result.error));
+        setError(messageForEdgeErrorCode(result.error));
         return;
       }
       window.localStorage.removeItem(TOKEN_STORAGE_KEY);
@@ -67,17 +68,6 @@ const AcceptInvitePage = () => {
   }
 
   return <CenteredCard title="Joining workspace…" body="One moment." />;
-};
-
-const translateError = (code: string) => {
-  switch (code) {
-    case "expired": return "This invitation has expired. Ask the workspace admin for a new one.";
-    case "revoked": return "This invitation has been revoked.";
-    case "already_accepted": return "This invitation has already been used.";
-    case "email_mismatch": return "This invitation is for a different email address.";
-    case "invalid_token": return "This invitation link is invalid.";
-    default: return "Something went wrong. Try again or contact your workspace admin.";
-  }
 };
 
 const CenteredCard = ({ title, body }: { title: string; body: string }) => (

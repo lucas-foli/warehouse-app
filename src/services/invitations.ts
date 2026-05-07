@@ -1,5 +1,6 @@
 // src/services/invitations.ts
 import { supabase } from "../lib/supabaseClient";
+import { parseEdgeErrorCode } from "../utils/edgeErrors";
 
 export interface TenantInvitation {
   id: string;
@@ -57,7 +58,7 @@ export async function createInvitation(input: {
   role: "admin" | "member";
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   const { data, error } = await supabase.functions.invoke("create_tenant_invitation", { body: input });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: (await parseEdgeErrorCode(error)) ?? error.message };
   if (data?.error) return { ok: false, error: data.error };
   return { ok: true };
 }
@@ -65,7 +66,7 @@ export async function createInvitation(input: {
 export async function acceptInvitation(token: string):
   Promise<{ ok: true; tenant_id: string; role: string } | { ok: false; error: string }> {
   const { data, error } = await supabase.functions.invoke("accept_tenant_invitation", { body: { token } });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: (await parseEdgeErrorCode(error)) ?? error.message };
   if (data?.error) return { ok: false, error: data.error };
   return { ok: true, tenant_id: data.tenant_id, role: data.role };
 }
@@ -73,7 +74,7 @@ export async function acceptInvitation(token: string):
 export async function resendInvitation(invitation_id: string):
   Promise<{ ok: true } | { ok: false; error: string }> {
   const { data, error } = await supabase.functions.invoke("resend_tenant_invitation", { body: { invitation_id } });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: (await parseEdgeErrorCode(error)) ?? error.message };
   if (data?.error) return { ok: false, error: data.error };
   return { ok: true };
 }
@@ -81,7 +82,7 @@ export async function resendInvitation(invitation_id: string):
 export async function revokeInvitation(invitation_id: string):
   Promise<{ ok: true } | { ok: false; error: string }> {
   const { data, error } = await supabase.functions.invoke("revoke_tenant_invitation", { body: { invitation_id } });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: (await parseEdgeErrorCode(error)) ?? error.message };
   if (data?.error) return { ok: false, error: data.error };
   return { ok: true };
 }
