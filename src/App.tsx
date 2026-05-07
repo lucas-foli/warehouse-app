@@ -220,6 +220,16 @@ const App = () => {
 	const handleSuccessAuth = async () => {
 		const { data } = await supabase.auth.getSession();
 		setSession(data.session ?? null);
+
+		// Honor a ?next= redirect (e.g. /?next=/accept-invite). Restrict to
+		// same-origin path-only values so an attacker can't craft an open
+		// redirect via the auth screen.
+		if (typeof window === 'undefined') return;
+		const params = new URLSearchParams(window.location.search);
+		const next = params.get('next');
+		if (next && next.startsWith('/') && !next.startsWith('//')) {
+			navigate(next, { replace: true });
+		}
 	};
 
 	if (forwardingSession || checkingSession || tenantLoading) return null;
