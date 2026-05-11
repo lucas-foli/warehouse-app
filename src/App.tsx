@@ -228,6 +228,14 @@ const App = () => {
 	const isAuthCallback = typeof window !== 'undefined' && location.pathname.startsWith('/auth/callback');
 	if (isAuthCallback) return null;
 
+	// Public signup-request form must render for any anonymous visitor on /signup,
+	// regardless of whether TenantContext resolved a default-tenant fallback on the
+	// apex. Without this gate, the apex falls through to LoginForm because
+	// tenantError is null (the tenant_branding fallback succeeded).
+	if (location.pathname === '/signup' && !session) {
+		return <SignupPage />;
+	}
+
 	// Authenticated users on the apex domain must explicitly pick a workspace.
 	// Without this gate, the tenant lookup falls back to VITE_DEFAULT_TENANT_SLUG
 	// and a logged-in visitor lands inside whichever tenant the default points at.
