@@ -9,6 +9,7 @@ import Onboarding from './components/Onboarding';
 import SetPassword from './components/SetPassword';
 import SignupPage from './components/SignupPage';
 import SlugNotFound from './components/SlugNotFound';
+import WorkspacePicker from './components/WorkspacePicker';
 import AcceptInvitePage from './components/AcceptInvitePage';
 import MembersPage from './components/members/MembersPage';
 import WorkspaceLockedWall from './components/WorkspaceLockedWall';
@@ -18,49 +19,11 @@ import { useTenant } from './context/TenantContext';
 import { supabase } from './lib/supabaseClient';
 import StatusUpdateForm from './StatusUpdateForm';
 
-// When Supabase's "Redirect URLs" allowlist only accepts the apex (the common
-// default), an email link initiated on acme.example.com gets sent back to
-// https://example.com/#access_token=... — losing the tenant slug. This helper
-// walks the user's memberships after the session is set, picks their tenant,
-// and forwards to the correct subdomain carrying the same hash tokens so
-// Supabase on the subdomain can re-establish the session there.
-const forwardApexSessionToTenantSubdomain = async (session: Session) => {
+const isOnApex = () => {
 	if (typeof window === 'undefined') return false;
 	const baseDomain = (import.meta.env.VITE_BASE_DOMAIN as string | undefined)?.trim().toLowerCase();
 	if (!baseDomain) return false;
-
-	const hostname = window.location.hostname.toLowerCase();
-	if (hostname !== baseDomain) return false;
-
-	const { data: memberRow, error: memberError } = await supabase
-		.from('tenant_members')
-		.select('tenant_id')
-		.eq('user_id', session.user.id)
-		.limit(1)
-		.maybeSingle();
-	if (memberError || !memberRow?.tenant_id) return false;
-
-	const { data: tenantRow, error: tenantError } = await supabase
-		.from('tenants')
-		.select('slug')
-		.eq('id', memberRow.tenant_id)
-		.maybeSingle();
-	const slugRaw = tenantRow?.slug;
-	if (tenantError || !slugRaw) return false;
-	const slug = slugRaw.trim().toLowerCase();
-	if (!/^[a-z0-9-]{1,32}$/.test(slug)) return false;
-
-	const hashParams = new URLSearchParams();
-	hashParams.set('access_token', session.access_token);
-	hashParams.set('refresh_token', session.refresh_token);
-	hashParams.set('token_type', session.token_type);
-	hashParams.set('expires_in', String(session.expires_in));
-	if (session.expires_at) hashParams.set('expires_at', String(session.expires_at));
-
-	// No signOut: a local apex session is harmless and signOut races the destination's hash read.
-	const target = `${window.location.protocol}//${slug}.${baseDomain}/#${hashParams.toString()}`;
-	window.location.replace(target);
-	return true;
+	return window.location.hostname.toLowerCase() === baseDomain;
 };
 
 const App = () => {
@@ -69,7 +32,6 @@ const App = () => {
 	const [checkingSession, setCheckingSession] = useState(true);
 	const [membershipRole, setMembershipRole] = useState<'admin' | 'member' | null>(null);
 	const [checkingMembership, setCheckingMembership] = useState(false);
-	const [forwardingSession, setForwardingSession] = useState(false);
 	const navigate = useNavigate();
 	const location = useLocation();
 
@@ -151,15 +113,7 @@ const App = () => {
 			setCheckingSession(false);
 		};
 
-		const handleSession = async (nextSession: Session | null) => {
-			if (!isMounted) return;
-			if (nextSession) {
-				const forwarded = await forwardApexSessionToTenantSubdomain(nextSession);
-				if (forwarded) {
-					if (isMounted) setForwardingSession(true);
-					return;
-				}
-			}
+		const handleSession = (nextSession: Session | null) => {
 			acceptSessionLocally(nextSession);
 		};
 
@@ -170,7 +124,7 @@ const App = () => {
 				navigate('/set-password', { replace: true });
 				return;
 			}
-			void handleSession(data.session ?? null);
+			handleSession(data.session ?? null);
 		});
 
 		const {
@@ -187,7 +141,7 @@ const App = () => {
 				return;
 			}
 
-			void handleSession(currentSession);
+			handleSession(currentSession);
 		});
 
 		return () => {
@@ -246,7 +200,7 @@ const App = () => {
 		setSession(data.session ?? null);
 	};
 
-	if (forwardingSession || checkingSession) return null;
+	if (checkingSession) return null;
 
 	if (location.pathname === '/set-password') {
 		if (!session) return <LoginForm onSuccess={handleSuccessAuth} />;
@@ -273,6 +227,13 @@ const App = () => {
 
 	const isAuthCallback = typeof window !== 'undefined' && location.pathname.startsWith('/auth/callback');
 	if (isAuthCallback) return null;
+
+	// Authenticated users on the apex domain must explicitly pick a workspace.
+	// Without this gate, the tenant lookup falls back to VITE_DEFAULT_TENANT_SLUG
+	// and a logged-in visitor lands inside whichever tenant the default points at.
+	if (session && isOnApex()) {
+		return <WorkspacePicker session={session} onLogout={handleLogout} />;
+	}
 
 	if (tenantError) {
 		if (typeof window !== 'undefined' && location.pathname === '/signup') {
