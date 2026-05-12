@@ -26,6 +26,13 @@ const RequestsPage = () => {
 
   return (
     <div className="space-y-6">
+      <div>
+        <h2 className="text-lg font-semibold tracking-tight">Demo requests</h2>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Submissions from the apex /demo page. Approve to provision a tenant; decline to dismiss.
+        </p>
+      </div>
+
       <div className="inline-flex rounded-full border border-border/40 bg-muted p-1 text-xs font-semibold uppercase tracking-[0.25em]">
         {TABS.map((t) => (
           <button key={t} onClick={() => setTab(t)}
@@ -45,9 +52,9 @@ const RequestsPage = () => {
             <tr>
               <th className="py-2">Submitted</th>
               <th>Email</th>
-              <th>Workspace</th>
-              <th>Use case</th>
-              <th>Source</th>
+              <th>Company</th>
+              <th>Role</th>
+              <th>To evaluate</th>
               <th></th>
             </tr>
           </thead>
@@ -57,8 +64,8 @@ const RequestsPage = () => {
                 <td className="py-3 text-muted-foreground">{new Date(r.created_at).toLocaleDateString()}</td>
                 <td>{r.email}</td>
                 <td>{r.workspace_name}</td>
+                <td className="text-muted-foreground">{r.role ?? "—"}</td>
                 <td className="max-w-xs truncate text-muted-foreground" title={r.use_case ?? ""}>{r.use_case ?? "—"}</td>
-                <td className="text-muted-foreground">{r.referral_source ?? "—"}</td>
                 <td className="text-right">
                   {r.status === "pending" && (
                     <div className="flex justify-end gap-2">

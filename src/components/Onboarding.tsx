@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import { useTenant } from '../context/TenantContext';
 import { supabase } from '../lib/supabaseClient';
+import { createInvitation } from '../services/invitations';
 import { DEFAULT_UI_PRESET, getPresetTokens, type UiPresetId, UI_PRESETS } from '../theme/presets';
 import { buildProductsFromCsvText, type ProductUpsertRow } from '../utils/csv';
 
@@ -20,7 +21,10 @@ const normalizePreset = (value?: string | null) => {
 const Onboarding = ({ onFinish }: OnboardingProps) => {
 	const { setTheme, primaryColor, secondaryColor, companyName, uiPreset } = useTheme();
 	const { tenant, patchTenant } = useTenant();
-	const [step, setStep] = useState<2 | 3>(2);
+	const [step, setStep] = useState<2 | 3 | 4>(2);
+	const [inviteEmails, setInviteEmails] = useState<string[]>(['', '']);
+	const [inviteError, setInviteError] = useState('');
+	const [completing, setCompleting] = useState(false);
 	const [localName, setLocalName] = useState(tenant ? companyName : '');
 	const [localPrimary, setLocalPrimary] = useState(primaryColor);
 	const [localSecondary, setLocalSecondary] = useState(secondaryColor);
@@ -246,17 +250,69 @@ const Onboarding = ({ onFinish }: OnboardingProps) => {
 				setImportedRows(uploaded);
 			}
 
-			const { error: onboardError } = await supabase.from('tenants').update({ is_onboarded: true }).eq('id', tenant.id);
-			if (onboardError) throw onboardError;
-
-			patchTenant({ isOnboarded: true });
 			setLoading(false);
-			onFinish();
+			setStep(4);
 		} catch (err) {
 			const message = err instanceof Error ? err.message : 'Falha ao finalizar setup.';
 			setImportError(message);
 			setLoading(false);
 		}
+	};
+
+	const handleComplete = async (opts: { sendInvites: boolean }) => {
+		if (!tenant?.id) {
+			setInviteError('Tenant not loaded — reload the page and try again.');
+			return;
+		}
+
+		setCompleting(true);
+		setInviteError('');
+
+		const validEmailRe = /.+@.+\..+/;
+
+		if (opts.sendInvites) {
+			const cleaned = inviteEmails
+				.map((e) => e.trim())
+				.filter((e) => e.length > 0);
+			const invalid = cleaned.find((e) => !validEmailRe.test(e));
+			if (invalid) {
+				setInviteError(`"${invalid}" is not a valid email.`);
+				setCompleting(false);
+				return;
+			}
+
+			const failures: string[] = [];
+			for (const email of cleaned) {
+				const result = await createInvitation({
+					tenant_id: tenant.id,
+					email,
+					role: 'member',
+				});
+				if (!result.ok && result.error !== 'already_invited' && result.error !== 'already_member') {
+					failures.push(`${email}: ${result.error}`);
+				}
+			}
+
+			if (failures.length > 0) {
+				setInviteError(`Some invites failed:\n${failures.join('\n')}`);
+				setCompleting(false);
+				return;
+			}
+		}
+
+		const { error: onboardError } = await supabase
+			.from('tenants')
+			.update({ is_onboarded: true })
+			.eq('id', tenant.id);
+		if (onboardError) {
+			setInviteError(onboardError.message || 'Failed to finish setup.');
+			setCompleting(false);
+			return;
+		}
+
+		patchTenant({ isOnboarded: true });
+		setCompleting(false);
+		onFinish();
 	};
 
 	const step2_Identity = (
@@ -520,11 +576,66 @@ const Onboarding = ({ onFinish }: OnboardingProps) => {
 								disabled={isFinishDisabled}
 								className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary text-base font-medium text-primary-foreground hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-ring/25 sm:text-sm disabled:opacity-50"
 							>
-							{loading ? 'Finalizando...' : 'Finalizar Setup'}
+							{loading ? 'Salvando...' : 'Próximo: Convites'}
 						</button>
 					</div>
 			</div>
 		);
+
+	const handleInviteEmailChange = (index: number, value: string) => {
+		setInviteEmails((current) => {
+			const next = [...current];
+			next[index] = value;
+			return next;
+		});
+	};
+
+	const step4_Invites = (
+		<div className="space-y-6">
+			<div>
+				<h3 className="text-base font-semibold text-foreground">Invite a teammate or two</h3>
+				<p className="mt-1 text-sm text-muted-foreground">
+					Optional — you can always invite people later from the Team page.
+				</p>
+			</div>
+
+			<div className="space-y-3">
+				{inviteEmails.map((value, idx) => (
+					<input
+						key={idx}
+						type="email"
+						value={value}
+						onChange={(e) => handleInviteEmailChange(idx, e.target.value)}
+						placeholder="teammate@company.com"
+						className="block w-full rounded-md border border-input bg-card p-2 text-sm text-foreground shadow-sm outline-none focus:border-ring/60 focus:ring-2 focus:ring-ring/25"
+					/>
+				))}
+			</div>
+
+			{inviteError && (
+				<div className="whitespace-pre-line rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-700">
+					{inviteError}
+				</div>
+			)}
+
+			<div className="flex justify-between gap-4">
+				<button
+					onClick={() => handleComplete({ sendInvites: false })}
+					disabled={completing}
+					className="w-full inline-flex justify-center rounded-md border border-border/40 shadow-sm px-4 py-2 bg-card text-base font-medium text-foreground hover:bg-muted focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-ring/25 sm:text-sm disabled:opacity-50"
+				>
+					Skip for now
+				</button>
+				<button
+					onClick={() => handleComplete({ sendInvites: true })}
+					disabled={completing || inviteEmails.every((e) => e.trim() === '')}
+					className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary text-base font-medium text-primary-foreground hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-ring/25 sm:text-sm disabled:opacity-50"
+				>
+					{completing ? 'Finishing…' : 'Send invites & finish'}
+				</button>
+			</div>
+		</div>
+	);
 
 	return (
 		<div className="min-h-screen bg-background text-foreground flex flex-col justify-center py-12 sm:px-6 lg:px-8">
@@ -556,7 +667,7 @@ const Onboarding = ({ onFinish }: OnboardingProps) => {
 									</a>
 									<span className="mt-2 absolute top-8 text-xs font-semibold">Identidade</span>
 								</li>
-								<li className={`relative ${step === 3 ? 'text-primary' : 'text-muted-foreground'}`}>
+								<li className={`relative pr-6 sm:pr-12 ${step === 3 ? 'text-primary' : 'text-muted-foreground'}`}>
 									<div className="absolute inset-0 flex items-center" aria-hidden="true">
 										<div className="h-0.5 w-full bg-border/30"></div>
 									</div>
@@ -570,11 +681,25 @@ const Onboarding = ({ onFinish }: OnboardingProps) => {
 									</a>
 									<span className="mt-2 absolute top-8 text-xs font-semibold text-center w-full">Dados</span>
 								</li>
+								<li className={`relative ${step === 4 ? 'text-primary' : 'text-muted-foreground'}`}>
+									<div className="absolute inset-0 flex items-center" aria-hidden="true">
+										<div className="h-0.5 w-full bg-border/30"></div>
+									</div>
+									<a
+										href="#"
+										className={`relative z-10 flex h-8 w-8 items-center justify-center rounded-full shadow-sm ${
+											step >= 4 ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground'
+										}`}
+									>
+										<span className="text-xs font-semibold" aria-hidden="true">3</span>
+									</a>
+									<span className="mt-2 absolute top-8 text-xs font-semibold text-center w-full">Convites</span>
+								</li>
 							</ol>
 						</nav>
 					</div>
 
-					{step === 2 ? step2_Identity : step3_Data}
+					{step === 2 ? step2_Identity : step === 3 ? step3_Data : step4_Invites}
 				</div>
 			</div>
 		</div>

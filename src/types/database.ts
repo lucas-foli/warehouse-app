@@ -315,6 +315,7 @@ export type Database = {
           referral_source: string | null
           reviewed_at: string | null
           reviewed_by: string | null
+          role: string | null
           status: string
           use_case: string | null
           workspace_name: string
@@ -328,6 +329,7 @@ export type Database = {
           referral_source?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
+          role?: string | null
           status?: string
           use_case?: string | null
           workspace_name: string
@@ -341,6 +343,7 @@ export type Database = {
           referral_source?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
+          role?: string | null
           status?: string
           use_case?: string | null
           workspace_name?: string
@@ -349,6 +352,60 @@ export type Database = {
           {
             foreignKeyName: "signup_requests_approved_tenant_id_fkey"
             columns: ["approved_tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tenant_join_requests: {
+        Row: {
+          approved_invitation_id: string | null
+          created_at: string
+          declined_reason: string | null
+          email: string
+          id: string
+          note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          tenant_id: string
+        }
+        Insert: {
+          approved_invitation_id?: string | null
+          created_at?: string
+          declined_reason?: string | null
+          email: string
+          id?: string
+          note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          tenant_id: string
+        }
+        Update: {
+          approved_invitation_id?: string | null
+          created_at?: string
+          declined_reason?: string | null
+          email?: string
+          id?: string
+          note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_join_requests_approved_invitation_id_fkey"
+            columns: ["approved_invitation_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_invitations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tenant_join_requests_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
             referencedColumns: ["id"]
@@ -433,6 +490,7 @@ export type Database = {
       }
       tenants: {
         Row: {
+          accept_join_requests: boolean
           company_name: string
           created_at: string
           granted_until: string | null
@@ -447,6 +505,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          accept_join_requests?: boolean
           company_name: string
           created_at?: string
           granted_until?: string | null
@@ -461,6 +520,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          accept_join_requests?: boolean
           company_name?: string
           created_at?: string
           granted_until?: string | null
@@ -480,6 +540,7 @@ export type Database = {
     Views: {
       tenant_branding: {
         Row: {
+          accept_join_requests: boolean | null
           company_name: string | null
           logo_url: string | null
           primary_color: string | null
@@ -489,6 +550,7 @@ export type Database = {
           ui_preset: string | null
         }
         Insert: {
+          accept_join_requests?: boolean | null
           company_name?: string | null
           logo_url?: string | null
           primary_color?: string | null
@@ -498,6 +560,7 @@ export type Database = {
           ui_preset?: string | null
         }
         Update: {
+          accept_join_requests?: boolean | null
           company_name?: string | null
           logo_url?: string | null
           primary_color?: string | null

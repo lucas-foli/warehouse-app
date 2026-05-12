@@ -7,7 +7,8 @@ import DataImport from './components/DataImport';
 import LoginForm from './components/LoginForm';
 import Onboarding from './components/Onboarding';
 import SetPassword from './components/SetPassword';
-import SignupPage from './components/SignupPage';
+import DemoRequestPage from './components/DemoRequestPage';
+import RequestAccessPage from './components/RequestAccessPage';
 import SlugNotFound from './components/SlugNotFound';
 import WorkspacePicker from './components/WorkspacePicker';
 import AcceptInvitePage from './components/AcceptInvitePage';
@@ -15,6 +16,8 @@ import MembersPage from './components/members/MembersPage';
 import WorkspaceLockedWall from './components/WorkspaceLockedWall';
 import AdminLayout from './components/admin/AdminLayout';
 import RequestsPage from './components/admin/RequestsPage';
+import TenantSettingsLayout from './components/settings/TenantSettingsLayout';
+import JoinRequestsPage from './components/settings/JoinRequestsPage';
 import { useTenant } from './context/TenantContext';
 import { supabase } from './lib/supabaseClient';
 import StatusUpdateForm from './StatusUpdateForm';
@@ -211,9 +214,14 @@ const App = () => {
 
 	if (location.pathname === '/accept-invite') return <AcceptInvitePage />;
 
-	// Platform admin surface — accessible from any host as long as the user is signed in.
+	const onApex = isOnApex();
+
+	// Platform admin surface — APEX ONLY. The platform admin manages every
+	// tenant; rendering it from a tenant subdomain would put cross-tenant
+	// controls inside a tenant's branded context. Tenant-scoped admin tooling
+	// lives at <slug>.warehouse.go-fly.ai/settings/* instead.
 	const isAdminRoute = location.pathname.startsWith('/admin');
-	if (isAdminRoute) {
+	if (isAdminRoute && onApex) {
 		if (!session) return <LoginForm onSuccess={handleSuccessAuth} />;
 		return (
 			<Routes>
@@ -228,27 +236,34 @@ const App = () => {
 	const isAuthCallback = typeof window !== 'undefined' && location.pathname.startsWith('/auth/callback');
 	if (isAuthCallback) return null;
 
-	// Public signup-request form must render for any anonymous visitor on /signup,
-	// regardless of whether TenantContext resolved a default-tenant fallback on the
-	// apex. Without this gate, the apex falls through to LoginForm because
-	// tenantError is null (the tenant_branding fallback succeeded).
-	if (location.pathname === '/signup' && !session) {
-		return <SignupPage />;
+	// Apex marketing surface. /demo is the live route; /signup is preserved as
+	// a redirect so any external link still works.
+	if (onApex && location.pathname === '/demo') {
+		return <DemoRequestPage />;
+	}
+	if (onApex && location.pathname === '/signup') {
+		return <Navigate to="/demo" replace />;
+	}
+
+	// Tenant-scoped join request form — subdomain only.
+	if (!onApex && location.pathname === '/request-access') {
+		return <RequestAccessPage />;
 	}
 
 	// Authenticated users on the apex domain must explicitly pick a workspace.
 	// Without this gate, the tenant lookup falls back to VITE_DEFAULT_TENANT_SLUG
 	// and a logged-in visitor lands inside whichever tenant the default points at.
-	if (session && isOnApex()) {
+	if (session && onApex) {
 		return <WorkspacePicker session={session} onLogout={handleLogout} />;
 	}
 
 	if (tenantError) {
-		if (typeof window !== 'undefined' && location.pathname === '/signup') {
-			return <SignupPage />;
+		if (typeof window !== 'undefined' && location.pathname === '/signup' && onApex) {
+			return <Navigate to="/demo" replace />;
 		}
-		// Apex /signup is handled above. For all other apex/subdomain mismatches,
-		// SlugNotFound is the right answer.
+		if (typeof window !== 'undefined' && location.pathname === '/demo' && onApex) {
+			return <DemoRequestPage />;
+		}
 		return <SlugNotFound />;
 	}
 
@@ -387,6 +402,12 @@ const App = () => {
 					path="/members"
 					element={<MembersPage canInvite={isAdmin} />}
 				/>
+				{isAdmin && (
+					<Route element={<TenantSettingsLayout />}>
+						<Route path="/settings/join-requests" element={<JoinRequestsPage />} />
+						<Route path="/settings" element={<Navigate to="/settings/join-requests" replace />} />
+					</Route>
+				)}
 				<Route path="*" element={<Navigate to="/" replace />} />
 		</Routes>
 	);
