@@ -36,7 +36,13 @@ const App = () => {
 	const [membershipRole, setMembershipRole] = useState<'admin' | 'member' | null>(null);
 	const [checkingMembership, setCheckingMembership] = useState(false);
 	const [membershipVersion, setMembershipVersion] = useState(0);
-	const bumpMembership = useCallback(() => setMembershipVersion((v) => v + 1), []);
+	// Synchronously flip checkingMembership=true so the next render after a
+	// bump returns null instead of briefly rendering "Acesso não autorizado"
+	// during the gap between commit and the re-fired membership effect.
+	const bumpMembership = useCallback(() => {
+		setCheckingMembership(true);
+		setMembershipVersion((v) => v + 1);
+	}, []);
 	const navigate = useNavigate();
 	const location = useLocation();
 
@@ -103,6 +109,21 @@ const App = () => {
 		const initialHadRecoveryHash =
 			typeof window !== 'undefined' && /type=recovery/.test(window.location.hash);
 
+		// Same idea for invite hashes (inviteUserByEmail magic-link). Supabase
+		// authenticates the user but never sets a password, so we route to
+		// /set-password before completing the invite flow. The invite token in
+		// the URL search params (?token=…) is captured here before any navigate
+		// replaces it.
+		const initialHadInviteHash =
+			typeof window !== 'undefined' && /type=invite/.test(window.location.hash);
+		const initialInviteToken =
+			typeof window !== 'undefined'
+				? new URL(window.location.href).searchParams.get('token')
+				: null;
+
+		const buildSetPasswordTarget = (token: string | null) =>
+			token ? `/set-password?invite_token=${encodeURIComponent(token)}` : '/set-password';
+
 		const cleanAuthHashFromUrl = () => {
 			if (typeof window === 'undefined') return;
 			const hash = window.location.hash;
@@ -129,12 +150,26 @@ const App = () => {
 				navigate('/set-password', { replace: true });
 				return;
 			}
+			if (initialHadInviteHash && data.session) {
+				acceptSessionLocally(data.session);
+				navigate(buildSetPasswordTarget(initialInviteToken), { replace: true });
+				return;
+			}
 			handleSession(data.session ?? null);
 		});
 
 		const {
 			data: { subscription },
 		} = supabase.auth.onAuthStateChange((event, currentSession) => {
+			// Read invite signals BEFORE cleanAuthHashFromUrl strips the hash and
+			// before any navigate replaces the URL search params.
+			const isInviteHash =
+				typeof window !== 'undefined' && /type=invite/.test(window.location.hash);
+			const inviteToken =
+				typeof window !== 'undefined'
+					? new URL(window.location.href).searchParams.get('token')
+					: null;
+
 			// Clean the URL hash only AFTER Supabase has read tokens from it (race fix).
 			if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'PASSWORD_RECOVERY') {
 				cleanAuthHashFromUrl();
@@ -143,6 +178,12 @@ const App = () => {
 			if (event === 'PASSWORD_RECOVERY') {
 				acceptSessionLocally(currentSession);
 				navigate('/set-password', { replace: true });
+				return;
+			}
+
+			if (event === 'SIGNED_IN' && isInviteHash) {
+				acceptSessionLocally(currentSession);
+				navigate(buildSetPasswordTarget(inviteToken), { replace: true });
 				return;
 			}
 

@@ -1,10 +1,16 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { translateAuthError } from '../utils/helpers';
 
 const SetPassword = () => {
 	const navigate = useNavigate();
+	const [params] = useSearchParams();
+	// When the invite flow routes here (App.tsx detects type=invite hash), the
+	// invite token rides along as a query param so we can resume the accept-
+	// invite flow after the password is set. Plain recovery flows have no token
+	// and fall through to the dashboard.
+	const inviteToken = params.get('invite_token');
 	const [password, setPassword] = useState('');
 	const [confirmPassword, setConfirmPassword] = useState('');
 	const [loading, setLoading] = useState(false);
@@ -35,7 +41,10 @@ const SetPassword = () => {
 		}
 
 		setInfo('Senha atualizada. Redirecionando...');
-		navigate('/', { replace: true });
+		navigate(
+			inviteToken ? `/accept-invite?token=${encodeURIComponent(inviteToken)}` : '/',
+			{ replace: true },
+		);
 	};
 
 	return (
