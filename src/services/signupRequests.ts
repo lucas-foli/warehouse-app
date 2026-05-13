@@ -8,6 +8,7 @@ export interface SignupRequest {
   id: string;
   email: string;
   workspace_name: string;
+  role: string | null;
   use_case: string | null;
   referral_source: string | null;
   status: SignupRequestStatus;
@@ -21,8 +22,8 @@ export interface SignupRequest {
 export interface SubmitSignupRequestInput {
   email: string;
   workspace_name: string;
+  role?: string;
   use_case?: string;
-  referral_source?: string;
 }
 
 export async function submitSignupRequest(
@@ -31,8 +32,8 @@ export async function submitSignupRequest(
   const { error } = await supabase.from("signup_requests").insert({
     email: input.email.trim().toLowerCase(),
     workspace_name: input.workspace_name.trim(),
+    role: input.role?.trim() || null,
     use_case: input.use_case?.trim() || null,
-    referral_source: input.referral_source || null,
   });
   if (error) {
     if (error.code === "23505") return { ok: false, error: "already_pending" };

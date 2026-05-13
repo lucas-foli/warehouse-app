@@ -14,6 +14,7 @@ export type Tenant = {
 	themeTokens: ThemeTokens;
 	isOnboarded: boolean;
 	grantedUntil: string | null;
+	acceptJoinRequests: boolean;
 };
 
 type TenantContextValue = {
@@ -89,6 +90,11 @@ const mapTenantRow = (row: Record<string, unknown>): Tenant => {
 
 	const preset = str('ui_preset') || DEFAULT_UI_PRESET;
 
+	// Default-on if the column is missing from the row (e.g. older rows fetched
+	// before the migration, or a branding view that hasn't been updated yet).
+	const rawAccept = row['accept_join_requests'] ?? row['acceptJoinRequests'];
+	const acceptJoinRequests = typeof rawAccept === 'boolean' ? rawAccept : true;
+
 	return {
 		id: str('id'),
 		slug: str('slug'),
@@ -100,6 +106,7 @@ const mapTenantRow = (row: Record<string, unknown>): Tenant => {
 		themeTokens: mergeThemeTokens(preset, row['theme_tokens']),
 		isOnboarded: bool('is_onboarded') || bool('isOnboarded'),
 		grantedUntil: nullableStr('granted_until'),
+		acceptJoinRequests,
 	};
 };
 

@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
+import { useTenant } from '../context/TenantContext';
 import { useTheme } from '../context/ThemeContext';
 import { supabase } from '../lib/supabaseClient';
 import type { AuthMode } from '../types';
@@ -46,14 +47,35 @@ const resolveSlugForRedirect = () => {
 	return '';
 };
 
-const resolveSignupHref = () => {
-	const baseDomain = (import.meta.env.VITE_BASE_DOMAIN as string | undefined)?.trim();
-	if (!baseDomain) return '/signup';
-	return `https://${baseDomain}/signup`;
+const isOnApex = () => {
+	if (typeof window === 'undefined') return true;
+	const baseDomain = (import.meta.env.VITE_BASE_DOMAIN as string | undefined)?.trim().toLowerCase();
+	if (!baseDomain) return true;
+	return window.location.hostname.toLowerCase() === baseDomain;
+};
+
+// Apex login → demo-request page. Tenant subdomain login → tenant-scoped
+// join-request form. The link is hidden entirely when a tenant has opted out
+// of accepting join requests (LoginForm reads that from TenantContext).
+const resolveAccessHref = () => {
+	if (isOnApex()) {
+		const baseDomain = (import.meta.env.VITE_BASE_DOMAIN as string | undefined)?.trim();
+		if (!baseDomain) return '/demo';
+		return `https://${baseDomain}/demo`;
+	}
+	return '/request-access';
 };
 
 const LoginForm = ({ onSuccess }: { onSuccess: () => void }) => {
 	const { companyName, logoUrl, uiPreset } = useTheme();
+	const { tenant } = useTenant();
+	const onApex = isOnApex();
+	const showAccessLink = onApex || (tenant?.acceptJoinRequests ?? true);
+	const accessLabel = onApex
+		? 'Request access'
+		: tenant?.companyName
+			? `Request access to ${tenant.companyName}`
+			: 'Request access';
 	const madeBySarkUrl = resolveMadeBySarkUrl();
 	const madeByFallbackUrl = resolveMadeBySarkStorageUrl();
 	const brandLogoFallback = resolveSarkLogoStorageUrl(uiPreset);
@@ -131,7 +153,7 @@ const LoginForm = ({ onSuccess }: { onSuccess: () => void }) => {
 		setLoading(false);
 	};
 
-	const signupHref = resolveSignupHref();
+	const accessHref = resolveAccessHref();
 
 	return (
 		<div className="relative min-h-screen overflow-hidden bg-background text-foreground">
@@ -223,12 +245,14 @@ const LoginForm = ({ onSuccess }: { onSuccess: () => void }) => {
 						</button>
 					</form>
 
-					<div className="mt-6 text-center text-[11px] uppercase tracking-[0.3em] text-muted-foreground">
-						Precisa de conta?{' '}
-						<a href={signupHref} className="font-semibold text-foreground underline-offset-4 hover:underline">
-							Solicitar acesso
-						</a>
-					</div>
+					{showAccessLink && (
+						<div className="mt-6 text-center text-[11px] uppercase tracking-[0.3em] text-muted-foreground">
+							Don't have an account?{' '}
+							<a href={accessHref} className="font-semibold text-foreground underline-offset-4 hover:underline">
+								{accessLabel}
+							</a>
+						</div>
+					)}
 
 					<footer className="flex items-center justify-center border-t border-border/20 bg-card px-6 py-4 sm:px-10">
 						{madeBySrc ? (
