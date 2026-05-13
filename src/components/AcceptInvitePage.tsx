@@ -8,7 +8,9 @@ import LoginForm from "./LoginForm";
 
 const TOKEN_STORAGE_KEY = "tenant_invitation_token";
 
-const AcceptInvitePage = () => {
+interface Props { onAccepted?: () => void }
+
+const AcceptInvitePage = ({ onAccepted }: Props = {}) => {
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const [error, setError] = useState("");
@@ -47,11 +49,12 @@ const AcceptInvitePage = () => {
         return;
       }
       window.localStorage.removeItem(TOKEN_STORAGE_KEY);
+      onAccepted?.();
       navigate("/", { replace: true });
     };
     void accept();
     return () => { cancelled = true; };
-  }, [hasSession, token, navigate]);
+  }, [hasSession, token, navigate, onAccepted]);
 
   if (hasSession === null) return null;
 
