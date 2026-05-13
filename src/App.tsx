@@ -1,5 +1,5 @@
 import type { Session } from '@supabase/supabase-js';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import './App.css';
 import Dashboard from './components/Dashboard';
@@ -35,6 +35,8 @@ const App = () => {
 	const [checkingSession, setCheckingSession] = useState(true);
 	const [membershipRole, setMembershipRole] = useState<'admin' | 'member' | null>(null);
 	const [checkingMembership, setCheckingMembership] = useState(false);
+	const [membershipVersion, setMembershipVersion] = useState(0);
+	const bumpMembership = useCallback(() => setMembershipVersion((v) => v + 1), []);
 	const navigate = useNavigate();
 	const location = useLocation();
 
@@ -190,7 +192,7 @@ const App = () => {
 		return () => {
 			isMounted = false;
 		};
-	}, [session?.user.id, tenant?.id]);
+	}, [session?.user.id, tenant?.id, membershipVersion]);
 
 	const handleLogout = async () => {
 		await supabase.auth.signOut();
@@ -212,7 +214,7 @@ const App = () => {
 
 	if (tenantLoading) return null;
 
-	if (location.pathname === '/accept-invite') return <AcceptInvitePage />;
+	if (location.pathname === '/accept-invite') return <AcceptInvitePage onAccepted={bumpMembership} />;
 
 	const onApex = isOnApex();
 
