@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { DEFAULT_UI_PRESET, getPresetTokens, type ThemeTokens } from '../theme/presets';
 
@@ -115,6 +115,11 @@ export const TenantProvider = ({ children }: { children: React.ReactNode }) => {
 	const [tenant, setTenant] = useState<Tenant | null>(null);
 	const [tenantLoading, setTenantLoading] = useState(true);
 	const [tenantError, setTenantError] = useState<string | null>(null);
+	// Only the initial fetch flips tenantLoading=true. Subsequent refreshes
+	// (post-signin row upgrade, post-onboarding, post-invite-accept, tab return)
+	// run silently in the background — flipping the loading guard at the App
+	// level would unmount in-flight pages mid-flow. See PR #40 for context.
+	const isInitialLoadRef = useRef(true);
 
 	const patchTenant = useCallback((partial: Partial<Tenant>) => {
 		setTenant((current) => (current ? { ...current, ...partial } : current));
@@ -122,7 +127,7 @@ export const TenantProvider = ({ children }: { children: React.ReactNode }) => {
 
 	const refreshTenant = useCallback(async () => {
 		setTenantError(null);
-		setTenantLoading(true);
+		if (isInitialLoadRef.current) setTenantLoading(true);
 		try {
 			// First try the full tenants table (works for authenticated members)
 			const { data, error } = await supabase.from('tenants').select('*').eq('slug', tenantSlug).maybeSingle();
@@ -153,6 +158,7 @@ export const TenantProvider = ({ children }: { children: React.ReactNode }) => {
 			setTenant(null);
 			setTenantError(message);
 		} finally {
+			isInitialLoadRef.current = false;
 			setTenantLoading(false);
 		}
 	}, [tenantSlug]);
@@ -164,9 +170,12 @@ export const TenantProvider = ({ children }: { children: React.ReactNode }) => {
 	// If the initial fetch ran before the user was authenticated, the tenants
 	// row was RLS-denied and we fell back to tenant_branding (id=""). Once a
 	// real session exists, re-fetch so the authoritative row replaces the stub.
+	// Only SIGNED_IN — TOKEN_REFRESHED fires on tab return and would trigger a
+	// background refetch that, combined with backgrounded-tab Supabase fetch
+	// stalls, leaves the app on a blank screen until reload.
 	useEffect(() => {
 		const { data } = supabase.auth.onAuthStateChange((event) => {
-			if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+			if (event === 'SIGNED_IN') {
 				void refreshTenant();
 			}
 		});

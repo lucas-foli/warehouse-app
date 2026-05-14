@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { BiListCheck } from 'react-icons/bi';
 import { FiUploadCloud } from 'react-icons/fi';
-import { LuLogOut } from 'react-icons/lu';
+import { LuLogOut, LuSettings } from 'react-icons/lu';
 import { useNavigate } from 'react-router-dom';
 import { useTenant } from '../context/TenantContext';
 import { useTheme } from '../context/ThemeContext';
@@ -26,6 +26,7 @@ const Dashboard = ({
 	onOpenImport,
 	canImport,
 	canOpenStatusForm = false,
+	canOpenSettings = false,
 	initialPage = 'overview',
 	initialSurface = 'dashboard',
 }: {
@@ -34,6 +35,7 @@ const Dashboard = ({
 	onOpenImport: () => void;
 	canImport: boolean;
 	canOpenStatusForm?: boolean;
+	canOpenSettings?: boolean;
 	initialPage?: 'overview' | 'clientes' | 'vendedores';
 	initialSurface?: 'dashboard' | 'products';
 }) => {
@@ -135,6 +137,16 @@ const Dashboard = ({
 									title="Atualizar status"
 									aria-label="Atualizar status">
 									<BiListCheck />
+								</button>
+								)}
+								{canOpenSettings && (
+								<button
+									type="button"
+									onClick={() => navigate('/settings')}
+									className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border/50 text-xl transition hover:border-border"
+									title="Settings"
+									aria-label="Settings">
+									<LuSettings />
 								</button>
 								)}
 								<button
