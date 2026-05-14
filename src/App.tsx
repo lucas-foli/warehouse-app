@@ -187,6 +187,15 @@ const App = () => {
 				return;
 			}
 
+			// Generic SIGNED_IN (e.g. email/password login) keeps the user on the
+			// current route. Without flipping the guard synchronously, the next
+			// render lands a frame where session is set but membershipRole is
+			// still null — flashing "Acesso não autorizado" before the
+			// membership effect resolves. Mirrors bumpMembership above.
+			if (event === 'SIGNED_IN') {
+				setCheckingMembership(true);
+			}
+
 			handleSession(currentSession);
 		});
 
