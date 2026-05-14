@@ -191,9 +191,17 @@ const App = () => {
 			// current route. Without flipping the guard synchronously, the next
 			// render lands a frame where session is set but membershipRole is
 			// still null — flashing "Acesso não autorizado" before the
-			// membership effect resolves. Mirrors bumpMembership above.
+			// membership effect resolves.
+			//
+			// Use bumpMembership() (not bare setCheckingMembership(true)) because
+			// supabase-js fires SIGNED_IN on every tab return with a still-valid
+			// session (GoTrueClient _recoverAndRefresh → _notifyAllSubscribers
+			// 'SIGNED_IN'). On those spurious events session.user.id is
+			// unchanged, so without the membershipVersion bump the membership
+			// effect would not refire and checkingMembership would stay true,
+			// leaving the app blank until reload.
 			if (event === 'SIGNED_IN') {
-				setCheckingMembership(true);
+				bumpMembership();
 			}
 
 			handleSession(currentSession);
