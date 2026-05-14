@@ -9,9 +9,7 @@ import LoginForm from "./LoginForm";
 
 const TOKEN_STORAGE_KEY = "tenant_invitation_token";
 
-interface Props { onAccepted?: () => void }
-
-const AcceptInvitePage = ({ onAccepted }: Props = {}) => {
+const AcceptInvitePage = () => {
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const [error, setError] = useState("");
@@ -65,12 +63,11 @@ const AcceptInvitePage = ({ onAccepted }: Props = {}) => {
       // autorizado".
       await refreshTenant();
       if (cancelled) return;
-      onAccepted?.();
       navigate("/", { replace: true });
     };
     void accept();
     return () => { cancelled = true; };
-  }, [hasSession, token, navigate, onAccepted, refreshTenant]);
+  }, [hasSession, token, navigate, refreshTenant]);
 
   if (hasSession === null) return null;
 

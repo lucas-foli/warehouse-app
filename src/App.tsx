@@ -1,5 +1,5 @@
 import type { Session } from '@supabase/supabase-js';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import './App.css';
 import Dashboard from './components/Dashboard';
@@ -29,20 +29,20 @@ const isOnApex = () => {
 	return window.location.hostname.toLowerCase() === baseDomain;
 };
 
+// Tri-state membership. The 'loaded' status is what unlocks the
+// "Acesso não autorizado" screen — without it the unauthorized message
+// would flash for one frame during a real login, between the moment the
+// session lands and the moment the membership row is fetched.
+type Membership =
+	| { status: 'idle' }
+	| { status: 'loading' }
+	| { status: 'loaded'; role: 'admin' | 'member' | null };
+
 const App = () => {
 	const { tenant, tenantLoading, tenantError, refreshTenant } = useTenant();
 	const [session, setSession] = useState<Session | null>(null);
 	const [checkingSession, setCheckingSession] = useState(true);
-	const [membershipRole, setMembershipRole] = useState<'admin' | 'member' | null>(null);
-	const [checkingMembership, setCheckingMembership] = useState(false);
-	const [membershipVersion, setMembershipVersion] = useState(0);
-	// Synchronously flip checkingMembership=true so the next render after a
-	// bump returns null instead of briefly rendering "Acesso não autorizado"
-	// during the gap between commit and the re-fired membership effect.
-	const bumpMembership = useCallback(() => {
-		setCheckingMembership(true);
-		setMembershipVersion((v) => v + 1);
-	}, []);
+	const [membership, setMembership] = useState<Membership>({ status: 'idle' });
 	const navigate = useNavigate();
 	const location = useLocation();
 
@@ -187,23 +187,11 @@ const App = () => {
 				return;
 			}
 
-			// Generic SIGNED_IN (e.g. email/password login) keeps the user on the
-			// current route. Without flipping the guard synchronously, the next
-			// render lands a frame where session is set but membershipRole is
-			// still null — flashing "Acesso não autorizado" before the
-			// membership effect resolves.
-			//
-			// Use bumpMembership() (not bare setCheckingMembership(true)) because
-			// supabase-js fires SIGNED_IN on every tab return with a still-valid
-			// session (GoTrueClient _recoverAndRefresh → _notifyAllSubscribers
-			// 'SIGNED_IN'). On those spurious events session.user.id is
-			// unchanged, so without the membershipVersion bump the membership
-			// effect would not refire and checkingMembership would stay true,
-			// leaving the app blank until reload.
-			if (event === 'SIGNED_IN') {
-				bumpMembership();
-			}
-
+			// No special handling for generic SIGNED_IN: supabase-js fires it on
+			// every tab return (GoTrueClient _recoverAndRefresh), and the
+			// tri-state membership state means the "Acesso não autorizado"
+			// screen only renders after the membership fetch completes — so a
+			// real login no longer flashes it.
 			handleSession(currentSession);
 		});
 
@@ -221,15 +209,11 @@ const App = () => {
 			const tenantId = tenant?.id;
 
 			if (!userId || !tenantId) {
-				setMembershipRole(null);
-				// Reset the guard here too: bumpMembership() callers flip
-				// checkingMembership=true, and without this reset the early
-				// return would leave it stuck and freeze the UI.
-				setCheckingMembership(false);
+				setMembership({ status: 'loaded', role: null });
 				return;
 			}
 
-			setCheckingMembership(true);
+			setMembership({ status: 'loading' });
 			const { data, error } = await supabase
 				.from('tenant_members')
 				.select('role')
@@ -240,13 +224,14 @@ const App = () => {
 			if (!isMounted) return;
 
 			if (error) {
-				setMembershipRole(null);
-				setCheckingMembership(false);
+				setMembership({ status: 'loaded', role: null });
 				return;
 			}
 
-			setMembershipRole((data?.role as 'admin' | 'member' | undefined) ?? null);
-			setCheckingMembership(false);
+			setMembership({
+				status: 'loaded',
+				role: (data?.role as 'admin' | 'member' | undefined) ?? null,
+			});
 		};
 
 		void loadMembership();
@@ -254,7 +239,7 @@ const App = () => {
 		return () => {
 			isMounted = false;
 		};
-	}, [session?.user.id, tenant?.id, membershipVersion]);
+	}, [session?.user.id, tenant?.id]);
 
 	const handleLogout = async () => {
 		await supabase.auth.signOut();
@@ -279,7 +264,12 @@ const App = () => {
 	// briefly. If this gate ran first, AcceptInvitePage would unmount during
 	// the refresh and remount when it resolves — wiping its useRef guards
 	// and firing the accept_tenant_invitation POST a second time.
-	if (location.pathname === '/accept-invite') return <AcceptInvitePage onAccepted={bumpMembership} />;
+	//
+	// No onAccepted callback: after acceptInvitation, AcceptInvitePage calls
+	// refreshTenant(), which upgrades tenant.id from "" (anon branding stub)
+	// to the real UUID. That change naturally retriggers the membership
+	// effect via its tenant?.id dep.
+	if (location.pathname === '/accept-invite') return <AcceptInvitePage />;
 
 	if (tenantLoading) return null;
 
@@ -349,9 +339,9 @@ const App = () => {
 		);
 	}
 
-	if (checkingMembership) return null;
+	if (membership.status !== 'loaded') return null;
 
-	if (!membershipRole) {
+	if (!membership.role) {
 		return (
 			<div className="min-h-screen bg-background text-foreground flex items-center justify-center px-6">
 				<div className="w-full max-w-xl rounded-[var(--radius-card)] border border-border/40 bg-card p-8 shadow-[var(--shadow-card)]">
@@ -378,7 +368,7 @@ const App = () => {
 	}
 
 	if (!tenant.isOnboarded) {
-		if (membershipRole !== 'admin') {
+		if (membership.role !== 'admin') {
 			return (
 				<div className="min-h-screen bg-background text-foreground flex items-center justify-center px-6">
 					<div className="w-full max-w-xl rounded-[var(--radius-card)] border border-border/40 bg-card p-8 shadow-[var(--shadow-card)]">
@@ -400,7 +390,7 @@ const App = () => {
 		return <Onboarding onFinish={() => void refreshTenant()} />;
 	}
 
-	const isAdmin = membershipRole === 'admin';
+	const isAdmin = membership.role === 'admin';
 
 	return (
 		<Routes>
