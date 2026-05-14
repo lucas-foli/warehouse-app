@@ -1,5 +1,5 @@
 // src/components/AcceptInvitePage.tsx
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { acceptInvitation } from "../services/invitations";
 import { supabase } from "../lib/supabaseClient";
@@ -17,6 +17,11 @@ const AcceptInvitePage = ({ onAccepted }: Props = {}) => {
   const [error, setError] = useState("");
   const [hasSession, setHasSession] = useState<boolean | null>(null);
   const { refreshTenant } = useTenant();
+  // Guards against a second POST after the await refreshTenant() below: the
+  // tenant-context update can re-render and re-run this effect before
+  // navigate() unmounts the page, and the cleanup's cancelled flag only
+  // skips post-await code — the duplicate POST has already fired by then.
+  const acceptStartedRef = useRef(false);
 
   // Persist token across the auth round-trip.
   const tokenFromUrl = params.get("token")?.trim() ?? "";
@@ -42,6 +47,8 @@ const AcceptInvitePage = ({ onAccepted }: Props = {}) => {
 
   useEffect(() => {
     if (!hasSession || !token) return;
+    if (acceptStartedRef.current) return;
+    acceptStartedRef.current = true;
     let cancelled = false;
     const accept = async () => {
       const result = await acceptInvitation(token);
