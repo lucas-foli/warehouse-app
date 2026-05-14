@@ -405,6 +405,7 @@ const App = () => {
 						onOpenImport={() => navigate('/import')}
 						canImport={isAdmin}
 						canOpenStatusForm={isAdmin}
+						canOpenSettings={isAdmin}
 					/>
 				}
 			/>
@@ -417,6 +418,7 @@ const App = () => {
 						onOpenImport={() => navigate('/import')}
 						canImport={isAdmin}
 						canOpenStatusForm={isAdmin}
+						canOpenSettings={isAdmin}
 						initialSurface="products"
 					/>
 				}
@@ -430,6 +432,7 @@ const App = () => {
 						onOpenImport={() => navigate('/import')}
 						canImport={isAdmin}
 						canOpenStatusForm={isAdmin}
+						canOpenSettings={isAdmin}
 						initialPage="clientes"
 					/>
 				}
@@ -443,6 +446,7 @@ const App = () => {
 						onOpenImport={() => navigate('/import')}
 						canImport={isAdmin}
 						canOpenStatusForm={isAdmin}
+						canOpenSettings={isAdmin}
 						initialPage="vendedores"
 					/>
 				}

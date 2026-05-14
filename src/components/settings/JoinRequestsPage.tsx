@@ -6,12 +6,12 @@ import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import { useTenant } from "../../context/TenantContext";
 import {
-  approveJoinRequest,
-  declineJoinRequest,
   listJoinRequests,
   type JoinRequestStatus,
   type TenantJoinRequest,
 } from "../../services/joinRequests";
+import ApproveJoinRequestModal from "./ApproveJoinRequestModal";
+import DeclineJoinRequestModal from "./DeclineJoinRequestModal";
 
 const TABS: JoinRequestStatus[] = ["pending", "approved", "declined"];
 
@@ -20,9 +20,10 @@ const JoinRequestsPage = () => {
   const [tab, setTab] = useState<JoinRequestStatus>("pending");
   const [requests, setRequests] = useState<TenantJoinRequest[]>([]);
   const [loading, setLoading] = useState(true);
-  const [actingId, setActingId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [toggleSaving, setToggleSaving] = useState(false);
+  const [approving, setApproving] = useState<TenantJoinRequest | null>(null);
+  const [declining, setDeclining] = useState<TenantJoinRequest | null>(null);
 
   const tenantId = tenant?.id ?? "";
   const accepting = tenant?.acceptJoinRequests ?? true;
@@ -42,29 +43,6 @@ const JoinRequestsPage = () => {
   };
 
   useEffect(() => { void load(); }, [tenantId, tab]);
-
-  const handleApprove = async (req: TenantJoinRequest) => {
-    setActingId(req.id);
-    const result = await approveJoinRequest(req.id);
-    setActingId(null);
-    if (!result.ok) {
-      setError(`Couldn't approve: ${result.error}`);
-      return;
-    }
-    void load();
-  };
-
-  const handleDecline = async (req: TenantJoinRequest) => {
-    const reason = window.prompt("Optional reason (will not be emailed to the requester):") ?? "";
-    setActingId(req.id);
-    const result = await declineJoinRequest({ request_id: req.id, reason: reason || null });
-    setActingId(null);
-    if (!result.ok) {
-      setError(`Couldn't decline: ${result.error}`);
-      return;
-    }
-    void load();
-  };
 
   const handleToggle = async () => {
     if (!tenantId) return;
@@ -151,15 +129,13 @@ const JoinRequestsPage = () => {
                   {r.status === "pending" && (
                     <div className="flex justify-end gap-2">
                       <button
-                        onClick={() => handleApprove(r)}
-                        disabled={actingId === r.id}
-                        className="rounded-full bg-primary px-3 py-1 text-xs text-primary-foreground disabled:opacity-60">
+                        onClick={() => setApproving(r)}
+                        className="rounded-full bg-primary px-3 py-1 text-xs text-primary-foreground">
                         Approve
                       </button>
                       <button
-                        onClick={() => handleDecline(r)}
-                        disabled={actingId === r.id}
-                        className="rounded-full border border-border/40 px-3 py-1 text-xs disabled:opacity-60">
+                        onClick={() => setDeclining(r)}
+                        className="rounded-full border border-border/40 px-3 py-1 text-xs">
                         Decline
                       </button>
                     </div>
@@ -172,6 +148,28 @@ const JoinRequestsPage = () => {
             ))}
           </tbody>
         </table>
+      )}
+
+      {approving && (
+        <ApproveJoinRequestModal
+          request={approving}
+          onClose={() => setApproving(null)}
+          onApproved={() => {
+            setApproving(null);
+            void load();
+          }}
+        />
+      )}
+
+      {declining && (
+        <DeclineJoinRequestModal
+          request={declining}
+          onClose={() => setDeclining(null)}
+          onDeclined={() => {
+            setDeclining(null);
+            void load();
+          }}
+        />
       )}
     </div>
   );
