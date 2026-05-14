@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { acceptInvitation } from "../services/invitations";
 import { supabase } from "../lib/supabaseClient";
+import { useTenant } from "../context/TenantContext";
 import { messageForEdgeErrorCode } from "../utils/edgeErrors";
 import LoginForm from "./LoginForm";
 
@@ -15,6 +16,7 @@ const AcceptInvitePage = ({ onAccepted }: Props = {}) => {
   const navigate = useNavigate();
   const [error, setError] = useState("");
   const [hasSession, setHasSession] = useState<boolean | null>(null);
+  const { refreshTenant } = useTenant();
 
   // Persist token across the auth round-trip.
   const tokenFromUrl = params.get("token")?.trim() ?? "";
@@ -49,12 +51,19 @@ const AcceptInvitePage = ({ onAccepted }: Props = {}) => {
         return;
       }
       window.localStorage.removeItem(TOKEN_STORAGE_KEY);
+      // Re-fetch the tenant now that the membership row exists. Before this
+      // the user wasn't a member, so `from('tenants')` was RLS-denied and
+      // TenantContext had only the branding stub (id=""). Without the refresh
+      // App.loadMembership runs with tenant.id="" and renders "Acesso não
+      // autorizado".
+      await refreshTenant();
+      if (cancelled) return;
       onAccepted?.();
       navigate("/", { replace: true });
     };
     void accept();
     return () => { cancelled = true; };
-  }, [hasSession, token, navigate, onAccepted]);
+  }, [hasSession, token, navigate, onAccepted, refreshTenant]);
 
   if (hasSession === null) return null;
 
