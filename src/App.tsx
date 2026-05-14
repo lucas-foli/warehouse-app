@@ -266,9 +266,14 @@ const App = () => {
 		return <SetPassword />;
 	}
 
-	if (tenantLoading) return null;
-
+	// Route to AcceptInvitePage BEFORE the tenantLoading guard. The accept
+	// flow calls refreshTenant() mid-flight, which flips tenantLoading=true
+	// briefly. If this gate ran first, AcceptInvitePage would unmount during
+	// the refresh and remount when it resolves — wiping its useRef guards
+	// and firing the accept_tenant_invitation POST a second time.
 	if (location.pathname === '/accept-invite') return <AcceptInvitePage onAccepted={bumpMembership} />;
+
+	if (tenantLoading) return null;
 
 	const onApex = isOnApex();
 
