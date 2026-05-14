@@ -161,6 +161,20 @@ export const TenantProvider = ({ children }: { children: React.ReactNode }) => {
 		void refreshTenant();
 	}, [refreshTenant]);
 
+	// If the initial fetch ran before the user was authenticated, the tenants
+	// row was RLS-denied and we fell back to tenant_branding (id=""). Once a
+	// real session exists, re-fetch so the authoritative row replaces the stub.
+	useEffect(() => {
+		const { data } = supabase.auth.onAuthStateChange((event) => {
+			if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+				void refreshTenant();
+			}
+		});
+		return () => {
+			data.subscription.unsubscribe();
+		};
+	}, [refreshTenant]);
+
 	const value = useMemo<TenantContextValue>(
 		() => ({ tenantSlug, tenant, tenantLoading, tenantError, refreshTenant, patchTenant }),
 		[patchTenant, refreshTenant, tenant, tenantError, tenantLoading, tenantSlug],

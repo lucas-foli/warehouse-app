@@ -214,6 +214,10 @@ const App = () => {
 
 			if (!userId || !tenantId) {
 				setMembershipRole(null);
+				// Reset the guard here too: bumpMembership() callers flip
+				// checkingMembership=true, and without this reset the early
+				// return would leave it stuck and freeze the UI.
+				setCheckingMembership(false);
 				return;
 			}
 
