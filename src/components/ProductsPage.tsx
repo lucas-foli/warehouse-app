@@ -249,11 +249,12 @@ const ProductsPage = ({
 		setEditSaving(true);
 		setEditError('');
 		try {
-			const { error } = await supabase
+			const { data, error } = await supabase
 				.from('products')
 				.delete()
 				.eq('id', editDraft.id)
-				.eq('tenant_id', tenantId);
+				.eq('tenant_id', tenantId)
+				.select('id');
 			if (error) {
 				if (error.code === '23503') {
 					setDeleteConfirmOpen(false);
@@ -261,6 +262,10 @@ const ProductsPage = ({
 					return;
 				}
 				throw error;
+			}
+			if (!data || data.length === 0) {
+				setEditError("You don't have permission to delete this product.");
+				return;
 			}
 			if (onProductUpdated) {
 				const existing = products.find((item) => item.id === editDraft.id);
@@ -281,12 +286,17 @@ const ProductsPage = ({
 		if (!tenantId || !editDraft) return;
 		setEditSaving(true);
 		try {
-			const { error } = await supabase
+			const { data, error } = await supabase
 				.from('products')
 				.update({ is_active: false })
 				.eq('id', editDraft.id)
-				.eq('tenant_id', tenantId);
+				.eq('tenant_id', tenantId)
+				.select('id');
 			if (error) throw error;
+			if (!data || data.length === 0) {
+				setEditError("You don't have permission to update this product.");
+				return;
+			}
 			const existing = products.find((item) => item.id === editDraft.id);
 			if (existing && onProductUpdated) onProductUpdated({ ...existing, is_active: false } as Product);
 			setFkBlockOpen(false);
@@ -310,17 +320,20 @@ const ProductsPage = ({
 			let succeeded = 0;
 			const failed: { id: string; reason: string }[] = [];
 			for (const id of chunk) {
-				const { error } = await supabase
+				const { data, error } = await supabase
 					.from('products')
 					.delete()
 					.eq('id', id)
-					.eq('tenant_id', tenantId);
+					.eq('tenant_id', tenantId)
+					.select('id');
 				if (error) {
 					if (error.code === '23503') {
 						failed.push({ id, reason: 'Referenced by sales records' });
 					} else {
 						failed.push({ id, reason: error.message });
 					}
+				} else if (!data || data.length === 0) {
+					failed.push({ id, reason: 'No permission or row not found' });
 				} else {
 					succeeded += 1;
 				}
