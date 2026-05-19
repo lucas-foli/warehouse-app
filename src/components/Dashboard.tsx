@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTenant } from '../context/TenantContext';
 import { useTheme } from '../context/ThemeContext';
 import { useDashboardData } from '../hooks/useDashboardData';
+import type { Product } from '../types';
 import {
 	resolveEasynumbersLogoStorageUrl,
 	resolveEasynumbersLogoUrl,
