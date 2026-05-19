@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import type { Product } from '../types';
 import { ConfirmDialog } from './products/ConfirmDialog';
@@ -44,6 +44,20 @@ const ProductsPage = ({
 	const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 	const [fkBlockOpen, setFkBlockOpen] = useState(false);
 	const [drawerMode, setDrawerMode] = useState<'edit' | 'create' | null>(null);
+	const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+	const toggleSelection = (id: string) => {
+		setSelectedIds((current) => {
+			const next = new Set(current);
+			if (next.has(id)) next.delete(id);
+			else next.add(id);
+			return next;
+		});
+	};
+
+	useEffect(() => {
+		setSelectedIds(new Set());
+	}, [productQuery, productStatusFilter, productLocationFilter]);
 
 	const isCriticalProduct = (p: Product) => {
 		const zeroStock = (p.qty || 0) <= 0;
@@ -351,6 +365,17 @@ const ProductsPage = ({
 							<table className="min-w-full divide-y divide-black/5 text-sm">
 								<thead className="sticky top-0 z-10 bg-muted text-left text-[11px] uppercase tracking-[0.25em] text-muted-foreground">
 									<tr>
+									<th className="w-10 px-2 py-2">
+										<input
+											type="checkbox"
+											aria-label="Select all on page"
+											checked={filteredProducts.length > 0 && filteredProducts.every((p) => selectedIds.has(p.id))}
+											onChange={(e) => {
+												if (e.target.checked) setSelectedIds(new Set(filteredProducts.map((p) => p.id)));
+												else setSelectedIds(new Set());
+											}}
+										/>
+									</th>
 									<th className="px-4 py-3">Foto</th>
 									<th className="px-4 py-3">SKU</th>
 									<th className="px-4 py-3">Produto</th>
@@ -367,7 +392,7 @@ const ProductsPage = ({
 								<tbody className="divide-y divide-border/30 bg-card">
 									{loading && (
 										<tr>
-											<td colSpan={11} className="px-4 py-6 text-center text-muted-foreground">
+											<td colSpan={12} className="px-4 py-6 text-center text-muted-foreground">
 												Carregando…
 											</td>
 										</tr>
@@ -380,6 +405,14 @@ const ProductsPage = ({
 													key={product.id}
 													onClick={() => startEditProduct(product)}
 													className={`cursor-pointer hover:bg-muted/60 ${isSelected ? 'bg-primary/10' : ''}`}>
+													<td className="w-10 px-2 py-2" onClick={(e) => e.stopPropagation()}>
+														<input
+															type="checkbox"
+															aria-label={`Select ${product.sku}`}
+															checked={selectedIds.has(product.id)}
+															onChange={() => toggleSelection(product.id)}
+														/>
+													</td>
 													<td className="px-4 py-3">
 														<div className="h-12 w-12 overflow-hidden rounded-xl bg-black/5">
 															{product.image ? (
@@ -429,7 +462,7 @@ const ProductsPage = ({
 										})}
 									{!loading && filteredProducts.length === 0 && (
 										<tr>
-											<td colSpan={11} className="px-4 py-6 text-center text-muted-foreground">
+											<td colSpan={12} className="px-4 py-6 text-center text-muted-foreground">
 												Nenhum produto encontrado com os filtros atuais.
 											</td>
 										</tr>
