@@ -241,6 +241,7 @@ const ProductsPage = ({
 			}
 			if (onProductUpdated) {
 				const existing = products.find((item) => item.id === editDraft.id);
+				// `_deleted` is a signal to Dashboard's onProductUpdated handler to remove the row from state.
 				if (existing) onProductUpdated({ ...existing, _deleted: true } as Product & { _deleted: true });
 			}
 			setDeleteConfirmOpen(false);
