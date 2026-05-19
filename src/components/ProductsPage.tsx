@@ -158,19 +158,42 @@ const ProductsPage = ({
 		const location = editDraft.location.trim() || 'Loja principal';
 		const barcode = editDraft.barcode.trim();
 		const image = editDraft.image.trim();
+		const sku = editDraft.sku.trim();
+		const name = editDraft.name.trim();
 
-		const payload = {
-			status,
-			location,
-			qty,
-			min,
-			price,
-			barcode: barcode ? barcode : null,
-			image: image ? image : null,
-		};
+		if (drawerMode === 'create' && (!sku || !name)) {
+			setEditError('SKU and Name are required.');
+			setEditSaving(false);
+			return;
+		}
+
+		const payload = { status, location, qty, min, price, barcode: barcode || null, image: image || null };
 
 		try {
-			const { error } = await supabase.from('products').update(payload).eq('id', editDraft.id).eq('tenant_id', tenantId);
+			if (drawerMode === 'create') {
+				const { data, error } = await supabase
+					.from('products')
+					.insert({ ...payload, sku, name, tenant_id: tenantId, is_active: true })
+					.select()
+					.single();
+				if (error) {
+					if (error.code === '23505') {
+						setEditError(`A product with SKU "${sku}" already exists.`);
+					} else {
+						throw error;
+					}
+					return;
+				}
+				if (data && onProductUpdated) onProductUpdated(data as Product);
+				closeEditPanel();
+				return;
+			}
+
+			const { error } = await supabase
+				.from('products')
+				.update(payload)
+				.eq('id', editDraft.id)
+				.eq('tenant_id', tenantId);
 			if (error) throw error;
 
 			const existing = products.find((item) => item.id === editDraft.id);
@@ -182,13 +205,13 @@ const ProductsPage = ({
 					qty,
 					min: min ?? undefined,
 					price: price ?? undefined,
-					barcode: barcode ? barcode : undefined,
-					image: image ? image : undefined,
+					barcode: barcode || undefined,
+					image: image || undefined,
 				});
 			}
 			setEditDirty(false);
 		} catch (err) {
-			const message = err instanceof Error ? err.message : 'Falha ao salvar ajustes.';
+			const message = err instanceof Error ? err.message : 'Save failed.';
 			setEditError(message);
 		} finally {
 			setEditSaving(false);
