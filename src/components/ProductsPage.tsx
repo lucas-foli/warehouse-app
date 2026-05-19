@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import type { Product } from '../types';
+import { ConfirmDialog } from './products/ConfirmDialog';
 import { Card, Section } from './ui/Primitives';
 
 type ProductDraft = {
@@ -40,6 +41,8 @@ const ProductsPage = ({
 	const [editSaving, setEditSaving] = useState(false);
 	const [editError, setEditError] = useState('');
 	const [isEditPanelOpen, setIsEditPanelOpen] = useState(false);
+	const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+	const [fkBlockOpen, setFkBlockOpen] = useState(false);
 	const [drawerMode, setDrawerMode] = useState<'edit' | 'create' | null>(null);
 
 	const isCriticalProduct = (p: Product) => {
@@ -213,6 +216,59 @@ const ProductsPage = ({
 		} catch (err) {
 			const message = err instanceof Error ? err.message : 'Save failed.';
 			setEditError(message);
+		} finally {
+			setEditSaving(false);
+		}
+	};
+
+	const handleDeleteProduct = async () => {
+		if (!tenantId || !editDraft || drawerMode !== 'edit') return;
+		setEditSaving(true);
+		setEditError('');
+		try {
+			const { error } = await supabase
+				.from('products')
+				.delete()
+				.eq('id', editDraft.id)
+				.eq('tenant_id', tenantId);
+			if (error) {
+				if (error.code === '23503') {
+					setDeleteConfirmOpen(false);
+					setFkBlockOpen(true);
+					return;
+				}
+				throw error;
+			}
+			if (onProductUpdated) {
+				const existing = products.find((item) => item.id === editDraft.id);
+				if (existing) onProductUpdated({ ...existing, _deleted: true } as Product & { _deleted: true });
+			}
+			setDeleteConfirmOpen(false);
+			closeEditPanel();
+		} catch (err) {
+			const message = err instanceof Error ? err.message : 'Delete failed.';
+			setEditError(message);
+		} finally {
+			setEditSaving(false);
+		}
+	};
+
+	const handleSetInactiveFromFkBlock = async () => {
+		if (!tenantId || !editDraft) return;
+		setEditSaving(true);
+		try {
+			const { error } = await supabase
+				.from('products')
+				.update({ is_active: false })
+				.eq('id', editDraft.id)
+				.eq('tenant_id', tenantId);
+			if (error) throw error;
+			const existing = products.find((item) => item.id === editDraft.id);
+			if (existing && onProductUpdated) onProductUpdated({ ...existing, is_active: false } as Product);
+			setFkBlockOpen(false);
+			closeEditPanel();
+		} catch (err) {
+			setEditError(err instanceof Error ? err.message : 'Update failed.');
 		} finally {
 			setEditSaving(false);
 		}
@@ -507,6 +563,23 @@ const ProductsPage = ({
 										</div>
 									</div>
 
+									{drawerMode === 'edit' && (
+										<div className="mt-8 rounded border border-red-200 bg-red-50 p-4">
+											<h4 className="text-sm font-semibold text-red-900">Danger zone</h4>
+											<p className="mt-1 text-xs text-red-800">
+												Deleting a product is permanent. Products referenced by sales records can't be deleted.
+											</p>
+											<button
+												type="button"
+												onClick={() => setDeleteConfirmOpen(true)}
+												className="mt-3 rounded border border-red-300 bg-white px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-100"
+												disabled={editSaving}
+											>
+												Delete product
+											</button>
+										</div>
+									)}
+
 									<div className="flex flex-wrap items-center gap-2">
 										<button
 											type="button"
@@ -538,6 +611,23 @@ const ProductsPage = ({
 					</Card>
 				)}
 			</div>
+		<ConfirmDialog
+			open={deleteConfirmOpen}
+			title="Delete product?"
+			message={`Delete "${editDraft?.name}"? This cannot be undone.`}
+			confirmLabel="Delete"
+			destructive
+			onConfirm={handleDeleteProduct}
+			onCancel={() => setDeleteConfirmOpen(false)}
+		/>
+		<ConfirmDialog
+			open={fkBlockOpen}
+			title="Can't delete"
+			message={`"${editDraft?.name}" has sales records and can't be deleted. Set it inactive instead?`}
+			confirmLabel="Set inactive"
+			onConfirm={handleSetInactiveFromFkBlock}
+			onCancel={() => setFkBlockOpen(false)}
+		/>
 		</Section>
 	);
 };
