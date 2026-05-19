@@ -40,6 +40,8 @@ const ProductsPage = ({
 	const [editSaving, setEditSaving] = useState(false);
 	const [editError, setEditError] = useState('');
 	const [isEditPanelOpen, setIsEditPanelOpen] = useState(false);
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	const [drawerMode, setDrawerMode] = useState<'edit' | 'create' | null>(null);
 
 	const isCriticalProduct = (p: Product) => {
 		const zeroStock = (p.qty || 0) <= 0;
@@ -88,6 +90,7 @@ const ProductsPage = ({
 		setEditDirty(false);
 		setEditError('');
 		setIsEditPanelOpen(true);
+		setDrawerMode('edit');
 	};
 
 	const updateDraft = (partial: Partial<ProductDraft>) => {
@@ -107,6 +110,7 @@ const ProductsPage = ({
 		setEditDraft(null);
 		setEditDirty(false);
 		setEditError('');
+		setDrawerMode(null);
 	};
 
 	const parseOptionalNumber = (value: string) => {
