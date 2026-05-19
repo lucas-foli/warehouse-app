@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import type { Product } from '../types';
+import { BulkActionBar } from './products/BulkActionBar';
 import { ConfirmDialog } from './products/ConfirmDialog';
 import { Card, Section } from './ui/Primitives';
 
@@ -362,6 +363,12 @@ const ProductsPage = ({
 				<div className={`grid gap-6 ${isEditPanelOpen ? 'lg:grid-cols-[minmax(0,1fr)_340px]' : ''}`}>
 					<Card interactive={false} className="border border-border/30 bg-muted">
 						<div className="overflow-auto max-h-[640px]">
+							<BulkActionBar
+								selectedCount={selectedIds.size}
+								onEditField={() => { /* wired in Task 9 */ }}
+								onDelete={() => { /* wired in Task 10 */ }}
+								onClear={() => setSelectedIds(new Set())}
+							/>
 							<table className="min-w-full divide-y divide-black/5 text-sm">
 								<thead className="sticky top-0 z-10 bg-muted text-left text-[11px] uppercase tracking-[0.25em] text-muted-foreground">
 									<tr>
