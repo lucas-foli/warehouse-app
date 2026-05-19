@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import type { Product } from '../types';
+import { aggregateBulkResults, chunked, type BulkResult } from '../utils/bulk';
 import { BulkActionBar } from './products/BulkActionBar';
+import { BulkEditFieldPopover, type BulkEditableField } from './products/BulkEditFieldPopover';
+import { BulkResultDialog } from './products/BulkResultDialog';
 import { ConfirmDialog } from './products/ConfirmDialog';
 import { Card, Section } from './ui/Primitives';
 
@@ -46,6 +49,10 @@ const ProductsPage = ({
 	const [fkBlockOpen, setFkBlockOpen] = useState(false);
 	const [drawerMode, setDrawerMode] = useState<'edit' | 'create' | null>(null);
 	const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+	const [bulkEditOpen, setBulkEditOpen] = useState(false);
+	const [bulkResult, setBulkResult] = useState<BulkResult | null>(null);
+	const [bulkResultAction, setBulkResultAction] = useState<'updated' | 'deleted'>('updated');
+	const [bulkBusy, setBulkBusy] = useState(false);
 
 	const toggleSelection = (id: string) => {
 		setSelectedIds((current) => {
@@ -290,6 +297,44 @@ const ProductsPage = ({
 		}
 	};
 
+	const handleBulkEditField = async (field: BulkEditableField, value: unknown) => {
+		if (!tenantId || selectedIds.size === 0) return;
+		setBulkBusy(true);
+		setBulkEditOpen(false);
+		const ids = Array.from(selectedIds);
+		const perChunk: BulkResult[] = [];
+
+		for (const chunk of chunked(ids, 500)) {
+			const { data, error } = await supabase
+				.from('products')
+				.update({ [field]: value })
+				.in('id', chunk)
+				.eq('tenant_id', tenantId)
+				.select('id');
+			if (error) {
+				perChunk.push({ succeeded: 0, failed: chunk.map((id) => ({ id, reason: error.message })) });
+			} else {
+				const updatedIds = new Set((data ?? []).map((r) => r.id));
+				const failed = chunk.filter((id) => !updatedIds.has(id)).map((id) => ({ id, reason: 'No permission or row not found' }));
+				perChunk.push({ succeeded: updatedIds.size, failed });
+			}
+		}
+
+		const result = aggregateBulkResults(perChunk);
+		setBulkResult(result);
+		setBulkResultAction('updated');
+		setBulkBusy(false);
+
+		if (onProductUpdated) {
+			products.forEach((p) => {
+				if (selectedIds.has(p.id) && !result.failed.some((f) => f.id === p.id)) {
+					onProductUpdated({ ...p, [field]: value } as Product);
+				}
+			});
+		}
+		setSelectedIds(new Set());
+	};
+
 	return (
 		<Section className="mt-8 space-y-8">
 			<div className="flex flex-wrap items-center justify-between gap-4">
@@ -365,7 +410,8 @@ const ProductsPage = ({
 						<div className="overflow-auto max-h-[640px]">
 							<BulkActionBar
 								selectedCount={selectedIds.size}
-								onEditField={() => { /* wired in Task 9 */ }}
+								busy={bulkBusy}
+								onEditField={() => setBulkEditOpen(true)}
 								onDelete={() => { /* wired in Task 10 */ }}
 								onClear={() => setSelectedIds(new Set())}
 							/>
@@ -668,6 +714,18 @@ const ProductsPage = ({
 			confirmLabel="Set inactive"
 			onConfirm={handleSetInactiveFromFkBlock}
 			onCancel={() => setFkBlockOpen(false)}
+		/>
+		<BulkEditFieldPopover
+			open={bulkEditOpen}
+			count={selectedIds.size}
+			onApply={handleBulkEditField}
+			onCancel={() => setBulkEditOpen(false)}
+		/>
+		<BulkResultDialog
+			open={bulkResult !== null}
+			result={bulkResult}
+			action={bulkResultAction}
+			onClose={() => setBulkResult(null)}
 		/>
 		</Section>
 	);
