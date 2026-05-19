@@ -40,7 +40,6 @@ const ProductsPage = ({
 	const [editSaving, setEditSaving] = useState(false);
 	const [editError, setEditError] = useState('');
 	const [isEditPanelOpen, setIsEditPanelOpen] = useState(false);
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	const [drawerMode, setDrawerMode] = useState<'edit' | 'create' | null>(null);
 
 	const isCriticalProduct = (p: Product) => {
@@ -91,6 +90,26 @@ const ProductsPage = ({
 		setEditError('');
 		setIsEditPanelOpen(true);
 		setDrawerMode('edit');
+	};
+
+	const startCreateProduct = () => {
+		setSelectedProductId(null);
+		setEditDraft({
+			id: '',
+			name: '',
+			sku: '',
+			status: 'ESTOQUE',
+			location: 'Loja principal',
+			qty: '0',
+			min: '',
+			price: '',
+			barcode: '',
+			image: '',
+		});
+		setEditDirty(false);
+		setEditError('');
+		setIsEditPanelOpen(true);
+		setDrawerMode('create');
 	};
 
 	const updateDraft = (partial: Partial<ProductDraft>) => {
@@ -196,6 +215,12 @@ const ProductsPage = ({
 							onClick={() => setIsEditPanelOpen((current) => !current)}
 							className="rounded-full border border-border/40 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-foreground transition hover:bg-primary hover:text-primary-foreground">
 							{isEditPanelOpen ? 'Fechar ajustes' : 'Ajustes rápidos'}
+						</button>
+						<button
+							type="button"
+							onClick={startCreateProduct}
+							className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
+							New product
 						</button>
 					</div>
 				</div>
@@ -339,7 +364,7 @@ const ProductsPage = ({
 							<div className="flex items-start justify-between gap-4">
 								<div>
 									<p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-muted-foreground">
-										Ajustes rápidos
+										{drawerMode === 'create' ? 'New product' : 'Edit product'}
 									</p>
 									<p className="mt-2 text-sm text-muted-foreground">
 										Atualize estoque, status e preço sem depender de CSV.
