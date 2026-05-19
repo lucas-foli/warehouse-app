@@ -53,6 +53,7 @@ const ProductsPage = ({
 	const [bulkResult, setBulkResult] = useState<BulkResult | null>(null);
 	const [bulkResultAction, setBulkResultAction] = useState<'updated' | 'deleted'>('updated');
 	const [bulkBusy, setBulkBusy] = useState(false);
+	const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
 
 	const toggleSelection = (id: string) => {
 		setSelectedIds((current) => {
@@ -297,6 +298,52 @@ const ProductsPage = ({
 		}
 	};
 
+	const handleBulkDelete = async () => {
+		if (!tenantId || selectedIds.size === 0) return;
+		setBulkBusy(true);
+		setBulkDeleteConfirmOpen(false);
+		const ids = Array.from(selectedIds);
+		const perChunk: BulkResult[] = [];
+
+		for (const chunk of chunked(ids, 500)) {
+			// Delete one at a time within the chunk so FK-blocked rows don't fail the whole chunk.
+			let succeeded = 0;
+			const failed: { id: string; reason: string }[] = [];
+			for (const id of chunk) {
+				const { error } = await supabase
+					.from('products')
+					.delete()
+					.eq('id', id)
+					.eq('tenant_id', tenantId);
+				if (error) {
+					if (error.code === '23503') {
+						failed.push({ id, reason: 'Referenced by sales records' });
+					} else {
+						failed.push({ id, reason: error.message });
+					}
+				} else {
+					succeeded += 1;
+				}
+			}
+			perChunk.push({ succeeded, failed });
+		}
+
+		const result = aggregateBulkResults(perChunk);
+		setBulkResult(result);
+		setBulkResultAction('deleted');
+		setBulkBusy(false);
+
+		if (onProductUpdated) {
+			const failedSet = new Set(result.failed.map((f) => f.id));
+			products.forEach((p) => {
+				if (selectedIds.has(p.id) && !failedSet.has(p.id)) {
+					onProductUpdated({ ...p, _deleted: true } as Product & { _deleted: true });
+				}
+			});
+		}
+		setSelectedIds(new Set());
+	};
+
 	const handleBulkEditField = async (field: BulkEditableField, value: unknown) => {
 		if (!tenantId || selectedIds.size === 0) return;
 		setBulkBusy(true);
@@ -412,7 +459,7 @@ const ProductsPage = ({
 								selectedCount={selectedIds.size}
 								busy={bulkBusy}
 								onEditField={() => setBulkEditOpen(true)}
-								onDelete={() => { /* wired in Task 10 */ }}
+								onDelete={() => setBulkDeleteConfirmOpen(true)}
 								onClear={() => setSelectedIds(new Set())}
 							/>
 							<table className="min-w-full divide-y divide-black/5 text-sm">
@@ -714,6 +761,15 @@ const ProductsPage = ({
 			confirmLabel="Set inactive"
 			onConfirm={handleSetInactiveFromFkBlock}
 			onCancel={() => setFkBlockOpen(false)}
+		/>
+		<ConfirmDialog
+			open={bulkDeleteConfirmOpen}
+			title={`Delete ${selectedIds.size} products?`}
+			message="This cannot be undone. Products referenced by sales records will be skipped."
+			confirmLabel="Delete"
+			destructive
+			onConfirm={handleBulkDelete}
+			onCancel={() => setBulkDeleteConfirmOpen(false)}
 		/>
 		<BulkEditFieldPopover
 			open={bulkEditOpen}
