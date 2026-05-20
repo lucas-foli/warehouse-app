@@ -606,30 +606,58 @@ const ProductsPage = ({
 
 							{editDraft ? (
 								<>
-									<div className="flex items-center gap-3 rounded-2xl bg-card px-4 py-3">
-										<div className="h-12 w-12 overflow-hidden rounded-xl bg-black/5">
-											{editDraft.image ? (
-												<img
-													src={editDraft.image}
-													alt={editDraft.name}
-													className="h-full w-full object-cover"
-													loading="lazy"
-												/>
-											) : (
-												<div className="flex h-full w-full items-center justify-center text-[10px] uppercase tracking-[0.2em] text-muted-foreground/70">
-													—
-												</div>
-											)}
+									{drawerMode === 'edit' && (
+										<div className="flex items-center gap-3 rounded-2xl bg-card px-4 py-3">
+											<div className="h-12 w-12 overflow-hidden rounded-xl bg-black/5">
+												{editDraft.image ? (
+													<img
+														src={editDraft.image}
+														alt={editDraft.name}
+														className="h-full w-full object-cover"
+														loading="lazy"
+													/>
+												) : (
+													<div className="flex h-full w-full items-center justify-center text-[10px] uppercase tracking-[0.2em] text-muted-foreground/70">
+														—
+													</div>
+												)}
+											</div>
+											<div>
+												<p className="text-sm font-semibold text-foreground">{editDraft.name}</p>
+												<p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+													SKU {editDraft.sku}
+												</p>
+											</div>
 										</div>
-										<div>
-											<p className="text-sm font-semibold text-foreground">{editDraft.name}</p>
-											<p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-												SKU {editDraft.sku}
-											</p>
-										</div>
-									</div>
+									)}
 
 									<div className="grid gap-4">
+										{drawerMode === 'create' && (
+											<>
+												<div>
+													<label className="block text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+														SKU
+													</label>
+													<input
+														value={editDraft.sku}
+														onChange={(event) => updateDraft({ sku: event.target.value })}
+														placeholder="e.g. STN-001"
+														className="mt-2 block w-full rounded-xl border border-input bg-card px-3 py-2 text-sm text-foreground outline-none transition focus:border-ring/60 focus:ring-2 focus:ring-ring/25"
+													/>
+												</div>
+												<div>
+													<label className="block text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+														Name
+													</label>
+													<input
+														value={editDraft.name}
+														onChange={(event) => updateDraft({ name: event.target.value })}
+														placeholder="Product name"
+														className="mt-2 block w-full rounded-xl border border-input bg-card px-3 py-2 text-sm text-foreground outline-none transition focus:border-ring/60 focus:ring-2 focus:ring-ring/25"
+													/>
+												</div>
+											</>
+										)}
 										<div>
 											<label className="block text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
 												Status
