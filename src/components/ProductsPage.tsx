@@ -739,15 +739,15 @@ const ProductsPage = ({
 									</div>
 
 									{drawerMode === 'edit' && (
-										<div className="mt-8 rounded border border-red-200 bg-red-50 p-4">
-											<h4 className="text-sm font-semibold text-red-900">Danger zone</h4>
-											<p className="mt-1 text-xs text-red-800">
+										<div className="mt-8 rounded border border-red-500/30 bg-red-500/10 p-4">
+											<h4 className="text-sm font-semibold text-red-500">Danger zone</h4>
+											<p className="mt-1 text-xs text-red-500/80">
 												Deleting a product is permanent. Products referenced by sales records can't be deleted.
 											</p>
 											<button
 												type="button"
 												onClick={() => setDeleteConfirmOpen(true)}
-												className="mt-3 rounded border border-red-300 bg-white px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-100"
+												className="mt-3 rounded border border-red-500/40 bg-transparent px-3 py-1.5 text-sm font-medium text-red-500 hover:bg-red-500/10 disabled:opacity-50"
 												disabled={editSaving}
 											>
 												Delete product

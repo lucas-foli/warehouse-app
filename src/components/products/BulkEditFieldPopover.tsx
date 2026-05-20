@@ -23,16 +23,19 @@ export const BulkEditFieldPopover = ({ open, count, onApply, onCancel }: Props) 
     return onApply(field, value);
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
-        <h3 className="text-lg font-semibold">Edit field on {count} products</h3>
+  const inputClass =
+    'mt-1 w-full rounded border border-border bg-card px-2 py-1.5 text-sm text-foreground';
 
-        <label className="mt-4 block text-sm font-medium">Field</label>
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      <div className="w-full max-w-md rounded-lg bg-card p-6 shadow-xl">
+        <h3 className="text-lg font-semibold text-foreground">Edit field on {count} products</h3>
+
+        <label className="mt-4 block text-sm font-medium text-foreground">Field</label>
         <select
           value={field}
           onChange={(e) => setField(e.target.value as BulkEditableField)}
-          className="mt-1 w-full rounded border border-border px-2 py-1.5 text-sm"
+          className={inputClass}
         >
           <option value="status">Status</option>
           <option value="is_active">Active</option>
@@ -41,12 +44,12 @@ export const BulkEditFieldPopover = ({ open, count, onApply, onCancel }: Props) 
           <option value="min">Min stock</option>
         </select>
 
-        <label className="mt-4 block text-sm font-medium">Value</label>
+        <label className="mt-4 block text-sm font-medium text-foreground">Value</label>
         {field === 'is_active' ? (
           <select
             value={String(boolValue)}
             onChange={(e) => setBoolValue(e.target.value === 'true')}
-            className="mt-1 w-full rounded border border-border px-2 py-1.5 text-sm"
+            className={inputClass}
           >
             <option value="true">Active</option>
             <option value="false">Inactive</option>
@@ -56,7 +59,7 @@ export const BulkEditFieldPopover = ({ open, count, onApply, onCancel }: Props) 
             value={value}
             onChange={(e) => setValue(e.target.value)}
             type={field === 'price' || field === 'min' ? 'number' : 'text'}
-            className="mt-1 w-full rounded border border-border px-2 py-1.5 text-sm"
+            className={inputClass}
           />
         )}
 
@@ -64,14 +67,14 @@ export const BulkEditFieldPopover = ({ open, count, onApply, onCancel }: Props) 
           <button
             type="button"
             onClick={onCancel}
-            className="rounded border border-border px-4 py-2 text-sm font-medium hover:bg-muted"
+            className="rounded border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-muted"
           >
             Cancel
           </button>
           <button
             type="button"
             onClick={submit}
-            className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+            className="rounded bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
           >
             Apply
           </button>
