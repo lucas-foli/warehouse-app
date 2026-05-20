@@ -1,6 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import type { Product } from '../types';
+import { aggregateBulkResults, chunked, type BulkResult } from '../utils/bulk';
+import { BulkActionBar } from './products/BulkActionBar';
+import { BulkEditFieldPopover, type BulkEditableField } from './products/BulkEditFieldPopover';
+import { BulkResultDialog } from './products/BulkResultDialog';
+import { ConfirmDialog } from './products/ConfirmDialog';
 import { Card, Section } from './ui/Primitives';
 
 type ProductDraft = {
@@ -40,6 +45,28 @@ const ProductsPage = ({
 	const [editSaving, setEditSaving] = useState(false);
 	const [editError, setEditError] = useState('');
 	const [isEditPanelOpen, setIsEditPanelOpen] = useState(false);
+	const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+	const [fkBlockOpen, setFkBlockOpen] = useState(false);
+	const [drawerMode, setDrawerMode] = useState<'edit' | 'create' | null>(null);
+	const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+	const [bulkEditOpen, setBulkEditOpen] = useState(false);
+	const [bulkResult, setBulkResult] = useState<BulkResult | null>(null);
+	const [bulkResultAction, setBulkResultAction] = useState<'updated' | 'deleted'>('updated');
+	const [bulkBusy, setBulkBusy] = useState(false);
+	const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
+
+	const toggleSelection = (id: string) => {
+		setSelectedIds((current) => {
+			const next = new Set(current);
+			if (next.has(id)) next.delete(id);
+			else next.add(id);
+			return next;
+		});
+	};
+
+	useEffect(() => {
+		setSelectedIds(new Set());
+	}, [productQuery, productStatusFilter, productLocationFilter]);
 
 	const isCriticalProduct = (p: Product) => {
 		const zeroStock = (p.qty || 0) <= 0;
@@ -88,6 +115,27 @@ const ProductsPage = ({
 		setEditDirty(false);
 		setEditError('');
 		setIsEditPanelOpen(true);
+		setDrawerMode('edit');
+	};
+
+	const startCreateProduct = () => {
+		setSelectedProductId(null);
+		setEditDraft({
+			id: '',
+			name: '',
+			sku: '',
+			status: 'ESTOQUE',
+			location: 'Loja principal',
+			qty: '0',
+			min: '',
+			price: '',
+			barcode: '',
+			image: '',
+		});
+		setEditDirty(false);
+		setEditError('');
+		setIsEditPanelOpen(true);
+		setDrawerMode('create');
 	};
 
 	const updateDraft = (partial: Partial<ProductDraft>) => {
@@ -107,6 +155,7 @@ const ProductsPage = ({
 		setEditDraft(null);
 		setEditDirty(false);
 		setEditError('');
+		setDrawerMode(null);
 	};
 
 	const parseOptionalNumber = (value: string) => {
@@ -135,19 +184,42 @@ const ProductsPage = ({
 		const location = editDraft.location.trim() || 'Loja principal';
 		const barcode = editDraft.barcode.trim();
 		const image = editDraft.image.trim();
+		const sku = editDraft.sku.trim();
+		const name = editDraft.name.trim();
 
-		const payload = {
-			status,
-			location,
-			qty,
-			min,
-			price,
-			barcode: barcode ? barcode : null,
-			image: image ? image : null,
-		};
+		if (drawerMode === 'create' && (!sku || !name)) {
+			setEditError('SKU and Name are required.');
+			setEditSaving(false);
+			return;
+		}
+
+		const payload = { status, location, qty, min, price, barcode: barcode || null, image: image || null };
 
 		try {
-			const { error } = await supabase.from('products').update(payload).eq('id', editDraft.id).eq('tenant_id', tenantId);
+			if (drawerMode === 'create') {
+				const { data, error } = await supabase
+					.from('products')
+					.insert({ ...payload, sku, name, tenant_id: tenantId, is_active: true })
+					.select()
+					.single();
+				if (error) {
+					if (error.code === '23505') {
+						setEditError(`A product with SKU "${sku}" already exists.`);
+					} else {
+						throw error;
+					}
+					return;
+				}
+				if (data && onProductUpdated) onProductUpdated(data as Product);
+				closeEditPanel();
+				return;
+			}
+
+			const { error } = await supabase
+				.from('products')
+				.update(payload)
+				.eq('id', editDraft.id)
+				.eq('tenant_id', tenantId);
 			if (error) throw error;
 
 			const existing = products.find((item) => item.id === editDraft.id);
@@ -159,17 +231,168 @@ const ProductsPage = ({
 					qty,
 					min: min ?? undefined,
 					price: price ?? undefined,
-					barcode: barcode ? barcode : undefined,
-					image: image ? image : undefined,
+					barcode: barcode || undefined,
+					image: image || undefined,
 				});
 			}
 			setEditDirty(false);
 		} catch (err) {
-			const message = err instanceof Error ? err.message : 'Falha ao salvar ajustes.';
+			const message = err instanceof Error ? err.message : 'Save failed.';
 			setEditError(message);
 		} finally {
 			setEditSaving(false);
 		}
+	};
+
+	const handleDeleteProduct = async () => {
+		if (!tenantId || !editDraft || drawerMode !== 'edit') return;
+		setEditSaving(true);
+		setEditError('');
+		try {
+			const { data, error } = await supabase
+				.from('products')
+				.delete()
+				.eq('id', editDraft.id)
+				.eq('tenant_id', tenantId)
+				.select('id');
+			if (error) {
+				if (error.code === '23503') {
+					setDeleteConfirmOpen(false);
+					setFkBlockOpen(true);
+					return;
+				}
+				throw error;
+			}
+			if (!data || data.length === 0) {
+				setEditError("You don't have permission to delete this product.");
+				return;
+			}
+			if (onProductUpdated) {
+				const existing = products.find((item) => item.id === editDraft.id);
+				// `_deleted` is a signal to Dashboard's onProductUpdated handler to remove the row from state.
+				if (existing) onProductUpdated({ ...existing, _deleted: true } as Product & { _deleted: true });
+			}
+			setDeleteConfirmOpen(false);
+			closeEditPanel();
+		} catch (err) {
+			const message = err instanceof Error ? err.message : 'Delete failed.';
+			setEditError(message);
+		} finally {
+			setEditSaving(false);
+		}
+	};
+
+	const handleSetInactiveFromFkBlock = async () => {
+		if (!tenantId || !editDraft) return;
+		setEditSaving(true);
+		try {
+			const { data, error } = await supabase
+				.from('products')
+				.update({ is_active: false })
+				.eq('id', editDraft.id)
+				.eq('tenant_id', tenantId)
+				.select('id');
+			if (error) throw error;
+			if (!data || data.length === 0) {
+				setEditError("You don't have permission to update this product.");
+				return;
+			}
+			const existing = products.find((item) => item.id === editDraft.id);
+			if (existing && onProductUpdated) onProductUpdated({ ...existing, is_active: false } as Product);
+			setFkBlockOpen(false);
+			closeEditPanel();
+		} catch (err) {
+			setEditError(err instanceof Error ? err.message : 'Update failed.');
+		} finally {
+			setEditSaving(false);
+		}
+	};
+
+	const handleBulkDelete = async () => {
+		if (!tenantId || selectedIds.size === 0) return;
+		setBulkBusy(true);
+		setBulkDeleteConfirmOpen(false);
+		const ids = Array.from(selectedIds);
+		const perChunk: BulkResult[] = [];
+
+		for (const chunk of chunked(ids, 500)) {
+			// Delete one at a time within the chunk so FK-blocked rows don't fail the whole chunk.
+			let succeeded = 0;
+			const failed: { id: string; reason: string }[] = [];
+			for (const id of chunk) {
+				const { data, error } = await supabase
+					.from('products')
+					.delete()
+					.eq('id', id)
+					.eq('tenant_id', tenantId)
+					.select('id');
+				if (error) {
+					if (error.code === '23503') {
+						failed.push({ id, reason: 'Referenced by sales records' });
+					} else {
+						failed.push({ id, reason: error.message });
+					}
+				} else if (!data || data.length === 0) {
+					failed.push({ id, reason: 'No permission or row not found' });
+				} else {
+					succeeded += 1;
+				}
+			}
+			perChunk.push({ succeeded, failed });
+		}
+
+		const result = aggregateBulkResults(perChunk);
+		setBulkResult(result);
+		setBulkResultAction('deleted');
+		setBulkBusy(false);
+
+		if (onProductUpdated) {
+			const failedSet = new Set(result.failed.map((f) => f.id));
+			products.forEach((p) => {
+				if (selectedIds.has(p.id) && !failedSet.has(p.id)) {
+					onProductUpdated({ ...p, _deleted: true } as Product & { _deleted: true });
+				}
+			});
+		}
+		setSelectedIds(new Set());
+	};
+
+	const handleBulkEditField = async (field: BulkEditableField, value: unknown) => {
+		if (!tenantId || selectedIds.size === 0) return;
+		setBulkBusy(true);
+		setBulkEditOpen(false);
+		const ids = Array.from(selectedIds);
+		const perChunk: BulkResult[] = [];
+
+		for (const chunk of chunked(ids, 500)) {
+			const { data, error } = await supabase
+				.from('products')
+				.update({ [field]: value })
+				.in('id', chunk)
+				.eq('tenant_id', tenantId)
+				.select('id');
+			if (error) {
+				perChunk.push({ succeeded: 0, failed: chunk.map((id) => ({ id, reason: error.message })) });
+			} else {
+				const updatedIds = new Set((data ?? []).map((r) => r.id));
+				const failed = chunk.filter((id) => !updatedIds.has(id)).map((id) => ({ id, reason: 'No permission or row not found' }));
+				perChunk.push({ succeeded: updatedIds.size, failed });
+			}
+		}
+
+		const result = aggregateBulkResults(perChunk);
+		setBulkResult(result);
+		setBulkResultAction('updated');
+		setBulkBusy(false);
+
+		if (onProductUpdated) {
+			products.forEach((p) => {
+				if (selectedIds.has(p.id) && !result.failed.some((f) => f.id === p.id)) {
+					onProductUpdated({ ...p, [field]: value } as Product);
+				}
+			});
+		}
+		setSelectedIds(new Set());
 	};
 
 	return (
@@ -192,6 +415,12 @@ const ProductsPage = ({
 							onClick={() => setIsEditPanelOpen((current) => !current)}
 							className="rounded-full border border-border/40 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-foreground transition hover:bg-primary hover:text-primary-foreground">
 							{isEditPanelOpen ? 'Fechar ajustes' : 'Ajustes rápidos'}
+						</button>
+						<button
+							type="button"
+							onClick={startCreateProduct}
+							className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
+							New product
 						</button>
 					</div>
 				</div>
@@ -239,9 +468,27 @@ const ProductsPage = ({
 				<div className={`grid gap-6 ${isEditPanelOpen ? 'lg:grid-cols-[minmax(0,1fr)_340px]' : ''}`}>
 					<Card interactive={false} className="border border-border/30 bg-muted">
 						<div className="overflow-auto max-h-[640px]">
+							<BulkActionBar
+								selectedCount={selectedIds.size}
+								busy={bulkBusy}
+								onEditField={() => setBulkEditOpen(true)}
+								onDelete={() => setBulkDeleteConfirmOpen(true)}
+								onClear={() => setSelectedIds(new Set())}
+							/>
 							<table className="min-w-full divide-y divide-black/5 text-sm">
 								<thead className="sticky top-0 z-10 bg-muted text-left text-[11px] uppercase tracking-[0.25em] text-muted-foreground">
 									<tr>
+									<th className="w-10 px-2 py-2">
+										<input
+											type="checkbox"
+											aria-label="Select all on page"
+											checked={filteredProducts.length > 0 && filteredProducts.every((p) => selectedIds.has(p.id))}
+											onChange={(e) => {
+												if (e.target.checked) setSelectedIds(new Set(filteredProducts.map((p) => p.id)));
+												else setSelectedIds(new Set());
+											}}
+										/>
+									</th>
 									<th className="px-4 py-3">Foto</th>
 									<th className="px-4 py-3">SKU</th>
 									<th className="px-4 py-3">Produto</th>
@@ -258,7 +505,7 @@ const ProductsPage = ({
 								<tbody className="divide-y divide-border/30 bg-card">
 									{loading && (
 										<tr>
-											<td colSpan={11} className="px-4 py-6 text-center text-muted-foreground">
+											<td colSpan={12} className="px-4 py-6 text-center text-muted-foreground">
 												Carregando…
 											</td>
 										</tr>
@@ -271,6 +518,14 @@ const ProductsPage = ({
 													key={product.id}
 													onClick={() => startEditProduct(product)}
 													className={`cursor-pointer hover:bg-muted/60 ${isSelected ? 'bg-primary/10' : ''}`}>
+													<td className="w-10 px-2 py-2" onClick={(e) => e.stopPropagation()}>
+														<input
+															type="checkbox"
+															aria-label={`Select ${product.sku}`}
+															checked={selectedIds.has(product.id)}
+															onChange={() => toggleSelection(product.id)}
+														/>
+													</td>
 													<td className="px-4 py-3">
 														<div className="h-12 w-12 overflow-hidden rounded-xl bg-black/5">
 															{product.image ? (
@@ -320,7 +575,7 @@ const ProductsPage = ({
 										})}
 									{!loading && filteredProducts.length === 0 && (
 										<tr>
-											<td colSpan={11} className="px-4 py-6 text-center text-muted-foreground">
+											<td colSpan={12} className="px-4 py-6 text-center text-muted-foreground">
 												Nenhum produto encontrado com os filtros atuais.
 											</td>
 										</tr>
@@ -335,7 +590,7 @@ const ProductsPage = ({
 							<div className="flex items-start justify-between gap-4">
 								<div>
 									<p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-muted-foreground">
-										Ajustes rápidos
+										{drawerMode === 'create' ? 'New product' : 'Edit product'}
 									</p>
 									<p className="mt-2 text-sm text-muted-foreground">
 										Atualize estoque, status e preço sem depender de CSV.
@@ -351,30 +606,58 @@ const ProductsPage = ({
 
 							{editDraft ? (
 								<>
-									<div className="flex items-center gap-3 rounded-2xl bg-card px-4 py-3">
-										<div className="h-12 w-12 overflow-hidden rounded-xl bg-black/5">
-											{editDraft.image ? (
-												<img
-													src={editDraft.image}
-													alt={editDraft.name}
-													className="h-full w-full object-cover"
-													loading="lazy"
-												/>
-											) : (
-												<div className="flex h-full w-full items-center justify-center text-[10px] uppercase tracking-[0.2em] text-muted-foreground/70">
-													—
-												</div>
-											)}
+									{drawerMode === 'edit' && (
+										<div className="flex items-center gap-3 rounded-2xl bg-card px-4 py-3">
+											<div className="h-12 w-12 overflow-hidden rounded-xl bg-black/5">
+												{editDraft.image ? (
+													<img
+														src={editDraft.image}
+														alt={editDraft.name}
+														className="h-full w-full object-cover"
+														loading="lazy"
+													/>
+												) : (
+													<div className="flex h-full w-full items-center justify-center text-[10px] uppercase tracking-[0.2em] text-muted-foreground/70">
+														—
+													</div>
+												)}
+											</div>
+											<div>
+												<p className="text-sm font-semibold text-foreground">{editDraft.name}</p>
+												<p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+													SKU {editDraft.sku}
+												</p>
+											</div>
 										</div>
-										<div>
-											<p className="text-sm font-semibold text-foreground">{editDraft.name}</p>
-											<p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-												SKU {editDraft.sku}
-											</p>
-										</div>
-									</div>
+									)}
 
 									<div className="grid gap-4">
+										{drawerMode === 'create' && (
+											<>
+												<div>
+													<label className="block text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+														SKU
+													</label>
+													<input
+														value={editDraft.sku}
+														onChange={(event) => updateDraft({ sku: event.target.value })}
+														placeholder="e.g. STN-001"
+														className="mt-2 block w-full rounded-xl border border-input bg-card px-3 py-2 text-sm text-foreground outline-none transition focus:border-ring/60 focus:ring-2 focus:ring-ring/25"
+													/>
+												</div>
+												<div>
+													<label className="block text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+														Name
+													</label>
+													<input
+														value={editDraft.name}
+														onChange={(event) => updateDraft({ name: event.target.value })}
+														placeholder="Product name"
+														className="mt-2 block w-full rounded-xl border border-input bg-card px-3 py-2 text-sm text-foreground outline-none transition focus:border-ring/60 focus:ring-2 focus:ring-ring/25"
+													/>
+												</div>
+											</>
+										)}
 										<div>
 											<label className="block text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
 												Status
@@ -455,6 +738,23 @@ const ProductsPage = ({
 										</div>
 									</div>
 
+									{drawerMode === 'edit' && (
+										<div className="mt-8 rounded border border-red-500/30 bg-red-500/10 p-4">
+											<h4 className="text-sm font-semibold text-red-500">Danger zone</h4>
+											<p className="mt-1 text-xs text-red-500/80">
+												Deleting a product is permanent. Products referenced by sales records can't be deleted.
+											</p>
+											<button
+												type="button"
+												onClick={() => setDeleteConfirmOpen(true)}
+												className="mt-3 rounded border border-red-500/40 bg-transparent px-3 py-1.5 text-sm font-medium text-red-500 hover:bg-red-500/10 disabled:opacity-50"
+												disabled={editSaving}
+											>
+												Delete product
+											</button>
+										</div>
+									)}
+
 									<div className="flex flex-wrap items-center gap-2">
 										<button
 											type="button"
@@ -486,6 +786,44 @@ const ProductsPage = ({
 					</Card>
 				)}
 			</div>
+		<ConfirmDialog
+			open={deleteConfirmOpen}
+			title="Delete product?"
+			message={`Delete "${editDraft?.name}"? This cannot be undone.`}
+			confirmLabel="Delete"
+			destructive
+			onConfirm={handleDeleteProduct}
+			onCancel={() => setDeleteConfirmOpen(false)}
+		/>
+		<ConfirmDialog
+			open={fkBlockOpen}
+			title="Can't delete"
+			message={`"${editDraft?.name}" has sales records and can't be deleted. Set it inactive instead?`}
+			confirmLabel="Set inactive"
+			onConfirm={handleSetInactiveFromFkBlock}
+			onCancel={() => setFkBlockOpen(false)}
+		/>
+		<ConfirmDialog
+			open={bulkDeleteConfirmOpen}
+			title={`Delete ${selectedIds.size} products?`}
+			message="This cannot be undone. Products referenced by sales records will be skipped."
+			confirmLabel="Delete"
+			destructive
+			onConfirm={handleBulkDelete}
+			onCancel={() => setBulkDeleteConfirmOpen(false)}
+		/>
+		<BulkEditFieldPopover
+			open={bulkEditOpen}
+			count={selectedIds.size}
+			onApply={handleBulkEditField}
+			onCancel={() => setBulkEditOpen(false)}
+		/>
+		<BulkResultDialog
+			open={bulkResult !== null}
+			result={bulkResult}
+			action={bulkResultAction}
+			onClose={() => setBulkResult(null)}
+		/>
 		</Section>
 	);
 };

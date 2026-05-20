@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTenant } from '../context/TenantContext';
 import { useTheme } from '../context/ThemeContext';
 import { useDashboardData } from '../hooks/useDashboardData';
+import type { Product } from '../types';
 import {
 	resolveEasynumbersLogoStorageUrl,
 	resolveEasynumbersLogoUrl,
@@ -220,9 +221,16 @@ const Dashboard = ({
 							loading={loading}
 							tenantId={tenantId}
 							onProductUpdated={(updated) =>
-								setProducts((current) =>
-									current.map((item) => (item.id === updated.id ? { ...item, ...updated } : item)),
-								)
+								setProducts((current) => {
+									if ((updated as Product & { _deleted?: boolean })._deleted) {
+										return current.filter((item) => item.id !== updated.id);
+									}
+									const idx = current.findIndex((item) => item.id === updated.id);
+									if (idx === -1) return [...current, updated];
+									const next = [...current];
+									next[idx] = { ...next[idx], ...updated };
+									return next;
+								})
 							}
 							onBack={() => {
 								setSurface('dashboard');
