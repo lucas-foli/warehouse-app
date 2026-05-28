@@ -6,6 +6,7 @@ import { BulkActionBar } from './products/BulkActionBar';
 import { BulkEditFieldPopover, type BulkEditableField } from './products/BulkEditFieldPopover';
 import { BulkResultDialog } from './products/BulkResultDialog';
 import { ConfirmDialog } from './products/ConfirmDialog';
+import { SaleEntryModal } from './products/SaleEntryModal';
 import { Card, Section } from './ui/Primitives';
 
 type ProductDraft = {
@@ -54,6 +55,7 @@ const ProductsPage = ({
 	const [bulkResultAction, setBulkResultAction] = useState<'updated' | 'deleted'>('updated');
 	const [bulkBusy, setBulkBusy] = useState(false);
 	const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
+	const [saleModalOpen, setSaleModalOpen] = useState(false);
 
 	const toggleSelection = (id: string) => {
 		setSelectedIds((current) => {
@@ -424,8 +426,14 @@ const ProductsPage = ({
 						<button
 							type="button"
 							onClick={startCreateProduct}
-							className="rounded-full bg-primary px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-primary-foreground transition hover:opacity-90">
+							className="rounded-full border border-border/40 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-foreground transition hover:bg-primary hover:text-primary-foreground">
 							Novo produto
+						</button>
+						<button
+							type="button"
+							onClick={() => setSaleModalOpen(true)}
+							className="rounded-full bg-primary px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-primary-foreground transition hover:opacity-90">
+							Registrar venda
 						</button>
 					</div>
 				</div>
@@ -812,6 +820,14 @@ const ProductsPage = ({
 			locationOptions={locations}
 			onApply={handleBulkEditField}
 			onCancel={() => setBulkEditOpen(false)}
+		/>
+		<SaleEntryModal
+			open={saleModalOpen}
+			products={products}
+			initialProductId={selectedProductId}
+			tenantId={tenantId}
+			onClose={() => setSaleModalOpen(false)}
+			onRegistered={(updated) => onProductUpdated?.(updated)}
 		/>
 		<BulkResultDialog
 			open={bulkResult !== null}
