@@ -82,6 +82,11 @@ const ProductsPage = ({
 		[products],
 	);
 
+	const statusOptions = useMemo(
+		() => Array.from(new Set(products.map((p) => p.status))).filter(Boolean).sort(),
+		[products],
+	);
+
 	const filteredProducts = useMemo(() => {
 		const query = productQuery.trim().toLowerCase();
 		return products.filter((p) => {
@@ -414,13 +419,13 @@ const ProductsPage = ({
 							type="button"
 							onClick={() => setIsEditPanelOpen((current) => !current)}
 							className="rounded-full border border-border/40 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-foreground transition hover:bg-primary hover:text-primary-foreground">
-							{isEditPanelOpen ? 'Fechar ajustes' : 'Ajustes rápidos'}
+							{isEditPanelOpen ? 'Fechar ajustes' : 'Ajustes'}
 						</button>
 						<button
 							type="button"
 							onClick={startCreateProduct}
-							className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
-							New product
+							className="rounded-full bg-primary px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-primary-foreground transition hover:opacity-90">
+							Novo produto
 						</button>
 					</div>
 				</div>
@@ -499,13 +504,12 @@ const ProductsPage = ({
 									<th className="px-4 py-3">Preço</th>
 									<th className="px-4 py-3">Total vendido</th>
 									<th className="px-4 py-3">Código de barras</th>
-									<th className="px-4 py-3 text-right">Ajustes</th>
 								</tr>
 							</thead>
 								<tbody className="divide-y divide-border/30 bg-card">
 									{loading && (
 										<tr>
-											<td colSpan={12} className="px-4 py-6 text-center text-muted-foreground">
+											<td colSpan={11} className="px-4 py-6 text-center text-muted-foreground">
 												Carregando…
 											</td>
 										</tr>
@@ -559,23 +563,12 @@ const ProductsPage = ({
 														{product.totalSold ? product.totalSold.toLocaleString('pt-BR') : '—'}
 													</td>
 													<td className="px-4 py-3 text-foreground">{product.barcode ?? '—'}</td>
-													<td className="px-4 py-3 text-right">
-														<button
-															type="button"
-															onClick={(event) => {
-																event.stopPropagation();
-																startEditProduct(product);
-															}}
-															className="rounded-full border border-border/50 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-foreground transition hover:bg-primary hover:text-primary-foreground">
-															Ajustar
-														</button>
-													</td>
 												</tr>
 											);
 										})}
 									{!loading && filteredProducts.length === 0 && (
 										<tr>
-											<td colSpan={12} className="px-4 py-6 text-center text-muted-foreground">
+											<td colSpan={11} className="px-4 py-6 text-center text-muted-foreground">
 												Nenhum produto encontrado com os filtros atuais.
 											</td>
 										</tr>
@@ -815,6 +808,8 @@ const ProductsPage = ({
 		<BulkEditFieldPopover
 			open={bulkEditOpen}
 			count={selectedIds.size}
+			statusOptions={statusOptions}
+			locationOptions={locations}
 			onApply={handleBulkEditField}
 			onCancel={() => setBulkEditOpen(false)}
 		/>
