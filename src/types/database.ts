@@ -593,6 +593,18 @@ export type Database = {
     Functions: {
       is_platform_admin: { Args: never; Returns: boolean }
       is_tenant_admin: { Args: { target_tenant_id: string }; Returns: boolean }
+      register_sale: {
+        Args: {
+          p_tenant_id: string
+          p_sku: string
+          p_qty: number
+          p_unit_price?: number | null
+          p_sold_at?: string
+          p_client_id?: string | null
+          p_seller_id?: string | null
+        }
+        Returns: Database["public"]["Tables"]["products"]["Row"]
+      }
       tenant_has_active_access: {
         Args: { target_tenant_id: string }
         Returns: boolean
