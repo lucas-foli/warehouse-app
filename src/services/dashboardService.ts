@@ -26,16 +26,38 @@ const toText = (value: unknown): string => {
 	return '';
 };
 
+const PAGE_SIZE = 1000;
+
+/**
+ * Fetch every row for a tenant, paging past PostgREST's default 1000-row cap.
+ * Orders by the `id` primary key so pages never overlap or skip rows.
+ */
+async function fetchAllRows(
+	table: 'products' | 'clients' | 'sellers' | 'sales_orders' | 'sales_items',
+	tenantId: string,
+): Promise<Record<string, unknown>[]> {
+	const rows: Record<string, unknown>[] = [];
+	for (let from = 0; ; from += PAGE_SIZE) {
+		const { data, error } = await supabase
+			.from(table)
+			.select('*')
+			.eq('tenant_id', tenantId)
+			.order('id', { ascending: true })
+			.range(from, from + PAGE_SIZE - 1);
+
+		if (error) throw error;
+		if (!data?.length) break;
+		rows.push(...(data as Record<string, unknown>[]));
+		if (data.length < PAGE_SIZE) break;
+	}
+	return rows;
+}
+
 export async function fetchProducts(tenantId: string): Promise<Product[]> {
-	const { data, error } = await supabase
-		.from('products')
-		.select('*')
-		.eq('tenant_id', tenantId);
+	const data = await fetchAllRows('products', tenantId);
+	if (!data.length) return [];
 
-	if (error) throw error;
-	if (!data?.length) return [];
-
-	return (data as Record<string, unknown>[]).map((row) => {
+	return data.map((row) => {
 		const str = (...keys: string[]) => {
 			for (const key of keys) {
 				const value = row[key];
@@ -75,13 +97,8 @@ export async function fetchProducts(tenantId: string): Promise<Product[]> {
 }
 
 export async function fetchClients(tenantId: string): Promise<Client[]> {
-	const { data, error } = await supabase
-		.from('clients')
-		.select('*')
-		.eq('tenant_id', tenantId);
-
-	if (error) throw error;
-	if (!data?.length) return [];
+	const data = await fetchAllRows('clients', tenantId);
+	if (!data.length) return [];
 
 	return data.map((row) => ({
 		id: toText(row.id) || crypto.randomUUID(),
@@ -94,13 +111,8 @@ export async function fetchClients(tenantId: string): Promise<Client[]> {
 }
 
 export async function fetchSellers(tenantId: string): Promise<Seller[]> {
-	const { data, error } = await supabase
-		.from('sellers')
-		.select('*')
-		.eq('tenant_id', tenantId);
-
-	if (error) throw error;
-	if (!data?.length) return [];
+	const data = await fetchAllRows('sellers', tenantId);
+	if (!data.length) return [];
 
 	return data.map((row) => ({
 		id: toText(row.id) || crypto.randomUUID(),
@@ -114,13 +126,8 @@ export async function fetchSellers(tenantId: string): Promise<Seller[]> {
 }
 
 export async function fetchSalesOrders(tenantId: string): Promise<SalesOrder[]> {
-	const { data, error } = await supabase
-		.from('sales_orders')
-		.select('*')
-		.eq('tenant_id', tenantId);
-
-	if (error) throw error;
-	if (!data?.length) return [];
+	const data = await fetchAllRows('sales_orders', tenantId);
+	if (!data.length) return [];
 
 	return data.map((row) => ({
 		order_number: toText(row.order_number),
@@ -135,13 +142,8 @@ export async function fetchSalesOrders(tenantId: string): Promise<SalesOrder[]> 
 }
 
 export async function fetchSalesItems(tenantId: string): Promise<SalesItem[]> {
-	const { data, error } = await supabase
-		.from('sales_items')
-		.select('*')
-		.eq('tenant_id', tenantId);
-
-	if (error) throw error;
-	if (!data?.length) return [];
+	const data = await fetchAllRows('sales_items', tenantId);
+	if (!data.length) return [];
 
 	return data.map((row) => ({
 		order_number: toText(row.order_number),

@@ -11,6 +11,8 @@ import type { CategorySale, Client, HistoryItem, Product, Seller } from '../type
 import {
 	buildCategorySalesFromItems,
 	buildCategorySalesFromProducts,
+	buildClientEvolutionFromClients,
+	buildClientEvolutionFromOrders,
 	buildHistoryFromOrders,
 	buildHistoryFromProducts,
 	buildRecentDailySalesFromOrders,
@@ -23,6 +25,7 @@ export const useDashboardData = (tenantId: string | undefined) => {
 	const [categorySales, setCategorySales] = useState<CategorySale[]>([]);
 	const [history, setHistory] = useState<HistoryItem[]>([]);
 	const [salesTrend, setSalesTrend] = useState<HistoryItem[]>([]);
+	const [clientEvolution, setClientEvolution] = useState<HistoryItem[]>([]);
 	const [loading, setLoading] = useState(false);
 
 	useEffect(() => {
@@ -73,27 +76,41 @@ export const useDashboardData = (tenantId: string | undefined) => {
 			setHistory(historyFromOrders.length ? historyFromOrders : historyFromProducts);
 			setSalesTrend(buildRecentDailySalesFromOrders(salesOrders, 20));
 
-			// Enrich clients with last purchase dates from orders
+			// Enrich clients with last purchase dates from orders.
+			// Orders may link to a client by resolved UUID (client_id) or by the
+			// imported external_id, so index under both and look up under both.
 			if (salesOrders.length && parsedClients.length) {
 				const lastPurchaseByKey = new Map<string, string>();
-				salesOrders.forEach((order) => {
-					const key = order.client_id || order.client_external_id;
-					if (!key || !order.sold_at) return;
+				const remember = (key: string | undefined, soldAt: string) => {
+					if (!key) return;
 					const current = lastPurchaseByKey.get(key);
-					if (!current || new Date(order.sold_at) > new Date(current)) {
-						lastPurchaseByKey.set(key, order.sold_at);
+					if (!current || new Date(soldAt) > new Date(current)) {
+						lastPurchaseByKey.set(key, soldAt);
 					}
+				};
+				salesOrders.forEach((order) => {
+					if (!order.sold_at) return;
+					remember(order.client_id, order.sold_at);
+					remember(order.client_external_id, order.sold_at);
 				});
 
 				parsedClients = parsedClients.map((client) => {
 					if (client.ultimaCompra) return client;
-					const key = client.id || client.externalId;
-					const lastPurchase = key ? lastPurchaseByKey.get(key) : undefined;
+					const lastPurchase =
+						(client.id ? lastPurchaseByKey.get(client.id) : undefined) ??
+						(client.externalId ? lastPurchaseByKey.get(client.externalId) : undefined);
 					return lastPurchase ? { ...client, ultimaCompra: lastPurchase } : client;
 				});
 			}
 
 			setClientes(parsedClients);
+
+			// Client-base growth: prefer orders (real multi-month dates); fall back
+			// to the clients table's last_purchase_at when there are no orders.
+			const evolutionFromOrders = salesOrders.length ? buildClientEvolutionFromOrders(salesOrders) : [];
+			setClientEvolution(
+				evolutionFromOrders.length ? evolutionFromOrders : buildClientEvolutionFromClients(parsedClients),
+			);
 
 			// Build seller aggregates from orders + items
 			const sellerMap = new Map<string, Seller>();
@@ -146,5 +163,5 @@ export const useDashboardData = (tenantId: string | undefined) => {
 		loadData();
 	}, [tenantId]);
 
-	return { products, setProducts, clientes, vendedores, categorySales, history, salesTrend, loading };
+	return { products, setProducts, clientes, vendedores, categorySales, history, salesTrend, clientEvolution, loading };
 };

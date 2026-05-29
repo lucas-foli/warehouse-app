@@ -250,39 +250,109 @@ export const buildRecentDailySalesFromOrders = (
 export const buildClientEvolutionFromClients = (clients: Client[]): HistoryItem[] => {
 	if (!clients.length) return [];
 
-	const byMonth = new Map<
-		string,
-		{
-			key: string;
-			label: string;
-			value: number;
-		}
-	>();
-
+	// Count clients by the month of their last purchase (YYYY-MM).
+	const countByMonth = new Map<string, number>();
 	for (const c of clients) {
 		if (!c.ultimaCompra) continue;
 		const date = new Date(c.ultimaCompra);
 		if (Number.isNaN(date.getTime())) continue;
 
-		const year = date.getFullYear();
-		const month = date.getMonth(); // 0-based
-		const key = `${year}-${String(month + 1).padStart(2, '0')}`;
-		const label = `${date.toLocaleString('pt-BR', { month: 'short' })}/${String(year).slice(-2)}`;
+		const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+		countByMonth.set(key, (countByMonth.get(key) ?? 0) + 1);
+	}
 
-		const current = byMonth.get(key);
-		if (current) {
-			current.value += 1;
-		} else {
-			byMonth.set(key, { key, label, value: 1 });
+	if (!countByMonth.size) return [];
+
+	const keys = Array.from(countByMonth.keys()).sort();
+	const [startYear, startMonth] = keys[0].split('-').map(Number);
+	const [endYear, endMonth] = keys[keys.length - 1].split('-').map(Number);
+
+	// Walk every month in range, carrying a running total so the line shows
+	// the client base growing over time (cumulative), with no gaps on the axis.
+	const series: HistoryItem[] = [];
+	let cumulative = 0;
+	let year = startYear;
+	let month = startMonth; // 1-based
+
+	while (year < endYear || (year === endYear && month <= endMonth)) {
+		const key = `${year}-${String(month).padStart(2, '0')}`;
+		cumulative += countByMonth.get(key) ?? 0;
+
+		const label = `${new Date(year, month - 1, 1).toLocaleDateString('pt-BR', {
+			month: 'short',
+		})}/${String(year).slice(-2)}`;
+		series.push({ month: label, value: cumulative });
+
+		month += 1;
+		if (month > 12) {
+			month = 1;
+			year += 1;
 		}
 	}
 
-	const items = Array.from(byMonth.values());
-	if (!items.length) return [];
+	return series;
+};
 
-	items.sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+/**
+ * Client-base growth from sales orders: cumulative count of distinct clients by
+ * the month of their first purchase. Uses orders (which carry real, multi-month
+ * dates) rather than the clients table's often-empty last_purchase_at.
+ */
+export const buildClientEvolutionFromOrders = (
+	orders: Array<{
+		sold_at?: string;
+		client_id?: string;
+		client_external_id?: string;
+	}>,
+): HistoryItem[] => {
+	if (!orders.length) return [];
 
-	return items.map((i) => ({ month: i.label, value: i.value }));
+	// First-purchase month (YYYY-MM) per distinct client.
+	const firstMonthByClient = new Map<string, string>();
+	for (const order of orders) {
+		const clientKey = order.client_id || order.client_external_id;
+		if (!clientKey || !order.sold_at) continue;
+		const date = new Date(order.sold_at);
+		if (Number.isNaN(date.getTime())) continue;
+
+		const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+		const existing = firstMonthByClient.get(clientKey);
+		if (!existing || key < existing) firstMonthByClient.set(clientKey, key);
+	}
+
+	if (!firstMonthByClient.size) return [];
+
+	const newByMonth = new Map<string, number>();
+	for (const month of firstMonthByClient.values()) {
+		newByMonth.set(month, (newByMonth.get(month) ?? 0) + 1);
+	}
+
+	const keys = Array.from(newByMonth.keys()).sort();
+	const [startYear, startMonth] = keys[0].split('-').map(Number);
+	const [endYear, endMonth] = keys[keys.length - 1].split('-').map(Number);
+
+	const series: HistoryItem[] = [];
+	let cumulative = 0;
+	let year = startYear;
+	let month = startMonth; // 1-based
+
+	while (year < endYear || (year === endYear && month <= endMonth)) {
+		const key = `${year}-${String(month).padStart(2, '0')}`;
+		cumulative += newByMonth.get(key) ?? 0;
+
+		const label = `${new Date(year, month - 1, 1).toLocaleDateString('pt-BR', {
+			month: 'short',
+		})}/${String(year).slice(-2)}`;
+		series.push({ month: label, value: cumulative });
+
+		month += 1;
+		if (month > 12) {
+			month = 1;
+			year += 1;
+		}
+	}
+
+	return series;
 };
 
 export const buildClientPurchasesTimelineFromClients = (clients: Client[]): HistoryItem[] => {
