@@ -571,26 +571,18 @@ export type Database = {
         }
         Relationships: []
       }
-      tenant_members_with_email: {
-        Row: {
-          created_at: string | null
-          email: string | null
-          role: string | null
-          tenant_id: string | null
-          user_id: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "tenant_members_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
     }
     Functions: {
+      get_tenant_members_with_email: {
+        Args: { target_tenant_id: string }
+        Returns: {
+          tenant_id: string
+          user_id: string
+          role: string
+          created_at: string
+          email: string | null
+        }[]
+      }
       is_platform_admin: { Args: never; Returns: boolean }
       is_tenant_admin: { Args: { target_tenant_id: string }; Returns: boolean }
       register_sale: {

@@ -32,13 +32,13 @@ export async function listInvitations(tenantId: string): Promise<TenantInvitatio
   return (data ?? []) as TenantInvitation[];
 }
 
-// Note: emails come from a Postgres view that joins tenant_members with auth.users.
-// If that view doesn't exist yet, returns rows without email — UI handles null.
+// Note: emails come from a SECURITY DEFINER RPC that joins tenant_members with
+// auth.users and enforces tenant membership internally (is_tenant_member). Passing a
+// tenant_id the caller doesn't belong to returns no rows — RLS can't be bypassed here.
+// If the RPC doesn't exist yet, falls back to tenant_members without email (UI handles null).
 export async function listMembers(tenantId: string): Promise<TenantMember[]> {
   const { data, error } = await supabase
-    .from("tenant_members_with_email")
-    .select("*")
-    .eq("tenant_id", tenantId)
+    .rpc("get_tenant_members_with_email", { target_tenant_id: tenantId })
     .order("created_at", { ascending: true });
   if (error) {
     // Fallback: read tenant_members without email if the view doesn't exist.
