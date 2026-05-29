@@ -470,9 +470,9 @@ const ProductsPage = ({
 					</select>
 				)}
 			</div>
-				<div className={`grid gap-6 ${isEditPanelOpen ? 'lg:grid-cols-[minmax(0,1fr)_340px]' : ''}`}>
+				<div className={`grid grid-cols-1 gap-6 ${isEditPanelOpen ? 'lg:grid-cols-[minmax(0,1fr)_340px]' : ''}`}>
 					<Card interactive={false} className="border border-border/30 bg-muted">
-						<div className="overflow-auto max-h-[640px]">
+						<div className="md:max-h-[640px] md:overflow-auto">
 							<BulkActionBar
 								selectedCount={selectedIds.size}
 								busy={bulkBusy}
@@ -480,7 +480,102 @@ const ProductsPage = ({
 								onDelete={() => setBulkDeleteConfirmOpen(true)}
 								onClear={() => setSelectedIds(new Set())}
 							/>
-							<table className="min-w-full divide-y divide-black/5 text-sm">
+							{/* Mobile: stacked cards — the wide table is unusable on phones */}
+							<div className="grid grid-cols-1 gap-3 md:hidden">
+								{loading && (
+									<p className="px-1 py-6 text-center text-muted-foreground">Carregando…</p>
+								)}
+								{!loading && filteredProducts.length === 0 && (
+									<p className="px-1 py-6 text-center text-muted-foreground">
+										Nenhum produto encontrado com os filtros atuais.
+									</p>
+								)}
+								{!loading &&
+									filteredProducts.map((product) => {
+										const isSelected = selectedProductId === product.id;
+										return (
+											<div
+												key={product.id}
+												role="button"
+												tabIndex={0}
+												onClick={() => startEditProduct(product)}
+												onKeyDown={(e) => {
+													if (e.key === 'Enter' || e.key === ' ') {
+														e.preventDefault();
+														startEditProduct(product);
+													}
+												}}
+												className={`flex cursor-pointer flex-col gap-3 rounded-2xl border border-border/40 bg-card p-4 text-left transition hover:bg-muted/60 ${isSelected ? 'ring-2 ring-primary/40' : ''}`}>
+												<div className="flex items-start gap-3">
+													<span className="pt-1" onClick={(e) => e.stopPropagation()}>
+														<input
+															type="checkbox"
+															aria-label={`Select ${product.sku}`}
+															checked={selectedIds.has(product.id)}
+															onChange={() => toggleSelection(product.id)}
+														/>
+													</span>
+													<div className="h-10 w-10 shrink-0 overflow-hidden rounded-xl bg-black/5">
+														{product.image ? (
+															<img
+																src={product.image}
+																alt={product.name}
+																className="h-full w-full object-cover"
+																loading="lazy"
+															/>
+														) : (
+															<div className="flex h-full w-full items-center justify-center text-[10px] uppercase tracking-[0.2em] text-muted-foreground/70">
+																—
+															</div>
+														)}
+													</div>
+													<div className="min-w-0 flex-1">
+														<p className="line-clamp-2 text-sm font-semibold text-foreground">{product.name}</p>
+														<div className="mt-1 flex flex-wrap items-center gap-2">
+															<span className="rounded-full bg-black/5 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.15em] text-foreground">
+																{product.status}
+															</span>
+															<span className="truncate text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+																SKU {product.sku}
+															</span>
+														</div>
+													</div>
+												</div>
+												<dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+													<div className="flex min-w-0 justify-between gap-2">
+														<dt className="text-muted-foreground">Local</dt>
+														<dd className="min-w-0 truncate text-right text-foreground">{product.location}</dd>
+													</div>
+													<div className="flex min-w-0 justify-between gap-2">
+														<dt className="text-muted-foreground">Qtd</dt>
+														<dd className="text-foreground">{product.qty}</dd>
+													</div>
+													<div className="flex min-w-0 justify-between gap-2">
+														<dt className="text-muted-foreground">Mínimo</dt>
+														<dd className="text-foreground">{product.min ?? '—'}</dd>
+													</div>
+													<div className="flex min-w-0 justify-between gap-2">
+														<dt className="text-muted-foreground">Preço</dt>
+														<dd className="text-foreground">
+															{product.price ? `R$ ${product.price.toLocaleString('pt-BR')}` : '—'}
+														</dd>
+													</div>
+													<div className="flex min-w-0 justify-between gap-2">
+														<dt className="text-muted-foreground">Vendido</dt>
+														<dd className="text-foreground">
+															{product.totalSold ? product.totalSold.toLocaleString('pt-BR') : '—'}
+														</dd>
+													</div>
+													<div className="flex min-w-0 justify-between gap-2">
+														<dt className="text-muted-foreground">Cód. barras</dt>
+														<dd className="min-w-0 truncate text-right text-foreground">{product.barcode ?? '—'}</dd>
+													</div>
+												</dl>
+											</div>
+										);
+									})}
+							</div>
+							<table className="hidden min-w-full divide-y divide-black/5 text-sm md:table">
 								<thead className="sticky top-0 z-10 bg-muted text-left text-[11px] uppercase tracking-[0.25em] text-muted-foreground">
 									<tr>
 									<th className="w-10 px-2 py-2">

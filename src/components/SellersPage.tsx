@@ -81,7 +81,7 @@ const SellersPage = ({
 
 	return (
 		<>
-			<Section className="mt-8 grid items-stretch gap-8 sm:grid-cols-2 lg:grid-cols-4">
+			<Section className="mt-8 grid items-stretch gap-8 md:grid-cols-2 xl:grid-cols-4">
 				<Card>
 					<Metric value={vendedores.length.toString()} label="Vendedores ativos" />
 				</Card>

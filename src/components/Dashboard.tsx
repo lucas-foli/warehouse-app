@@ -55,7 +55,7 @@ const Dashboard = ({
 	const [page, setPage] = useState<'overview' | 'clientes' | 'vendedores'>(initialPage);
 	const [surface, setSurface] = useState<'dashboard' | 'products'>(initialSurface);
 
-	const { products, setProducts, clientes, vendedores, categorySales, history, salesTrend, loading } =
+	const { products, setProducts, clientes, vendedores, categorySales, history, salesTrend, clientEvolution, loading } =
 		useDashboardData(tenantId);
 
 	const locations = useMemo(
@@ -242,6 +242,7 @@ const Dashboard = ({
 					{page === 'clientes' && (
 						<ClientsPage
 							clientes={clientes}
+							clientEvolution={clientEvolution}
 							primaryColor={primaryColor}
 							secondaryColor={secondaryColor}
 						/>

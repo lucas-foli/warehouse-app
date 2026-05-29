@@ -8,7 +8,7 @@ import {
 	XAxis,
 	YAxis,
 } from 'recharts';
-import type { Client } from '../types';
+import type { Client, HistoryItem } from '../types';
 import {
 	buildClientEvolutionFromClients,
 	buildClientPurchasesTimelineFromClients,
@@ -17,10 +17,12 @@ import { Card, Metric, Section } from './ui/Primitives';
 
 const ClientsPage = ({
 	clientes,
+	clientEvolution: clientEvolutionProp,
 	primaryColor,
 	secondaryColor,
 }: {
 	clientes: Client[];
+	clientEvolution?: HistoryItem[];
 	primaryColor: string;
 	secondaryColor: string;
 }) => {
@@ -35,8 +37,19 @@ const ClientsPage = ({
 		return value;
 	};
 
-	const clientEvolutionSeries = buildClientEvolutionFromClients(clientes);
-	const clientEvolution = clientEvolutionSeries;
+	const clientEvolution = clientEvolutionProp?.length
+		? clientEvolutionProp
+		: buildClientEvolutionFromClients(clientes);
+
+	const lastPurchaseDate = clientes
+		.map((c) => c.ultimaCompra)
+		.filter(Boolean)
+		.map((value) => new Date(value))
+		.filter((date) => !Number.isNaN(date.getTime()))
+		.sort((a, b) => b.getTime() - a.getTime())[0];
+	const lastPurchaseLabel = lastPurchaseDate
+		? lastPurchaseDate.toLocaleDateString('pt-BR', { dateStyle: 'short' })
+		: '—';
 
 	const clientPurchasesSeries = buildClientPurchasesTimelineFromClients(clientes);
 	const clientPurchases = clientPurchasesSeries;
@@ -44,7 +57,7 @@ const ClientsPage = ({
 
 	return (
 		<>
-			<Section className="mt-8 grid items-stretch gap-8 sm:grid-cols-2 lg:grid-cols-4">
+			<Section className="mt-8 grid items-stretch gap-8 md:grid-cols-2 xl:grid-cols-4">
 				<Card>
 					<Metric
 						value={clientes.length ? clientes.length.toLocaleString('pt-BR') : 0}
@@ -58,9 +71,7 @@ const ClientsPage = ({
 					/>
 				</Card>
 				<Card>
-					<Metric value={new Date(clientes[0]?.ultimaCompra).toLocaleDateString('pt-BR', {
-						dateStyle: 'short',
-					}) ?? 0} label="Última compra registrada" />
+					<Metric value={lastPurchaseLabel} label="Última compra registrada" />
 				</Card>
 				<Card>
 					<Metric value={0} label="Novos no mês" />
