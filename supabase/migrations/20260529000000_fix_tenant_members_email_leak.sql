@@ -8,8 +8,18 @@
 -- role + email for EVERY member of EVERY tenant (IDOR / LGPD-reportable PII leak).
 --
 -- Fix: drop the view and replace it with a SECURITY DEFINER function that enforces
--- public.is_tenant_member() BEFORE returning any row. This also resolves both linter
+-- tenant membership BEFORE returning any row. This also resolves both linter
 -- findings for this entity (no SECURITY DEFINER view; no auth.users-exposing view).
+--
+-- NOTE: the authorization gate is INLINED rather than delegating to a helper such as
+-- public.is_tenant_member(uuid). The only definition of that helper lives in
+-- 20260507000000_fix_tenant_members_member_read_rls.sql.sql, whose malformed ".sql.sql"
+-- filename is not a valid Supabase migration name, so the migration runner skips it and
+-- is_tenant_member(uuid) is never created on the DB (this is what caused the original
+-- 42883 "function ... does not exist" failure). Inlining keeps this migration
+-- self-contained and applies cleanly regardless of that file. The inline EXISTS check
+-- reads auth.uid(), so the SECURITY DEFINER context cannot be abused to read other
+-- tenants' members.
 
 drop view if exists public.tenant_members_with_email;
 
@@ -31,9 +41,14 @@ as $$
   left join auth.users u on u.id = tm.user_id
   where tm.tenant_id = target_tenant_id
     -- authz gate: the caller must themselves be a member of the tenant.
-    -- is_tenant_member() reads auth.uid(), so the SECURITY DEFINER context can't be
+    -- This EXISTS reads auth.uid(), so the SECURITY DEFINER context can't be
     -- abused to read other tenants' members.
-    and public.is_tenant_member(target_tenant_id);
+    and exists (
+      select 1
+      from public.tenant_members tm2
+      where tm2.tenant_id = target_tenant_id
+        and tm2.user_id = auth.uid()
+    );
 $$;
 
 -- Lock down execution: anon must never reach member emails.

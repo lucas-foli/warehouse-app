@@ -538,41 +538,22 @@ export type Database = {
       }
     }
     Views: {
-      tenant_branding: {
-        Row: {
-          accept_join_requests: boolean | null
-          company_name: string | null
-          logo_url: string | null
-          primary_color: string | null
-          secondary_color: string | null
-          slug: string | null
-          theme_tokens: Json | null
-          ui_preset: string | null
-        }
-        Insert: {
-          accept_join_requests?: boolean | null
-          company_name?: string | null
-          logo_url?: string | null
-          primary_color?: string | null
-          secondary_color?: string | null
-          slug?: string | null
-          theme_tokens?: Json | null
-          ui_preset?: string | null
-        }
-        Update: {
-          accept_join_requests?: boolean | null
-          company_name?: string | null
-          logo_url?: string | null
-          primary_color?: string | null
-          secondary_color?: string | null
-          slug?: string | null
-          theme_tokens?: Json | null
-          ui_preset?: string | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
+      get_tenant_branding: {
+        Args: { p_slug: string }
+        Returns: {
+          slug: string
+          company_name: string
+          logo_url: string | null
+          primary_color: string
+          secondary_color: string
+          ui_preset: string
+          theme_tokens: Json
+          accept_join_requests: boolean
+        }[]
+      }
       get_tenant_members_with_email: {
         Args: { target_tenant_id: string }
         Returns: {
