@@ -17,6 +17,7 @@ import {
 	buildHistoryFromProducts,
 	buildRecentDailySalesFromOrders,
 } from '../utils/helpers';
+import { aggregateSellers } from '../utils/sellerRollup';
 
 export const useDashboardData = (tenantId: string | undefined) => {
 	const [products, setProducts] = useState<Product[]>([]);
@@ -49,6 +50,14 @@ export const useDashboardData = (tenantId: string | undefined) => {
 
 			setSalesOrders(orders);
 
+			// Exclude voided orders/items from every rollup. Slice 4 reverses stock
+			// but leaves these derived aggregates inflated; filter them here once.
+			const voidedOrderNumbers = new Set(
+				orders.filter((o) => o.status === 'voided').map((o) => o.order_number),
+			);
+			const activeOrders = orders.filter((o) => o.status !== 'voided');
+			const activeItems = salesItems.filter((i) => !voidedOrderNumbers.has(i.order_number));
+
 			// Enrich products with sold quantities from sales items
 			if (salesItems.length) {
 				const soldBySku = new Map<string, number>();
@@ -69,20 +78,20 @@ export const useDashboardData = (tenantId: string | undefined) => {
 
 			// Build category sales
 			const statusBySku = new Map(parsedProducts.map((p) => [p.sku, p.status]));
-			const categoryFromItems = salesItems.length ? buildCategorySalesFromItems(salesItems, statusBySku) : [];
+			const categoryFromItems = activeItems.length ? buildCategorySalesFromItems(activeItems, statusBySku) : [];
 			const categoryFromProducts = parsedProducts.length ? buildCategorySalesFromProducts(parsedProducts) : [];
 			setCategorySales(categoryFromItems.length ? categoryFromItems : categoryFromProducts);
 
 			// Build history
-			const historyFromOrders = orders.length ? buildHistoryFromOrders(orders) : [];
+			const historyFromOrders = activeOrders.length ? buildHistoryFromOrders(activeOrders) : [];
 			const historyFromProducts = parsedProducts.length ? buildHistoryFromProducts(parsedProducts) : [];
 			setHistory(historyFromOrders.length ? historyFromOrders : historyFromProducts);
-			setSalesTrend(buildRecentDailySalesFromOrders(orders, 20));
+			setSalesTrend(buildRecentDailySalesFromOrders(activeOrders, 20));
 
 			// Enrich clients with last purchase dates from orders.
 			// Orders may link to a client by resolved UUID (client_id) or by the
 			// imported external_id, so index under both and look up under both.
-			if (orders.length && parsedClients.length) {
+			if (activeOrders.length && parsedClients.length) {
 				const lastPurchaseByKey = new Map<string, string>();
 				const remember = (key: string | undefined, soldAt: string) => {
 					if (!key) return;
@@ -91,7 +100,7 @@ export const useDashboardData = (tenantId: string | undefined) => {
 						lastPurchaseByKey.set(key, soldAt);
 					}
 				};
-				orders.forEach((order) => {
+				activeOrders.forEach((order) => {
 					if (!order.sold_at) return;
 					remember(order.client_id, order.sold_at);
 					remember(order.client_external_id, order.sold_at);
@@ -110,55 +119,14 @@ export const useDashboardData = (tenantId: string | undefined) => {
 
 			// Client-base growth: prefer orders (real multi-month dates); fall back
 			// to the clients table's last_purchase_at when there are no orders.
-			const evolutionFromOrders = orders.length ? buildClientEvolutionFromOrders(orders) : [];
+			const evolutionFromOrders = activeOrders.length ? buildClientEvolutionFromOrders(activeOrders) : [];
 			setClientEvolution(
 				evolutionFromOrders.length ? evolutionFromOrders : buildClientEvolutionFromClients(parsedClients),
 			);
 
-			// Build seller aggregates from orders + items
-			const sellerMap = new Map<string, Seller>();
-			parsedSellers.forEach((seller) => {
-				const key = seller.externalId || seller.id;
-				if (key) sellerMap.set(key, { ...seller });
-			});
-
-			const ordersByNumber = new Map<string, { sellerKey?: string }>();
-			orders.forEach((order) => {
-				const sellerKey = order.seller_external_id || order.seller_id;
-				if (order.order_number) ordersByNumber.set(order.order_number, { sellerKey });
-				if (!sellerKey) return;
-				if (!sellerMap.has(sellerKey)) {
-					sellerMap.set(sellerKey, {
-						id: sellerKey,
-						externalId: order.seller_external_id,
-						nome: order.seller_external_id || sellerKey,
-						itens: 0,
-						bruto: 0,
-						liquido: 0,
-						boletos: 0,
-					});
-				}
-				const seller = sellerMap.get(sellerKey);
-				if (seller && Number.isFinite(order.total_amount)) {
-					seller.bruto += Number(order.total_amount);
-					seller.liquido = seller.bruto;
-				}
-				if (seller && order.status && order.status.toLowerCase().includes('boleto')) {
-					seller.boletos += 1;
-				}
-			});
-
-			salesItems.forEach((item) => {
-				const orderMeta = ordersByNumber.get(item.order_number);
-				const sellerKey = orderMeta?.sellerKey;
-				if (!sellerKey) return;
-				const seller = sellerMap.get(sellerKey);
-				if (!seller) return;
-				const qty = Number.isFinite(item.qty) ? Number(item.qty) : 0;
-				seller.itens += qty;
-			});
-
-			setVendedores(sellerMap.size ? Array.from(sellerMap.values()) : parsedSellers);
+			// Build seller aggregates from active orders + items (dual-key match,
+			// voided excluded). See src/utils/sellerRollup.ts.
+			setVendedores(aggregateSellers(parsedSellers, activeOrders, activeItems));
 
 			setLoading(false);
 		};
