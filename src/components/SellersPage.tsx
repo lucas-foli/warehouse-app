@@ -103,7 +103,7 @@ const SellersPage = ({
 				</Card>
 			</Section>
 
-				<Section className="grid gap-10 lg:grid-cols-2">
+				<Section className="grid gap-10 2xl:grid-cols-2">
 					<Card>
 						<p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-muted-foreground">
 							Performance por período

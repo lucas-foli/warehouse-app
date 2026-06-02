@@ -163,7 +163,7 @@ const ClientsPage = ({
 
 				<Section>
 					<Card interactive={false} className="border border-border/30 bg-muted">
-						<div className="max-h-[420px] overflow-auto">
+						<div className="overflow-auto">
 							<table className="min-w-full divide-y divide-black/5 text-sm">
 								<thead className="bg-muted text-left text-[11px] uppercase tracking-[0.25em] text-muted-foreground">
 									<tr>
