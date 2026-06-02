@@ -235,6 +235,8 @@ const Dashboard = ({
 					{page === 'overview' && surface === 'products' && (
 						<ProductsPage
 							products={products}
+							clients={clientes}
+							sellers={vendedores}
 							loading={loading}
 							tenantId={tenantId}
 							onProductUpdated={(updated) =>
