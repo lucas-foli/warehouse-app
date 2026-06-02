@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
 	fetchClients,
 	fetchProducts,
@@ -29,7 +29,7 @@ export const useDashboardData = (tenantId: string | undefined) => {
 	const [salesOrders, setSalesOrders] = useState<SalesOrder[]>([]);
 	const [loading, setLoading] = useState(false);
 
-	useEffect(() => {
+	const reload = useCallback(async () => {
 		const loadData = async () => {
 			if (!tenantId) return;
 			setLoading(true);
@@ -163,8 +163,12 @@ export const useDashboardData = (tenantId: string | undefined) => {
 			setLoading(false);
 		};
 
-		loadData();
+		await loadData();
 	}, [tenantId]);
 
-	return { products, setProducts, clientes, vendedores, categorySales, history, salesTrend, clientEvolution, salesOrders, setSalesOrders, loading };
+	useEffect(() => {
+		reload();
+	}, [reload]);
+
+	return { products, setProducts, clientes, vendedores, categorySales, history, salesTrend, clientEvolution, salesOrders, setSalesOrders, reload, loading };
 };

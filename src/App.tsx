@@ -404,6 +404,7 @@ const App = () => {
 						canImport={isAdmin}
 						canOpenStatusForm={isAdmin}
 						canOpenSettings={isAdmin}
+						isAdmin={isAdmin}
 					/>
 				}
 			/>
@@ -417,6 +418,7 @@ const App = () => {
 						canImport={isAdmin}
 						canOpenStatusForm={isAdmin}
 						canOpenSettings={isAdmin}
+						isAdmin={isAdmin}
 						initialSurface="products"
 					/>
 				}
@@ -431,6 +433,7 @@ const App = () => {
 						canImport={isAdmin}
 						canOpenStatusForm={isAdmin}
 						canOpenSettings={isAdmin}
+						isAdmin={isAdmin}
 						initialPage="clientes"
 					/>
 				}
@@ -445,7 +448,23 @@ const App = () => {
 						canImport={isAdmin}
 						canOpenStatusForm={isAdmin}
 						canOpenSettings={isAdmin}
+						isAdmin={isAdmin}
 						initialPage="vendedores"
+					/>
+				}
+			/>
+			<Route
+				path="/sales"
+				element={
+					<Dashboard
+						onLogout={handleLogout}
+						onOpenStatusForm={() => navigate('/status-update')}
+						onOpenImport={() => navigate('/import')}
+						canImport={isAdmin}
+						canOpenStatusForm={isAdmin}
+						canOpenSettings={isAdmin}
+						isAdmin={isAdmin}
+						initialPage="vendas"
 					/>
 				}
 			/>
