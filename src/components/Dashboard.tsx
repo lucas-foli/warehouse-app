@@ -251,6 +251,7 @@ const Dashboard = ({
 									return next;
 								})
 							}
+							onSaleRegistered={reload}
 							onBack={() => {
 								setSurface('dashboard');
 								navigate('/');
