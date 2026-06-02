@@ -31,6 +31,7 @@ const ProductsPage = ({
 	onBack,
 	tenantId,
 	onProductUpdated,
+	onSaleRegistered,
 }: {
 	products: Product[];
 	clients?: Client[];
@@ -39,6 +40,7 @@ const ProductsPage = ({
 	onBack: () => void;
 	tenantId?: string;
 	onProductUpdated?: (product: Product) => void;
+	onSaleRegistered?: () => void;
 }) => {
 	const [productQuery, setProductQuery] = useState('');
 	const [productStatusFilter, setProductStatusFilter] = useState<'all' | 'critical' | 'no-photo' | 'zero-stock'>(
@@ -410,6 +412,9 @@ const ProductsPage = ({
 	// A multi-line order moves stock for several SKUs at once; the RPC returns the
 	// order, not products, so refetch the affected products and patch them in place.
 	const handleOrderRegistered = async (affectedSkus: string[]) => {
+		// Recompute the seller/client rollups (Vendedores/Clientes tabs) so the new
+		// sale shows up without a manual reload.
+		onSaleRegistered?.();
 		if (!tenantId || !onProductUpdated) return;
 		const wanted = new Set(affectedSkus.map((s) => s.trim().toUpperCase()));
 		try {
