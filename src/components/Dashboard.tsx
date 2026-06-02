@@ -16,6 +16,7 @@ import {
 	resolveSarkLogoStorageUrl,
 } from '../utils/helpers';
 import ClientsPage from './ClientsPage';
+import OrdersPage from './OrdersPage';
 import OverviewPage from './OverviewPage';
 import ProductsPage from './ProductsPage';
 import SellersPage from './SellersPage';
@@ -28,6 +29,7 @@ const Dashboard = ({
 	canImport,
 	canOpenStatusForm = false,
 	canOpenSettings = false,
+	isAdmin = false,
 	initialPage = 'overview',
 	initialSurface = 'dashboard',
 }: {
@@ -37,7 +39,8 @@ const Dashboard = ({
 	canImport: boolean;
 	canOpenStatusForm?: boolean;
 	canOpenSettings?: boolean;
-	initialPage?: 'overview' | 'clientes' | 'vendedores';
+	isAdmin?: boolean;
+	initialPage?: 'overview' | 'clientes' | 'vendedores' | 'vendas';
 	initialSurface?: 'dashboard' | 'products';
 }) => {
 	const navigate = useNavigate();
@@ -52,11 +55,23 @@ const Dashboard = ({
 	const [brandLogoSrc, setBrandLogoSrc] = useState(logoUrl);
 	const [madeBySrc, setMadeBySrc] = useState(madeBySarkUrl);
 	const [easynumbersSrc, setEasynumbersSrc] = useState(easynumbersLogo);
-	const [page, setPage] = useState<'overview' | 'clientes' | 'vendedores'>(initialPage);
+	const [page, setPage] = useState<'overview' | 'clientes' | 'vendedores' | 'vendas'>(initialPage);
 	const [surface, setSurface] = useState<'dashboard' | 'products'>(initialSurface);
 
-	const { products, setProducts, clientes, vendedores, categorySales, history, salesTrend, clientEvolution, loading } =
-		useDashboardData(tenantId);
+	const {
+		products,
+		setProducts,
+		clientes,
+		vendedores,
+		categorySales,
+		history,
+		salesTrend,
+		clientEvolution,
+		salesOrders,
+		setSalesOrders,
+		reload,
+		loading,
+	} = useDashboardData(tenantId);
 
 	const locations = useMemo(
 		() => Array.from(new Set(products.map((p) => p.location))).filter(Boolean),
@@ -172,6 +187,7 @@ const Dashboard = ({
 								{page === 'overview' && surface === 'products' && 'Produtos'}
 								{page === 'clientes' && 'Clientes'}
 								{page === 'vendedores' && 'Vendedores'}
+								{page === 'vendas' && 'Vendas'}
 							</Title>
 						</div>
 							<div className="flex items-center gap-3 text-sm text-muted-foreground">
@@ -181,6 +197,7 @@ const Dashboard = ({
 											{ key: 'overview', label: 'Dashboard', path: '/' },
 											{ key: 'clientes', label: 'Clientes', path: '/clients' },
 											{ key: 'vendedores', label: 'Vendedores', path: '/sellers' },
+											{ key: 'vendas', label: 'Vendas', path: '/sales' },
 										] as const
 									).map((tab) => (
 										<button
@@ -255,6 +272,24 @@ const Dashboard = ({
 							vendedores={vendedores}
 							primaryColor={primaryColor}
 							secondaryColor={secondaryColor}
+						/>
+					)}
+
+					{page === 'vendas' && (
+						<OrdersPage
+							salesOrders={salesOrders}
+							clientes={clientes}
+							vendedores={vendedores}
+							tenantId={tenantId}
+							isAdmin={isAdmin}
+							onVoided={(orderId) => {
+								// Optimistic status flip for instant feedback…
+								setSalesOrders((cur) =>
+									cur.map((o) => (o.id === orderId ? { ...o, status: 'voided' } : o)),
+								);
+								// …then re-run the loader so restored product stock is reflected.
+								reload();
+							}}
 						/>
 					)}
 				</div>

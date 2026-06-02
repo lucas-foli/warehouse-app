@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabaseClient';
 import type { Client, Product, Seller } from '../types';
 
 export type SalesOrder = {
+	id: string;
 	order_number: string;
 	client_id?: string;
 	client_external_id?: string;
@@ -130,6 +131,7 @@ export async function fetchSalesOrders(tenantId: string): Promise<SalesOrder[]> 
 	if (!data.length) return [];
 
 	return data.map((row) => ({
+		id: toText(row.id),
 		order_number: toText(row.order_number),
 		client_id: toText(row.client_id) || undefined,
 		client_external_id: toText(row.client_external_id) || undefined,

@@ -20,6 +20,8 @@ const SALE_ERROR_MESSAGES: Record<string, string> = {
 	sales_item_sku_required: 'Informe o SKU do produto.',
 	sales_item_unknown_sku: 'SKU não encontrado neste catálogo.',
 	sales_item_inactive_sku: 'Este produto está inativo e não pode ser vendido.',
+	order_not_found: 'Pedido não encontrado.',
+	order_already_voided: 'Este pedido já foi estornado.',
 };
 
 const friendlySaleError = (rawMessage: string): string => {
@@ -46,6 +48,24 @@ export async function registerSaleOrder(input: RegisterSaleOrderInput) {
 
 	if (error) throw new Error(friendlySaleError(error.message));
 	if (!data) throw new Error('Não foi possível registrar a venda.');
+
+	return data;
+}
+
+/**
+ * Voids a registered sale order via the void_sale_order RPC: restores stock and
+ * total_sold for every line whose product still exists, marks the order
+ * 'voided', all in one transaction. Idempotent — a second void of the same
+ * order surfaces "Este pedido já foi estornado.".
+ */
+export async function voidSaleOrder(input: { tenantId: string; orderId: string }) {
+	const { data, error } = await supabase.rpc('void_sale_order', {
+		p_tenant_id: input.tenantId,
+		p_order_id: input.orderId,
+	});
+
+	if (error) throw new Error(friendlySaleError(error.message));
+	if (!data) throw new Error('Não foi possível estornar o pedido.');
 
 	return data;
 }
