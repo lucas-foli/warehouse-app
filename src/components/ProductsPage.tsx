@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import type { Product } from '../types';
+import type { Client, Product, Seller } from '../types';
 import { aggregateBulkResults, chunked, type BulkResult } from '../utils/bulk';
 import { BulkActionBar } from './products/BulkActionBar';
 import { BulkEditFieldPopover, type BulkEditableField } from './products/BulkEditFieldPopover';
@@ -24,12 +24,16 @@ type ProductDraft = {
 
 const ProductsPage = ({
 	products,
+	clients = [],
+	sellers = [],
 	loading,
 	onBack,
 	tenantId,
 	onProductUpdated,
 }: {
 	products: Product[];
+	clients?: Client[];
+	sellers?: Seller[];
 	loading: boolean;
 	onBack: () => void;
 	tenantId?: string;
@@ -919,6 +923,8 @@ const ProductsPage = ({
 		<SaleEntryModal
 			open={saleModalOpen}
 			products={products}
+			clients={clients}
+			sellers={sellers}
 			initialProductId={selectedProductId}
 			tenantId={tenantId}
 			onClose={() => setSaleModalOpen(false)}
