@@ -8,6 +8,7 @@ type Props = {
 	products: Product[];
 	clients?: Client[];
 	sellers?: Seller[];
+	initialProductId?: string | null;
 	tenantId?: string;
 	onClose: () => void;
 	// The RPC returns the order, not products; the page refetches these SKUs' stock.
@@ -24,6 +25,7 @@ export const SaleOrderModal = ({
 	products,
 	clients = [],
 	sellers = [],
+	initialProductId,
 	tenantId,
 	onClose,
 	onRegistered,
@@ -62,10 +64,12 @@ export const SaleOrderModal = ({
 		[sellers],
 	);
 
-	// Reset the whole cart whenever the modal opens.
+	// Reset the whole cart whenever the modal opens (default the editor to the row
+	// the user had selected, falling back to the first sellable product).
 	useEffect(() => {
 		if (!open) return;
-		const seed = sellableProducts[0] ?? null;
+		const seed =
+			(initialProductId && sellableProducts.find((p) => p.id === initialProductId)) || sellableProducts[0] || null;
 		setLines([]);
 		setProductId(seed?.id ?? '');
 		setUnitPrice(seed?.price !== undefined ? String(seed.price) : '');
@@ -76,7 +80,7 @@ export const SaleOrderModal = ({
 		setError('');
 		setNotice('');
 		setSubmitting(false);
-	}, [open, sellableProducts]);
+	}, [open, initialProductId, sellableProducts]);
 
 	// Default the unit price to the product's list price when the editor product changes.
 	useEffect(() => {

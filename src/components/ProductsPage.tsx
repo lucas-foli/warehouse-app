@@ -7,7 +7,6 @@ import { BulkActionBar } from './products/BulkActionBar';
 import { BulkEditFieldPopover, type BulkEditableField } from './products/BulkEditFieldPopover';
 import { BulkResultDialog } from './products/BulkResultDialog';
 import { ConfirmDialog } from './products/ConfirmDialog';
-import { SaleEntryModal } from './products/SaleEntryModal';
 import { SaleOrderModal } from './products/SaleOrderModal';
 import { Card, Section } from './ui/Primitives';
 
@@ -61,7 +60,6 @@ const ProductsPage = ({
 	const [bulkResultAction, setBulkResultAction] = useState<'updated' | 'deleted'>('updated');
 	const [bulkBusy, setBulkBusy] = useState(false);
 	const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
-	const [saleModalOpen, setSaleModalOpen] = useState(false);
 	const [saleOrderModalOpen, setSaleOrderModalOpen] = useState(false);
 
 	const toggleSelection = (id: string) => {
@@ -454,12 +452,6 @@ const ProductsPage = ({
 						<button
 							type="button"
 							onClick={() => setSaleOrderModalOpen(true)}
-							className="rounded-full border border-border/40 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-foreground transition hover:bg-primary hover:text-primary-foreground">
-							Nova venda (vários itens)
-						</button>
-						<button
-							type="button"
-							onClick={() => setSaleModalOpen(true)}
 							className="rounded-full bg-primary px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-primary-foreground transition hover:opacity-90">
 							Registrar venda
 						</button>
@@ -944,21 +936,12 @@ const ProductsPage = ({
 			onApply={handleBulkEditField}
 			onCancel={() => setBulkEditOpen(false)}
 		/>
-		<SaleEntryModal
-			open={saleModalOpen}
-			products={products}
-			clients={clients}
-			sellers={sellers}
-			initialProductId={selectedProductId}
-			tenantId={tenantId}
-			onClose={() => setSaleModalOpen(false)}
-			onRegistered={(updated) => onProductUpdated?.(updated)}
-		/>
 		<SaleOrderModal
 			open={saleOrderModalOpen}
 			products={products}
 			clients={clients}
 			sellers={sellers}
+			initialProductId={selectedProductId}
 			tenantId={tenantId}
 			onClose={() => setSaleOrderModalOpen(false)}
 			onRegistered={handleOrderRegistered}
