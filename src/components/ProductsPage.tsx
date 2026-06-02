@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { fetchProducts } from '../services/dashboardService';
 import type { Client, Product, Seller } from '../types';
 import { aggregateBulkResults, chunked, type BulkResult } from '../utils/bulk';
 import { BulkActionBar } from './products/BulkActionBar';
@@ -7,6 +8,7 @@ import { BulkEditFieldPopover, type BulkEditableField } from './products/BulkEdi
 import { BulkResultDialog } from './products/BulkResultDialog';
 import { ConfirmDialog } from './products/ConfirmDialog';
 import { SaleEntryModal } from './products/SaleEntryModal';
+import { SaleOrderModal } from './products/SaleOrderModal';
 import { Card, Section } from './ui/Primitives';
 
 type ProductDraft = {
@@ -60,6 +62,7 @@ const ProductsPage = ({
 	const [bulkBusy, setBulkBusy] = useState(false);
 	const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
 	const [saleModalOpen, setSaleModalOpen] = useState(false);
+	const [saleOrderModalOpen, setSaleOrderModalOpen] = useState(false);
 
 	const toggleSelection = (id: string) => {
 		setSelectedIds((current) => {
@@ -406,6 +409,21 @@ const ProductsPage = ({
 		setSelectedIds(new Set());
 	};
 
+	// A multi-line order moves stock for several SKUs at once; the RPC returns the
+	// order, not products, so refetch the affected products and patch them in place.
+	const handleOrderRegistered = async (affectedSkus: string[]) => {
+		if (!tenantId || !onProductUpdated) return;
+		const wanted = new Set(affectedSkus.map((s) => s.trim().toUpperCase()));
+		try {
+			const fresh = await fetchProducts(tenantId);
+			fresh.forEach((p) => {
+				if (wanted.has(p.sku.trim().toUpperCase())) onProductUpdated(p);
+			});
+		} catch {
+			/* a failed refresh just leaves stale stock numbers until the next load */
+		}
+	};
+
 	return (
 		<Section className="mt-8 space-y-8">
 			<div className="flex flex-wrap items-center justify-between gap-4">
@@ -432,6 +450,12 @@ const ProductsPage = ({
 							onClick={startCreateProduct}
 							className="rounded-full border border-border/40 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-foreground transition hover:bg-primary hover:text-primary-foreground">
 							Novo produto
+						</button>
+						<button
+							type="button"
+							onClick={() => setSaleOrderModalOpen(true)}
+							className="rounded-full border border-border/40 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-foreground transition hover:bg-primary hover:text-primary-foreground">
+							Nova venda (vários itens)
 						</button>
 						<button
 							type="button"
@@ -929,6 +953,15 @@ const ProductsPage = ({
 			tenantId={tenantId}
 			onClose={() => setSaleModalOpen(false)}
 			onRegistered={(updated) => onProductUpdated?.(updated)}
+		/>
+		<SaleOrderModal
+			open={saleOrderModalOpen}
+			products={products}
+			clients={clients}
+			sellers={sellers}
+			tenantId={tenantId}
+			onClose={() => setSaleOrderModalOpen(false)}
+			onRegistered={handleOrderRegistered}
 		/>
 		<BulkResultDialog
 			open={bulkResult !== null}
