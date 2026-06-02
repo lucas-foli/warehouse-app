@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { Client, Product, Seller } from '../../types';
 import { registerSaleOrder } from '../../services/salesService';
 import { mergeCartLines, type CartLine } from '../../utils/cart';
+import { findProductByCode } from '../../utils/barcode';
 
 type Props = {
 	open: boolean;
@@ -32,6 +33,8 @@ export const SaleOrderModal = ({
 }: Props) => {
 	const [lines, setLines] = useState<CartLine[]>([]);
 	const [productId, setProductId] = useState('');
+	const [scan, setScan] = useState('');
+	const [scanMsg, setScanMsg] = useState('');
 	const [qty, setQty] = useState('1');
 	const [unitPrice, setUnitPrice] = useState('');
 	const [soldAt, setSoldAt] = useState(todayISODate());
@@ -71,6 +74,8 @@ export const SaleOrderModal = ({
 		const seed =
 			(initialProductId && sellableProducts.find((p) => p.id === initialProductId)) || sellableProducts[0] || null;
 		setLines([]);
+		setScan('');
+		setScanMsg('');
 		setProductId(seed?.id ?? '');
 		setUnitPrice(seed?.price !== undefined ? String(seed.price) : '');
 		setQty('1');
@@ -101,12 +106,15 @@ export const SaleOrderModal = ({
 		editorQty > 0 &&
 		(editorPrice === null || Number.isFinite(editorPrice));
 
+	// Single merge path: scanning and the manual editor both append one line here,
+	// so a repeated SKU increments its existing cart line instead of duplicating.
+	const addToCart = (line: CartLine) => setLines((current) => mergeCartLines([...current, line]));
+
 	const addLine = () => {
 		if (!canAddLine || !selectedProduct) return;
 		const sku = selectedProduct.sku.trim().toUpperCase();
 		const alreadyInCart = lines.some((l) => l.sku.trim().toUpperCase() === sku);
-		const merged = mergeCartLines([...lines, { sku: selectedProduct.sku, qty: editorQty, unitPrice: editorPrice }]);
-		setLines(merged);
+		addToCart({ sku: selectedProduct.sku, qty: editorQty, unitPrice: editorPrice });
 		setNotice(
 			alreadyInCart
 				? `Item já no carrinho: somamos a quantidade${editorPrice !== null ? ' e atualizamos o preço para o último informado' : ''}.`
@@ -114,6 +122,20 @@ export const SaleOrderModal = ({
 		);
 		setQty('1');
 		setError('');
+	};
+
+	// Add a product to the cart by SKU at qty 1 and its list price (used by the scanner).
+	const addBySku = (sku: string, price: number | null) => addToCart({ sku, qty: 1, unitPrice: price });
+
+	const handleScan = () => {
+		const match = findProductByCode(products, scan);
+		if (match) {
+			addBySku(match.sku, match.price ?? null);
+			setScanMsg(`✓ ${match.sku} — ${match.name}`);
+		} else {
+			setScanMsg(`Código não encontrado: ${scan.trim()}`);
+		}
+		setScan('');
 	};
 
 	const removeLine = (sku: string) => {
@@ -171,6 +193,22 @@ export const SaleOrderModal = ({
 				<div className="mt-6 grid gap-4 overflow-y-auto pr-1">
 					{/* Line editor */}
 					<div className="grid gap-3 rounded-2xl border border-border/40 bg-muted/40 p-4">
+						<div>
+							<label className={labelClass}>Escanear código</label>
+							<input
+								value={scan}
+								onChange={(e) => setScan(e.target.value)}
+								onKeyDown={(e) => {
+									if (e.key !== 'Enter') return;
+									e.preventDefault();
+									handleScan();
+								}}
+								placeholder="Bipe ou digite e pressione Enter"
+								autoFocus
+								className={fieldClass}
+							/>
+							{scanMsg && <p className="mt-1 text-[11px] text-muted-foreground">{scanMsg}</p>}
+						</div>
 						<div>
 							<label className={labelClass}>Produto</label>
 							<select
