@@ -392,82 +392,30 @@ const App = () => {
 
 	const isAdmin = membership.role === 'admin';
 
+	// One Dashboard element shared across every dashboard path. The visible
+	// page/surface is derived from the URL inside Dashboard (see
+	// resolveDashboardView), so these routes only need to register which paths
+	// land on the dashboard — back/forward navigation re-renders it with the
+	// view that matches the new path.
+	const dashboardElement = (
+		<Dashboard
+			onLogout={handleLogout}
+			onOpenStatusForm={() => navigate('/status-update')}
+			onOpenImport={() => navigate('/import')}
+			canImport={isAdmin}
+			canOpenStatusForm={isAdmin}
+			canOpenSettings={isAdmin}
+			isAdmin={isAdmin}
+		/>
+	);
+
 	return (
 		<Routes>
-			<Route
-				path="/"
-				element={
-					<Dashboard
-						onLogout={handleLogout}
-						onOpenStatusForm={() => navigate('/status-update')}
-						onOpenImport={() => navigate('/import')}
-						canImport={isAdmin}
-						canOpenStatusForm={isAdmin}
-						canOpenSettings={isAdmin}
-						isAdmin={isAdmin}
-					/>
-				}
-			/>
-			<Route
-				path="/products"
-				element={
-					<Dashboard
-						onLogout={handleLogout}
-						onOpenStatusForm={() => navigate('/status-update')}
-						onOpenImport={() => navigate('/import')}
-						canImport={isAdmin}
-						canOpenStatusForm={isAdmin}
-						canOpenSettings={isAdmin}
-						isAdmin={isAdmin}
-						initialSurface="products"
-					/>
-				}
-			/>
-			<Route
-				path="/clients"
-				element={
-					<Dashboard
-						onLogout={handleLogout}
-						onOpenStatusForm={() => navigate('/status-update')}
-						onOpenImport={() => navigate('/import')}
-						canImport={isAdmin}
-						canOpenStatusForm={isAdmin}
-						canOpenSettings={isAdmin}
-						isAdmin={isAdmin}
-						initialPage="clientes"
-					/>
-				}
-			/>
-			<Route
-				path="/sellers"
-				element={
-					<Dashboard
-						onLogout={handleLogout}
-						onOpenStatusForm={() => navigate('/status-update')}
-						onOpenImport={() => navigate('/import')}
-						canImport={isAdmin}
-						canOpenStatusForm={isAdmin}
-						canOpenSettings={isAdmin}
-						isAdmin={isAdmin}
-						initialPage="vendedores"
-					/>
-				}
-			/>
-			<Route
-				path="/sales"
-				element={
-					<Dashboard
-						onLogout={handleLogout}
-						onOpenStatusForm={() => navigate('/status-update')}
-						onOpenImport={() => navigate('/import')}
-						canImport={isAdmin}
-						canOpenStatusForm={isAdmin}
-						canOpenSettings={isAdmin}
-						isAdmin={isAdmin}
-						initialPage="vendas"
-					/>
-				}
-			/>
+			<Route path="/" element={dashboardElement} />
+			<Route path="/products" element={dashboardElement} />
+			<Route path="/clients" element={dashboardElement} />
+			<Route path="/sellers" element={dashboardElement} />
+			<Route path="/sales" element={dashboardElement} />
 			{isAdmin && (
 				<Route
 					path="/status-update"

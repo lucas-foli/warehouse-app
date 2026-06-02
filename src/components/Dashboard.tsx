@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { BiListCheck } from 'react-icons/bi';
 import { FiUploadCloud } from 'react-icons/fi';
 import { LuLogOut, LuSettings } from 'react-icons/lu';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useTenant } from '../context/TenantContext';
 import { useTheme } from '../context/ThemeContext';
 import { useDashboardData } from '../hooks/useDashboardData';
@@ -21,6 +21,7 @@ import OverviewPage from './OverviewPage';
 import ProductsPage from './ProductsPage';
 import SellersPage from './SellersPage';
 import { Title } from './ui/Primitives';
+import { resolveDashboardView } from '../utils/dashboardView';
 
 const Dashboard = ({
 	onLogout,
@@ -30,8 +31,6 @@ const Dashboard = ({
 	canOpenStatusForm = false,
 	canOpenSettings = false,
 	isAdmin = false,
-	initialPage = 'overview',
-	initialSurface = 'dashboard',
 }: {
 	onLogout: () => void;
 	onOpenStatusForm: () => void;
@@ -40,10 +39,9 @@ const Dashboard = ({
 	canOpenStatusForm?: boolean;
 	canOpenSettings?: boolean;
 	isAdmin?: boolean;
-	initialPage?: 'overview' | 'clientes' | 'vendedores' | 'vendas';
-	initialSurface?: 'dashboard' | 'products';
 }) => {
 	const navigate = useNavigate();
+	const location = useLocation();
 	const { tenant } = useTenant();
 	const tenantId = tenant?.id;
 	const { logoUrl, primaryColor, secondaryColor, companyName, uiPreset } = useTheme();
@@ -55,8 +53,12 @@ const Dashboard = ({
 	const [brandLogoSrc, setBrandLogoSrc] = useState(logoUrl);
 	const [madeBySrc, setMadeBySrc] = useState(madeBySarkUrl);
 	const [easynumbersSrc, setEasynumbersSrc] = useState(easynumbersLogo);
-	const [page, setPage] = useState<'overview' | 'clientes' | 'vendedores' | 'vendas'>(initialPage);
-	const [surface, setSurface] = useState<'dashboard' | 'products'>(initialSurface);
+	// View is derived from the URL, not local state. This is what makes the
+	// browser back/forward buttons work: a history pop changes the path, which
+	// re-renders this component with a new resolved view. The in-app tabs and
+	// surface toggles below simply navigate(); the URL is the single source of
+	// truth for which page/surface is shown.
+	const { page, surface } = resolveDashboardView(location.pathname);
 
 	const {
 		products,
@@ -203,11 +205,7 @@ const Dashboard = ({
 										<button
 											key={tab.key}
 											type="button"
-											onClick={() => {
-												setPage(tab.key);
-												if (tab.key !== 'overview') setSurface('dashboard');
-												navigate(tab.path);
-											}}
+											onClick={() => navigate(tab.path)}
 											className={`rounded-full px-4 py-2 transition ${page === tab.key ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
 												}`}>
 											{tab.label}
@@ -225,10 +223,7 @@ const Dashboard = ({
 							salesTrend={salesTrend}
 							primaryColor={primaryColor}
 							secondaryColor={secondaryColor}
-							onViewAllProducts={() => {
-								setSurface('products');
-								navigate('/products');
-							}}
+							onViewAllProducts={() => navigate('/products')}
 						/>
 					)}
 
@@ -252,10 +247,7 @@ const Dashboard = ({
 								})
 							}
 							onSaleRegistered={reload}
-							onBack={() => {
-								setSurface('dashboard');
-								navigate('/');
-							}}
+							onBack={() => navigate('/')}
 						/>
 					)}
 
