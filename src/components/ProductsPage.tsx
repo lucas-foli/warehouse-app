@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import type { Product } from '../types';
+import { fetchProducts } from '../services/dashboardService';
+import type { Client, Product, Seller } from '../types';
 import { aggregateBulkResults, chunked, type BulkResult } from '../utils/bulk';
 import { BulkActionBar } from './products/BulkActionBar';
 import { BulkEditFieldPopover, type BulkEditableField } from './products/BulkEditFieldPopover';
 import { BulkResultDialog } from './products/BulkResultDialog';
 import { ConfirmDialog } from './products/ConfirmDialog';
-import { SaleEntryModal } from './products/SaleEntryModal';
+import { SaleOrderModal } from './products/SaleOrderModal';
 import { Card, Section } from './ui/Primitives';
 
 type ProductDraft = {
@@ -24,12 +25,16 @@ type ProductDraft = {
 
 const ProductsPage = ({
 	products,
+	clients = [],
+	sellers = [],
 	loading,
 	onBack,
 	tenantId,
 	onProductUpdated,
 }: {
 	products: Product[];
+	clients?: Client[];
+	sellers?: Seller[];
 	loading: boolean;
 	onBack: () => void;
 	tenantId?: string;
@@ -55,7 +60,7 @@ const ProductsPage = ({
 	const [bulkResultAction, setBulkResultAction] = useState<'updated' | 'deleted'>('updated');
 	const [bulkBusy, setBulkBusy] = useState(false);
 	const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
-	const [saleModalOpen, setSaleModalOpen] = useState(false);
+	const [saleOrderModalOpen, setSaleOrderModalOpen] = useState(false);
 
 	const toggleSelection = (id: string) => {
 		setSelectedIds((current) => {
@@ -402,6 +407,21 @@ const ProductsPage = ({
 		setSelectedIds(new Set());
 	};
 
+	// A multi-line order moves stock for several SKUs at once; the RPC returns the
+	// order, not products, so refetch the affected products and patch them in place.
+	const handleOrderRegistered = async (affectedSkus: string[]) => {
+		if (!tenantId || !onProductUpdated) return;
+		const wanted = new Set(affectedSkus.map((s) => s.trim().toUpperCase()));
+		try {
+			const fresh = await fetchProducts(tenantId);
+			fresh.forEach((p) => {
+				if (wanted.has(p.sku.trim().toUpperCase())) onProductUpdated(p);
+			});
+		} catch {
+			/* a failed refresh just leaves stale stock numbers until the next load */
+		}
+	};
+
 	return (
 		<Section className="mt-8 space-y-8">
 			<div className="flex flex-wrap items-center justify-between gap-4">
@@ -431,7 +451,7 @@ const ProductsPage = ({
 						</button>
 						<button
 							type="button"
-							onClick={() => setSaleModalOpen(true)}
+							onClick={() => setSaleOrderModalOpen(true)}
 							className="rounded-full bg-primary px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-primary-foreground transition hover:opacity-90">
 							Registrar venda
 						</button>
@@ -916,13 +936,15 @@ const ProductsPage = ({
 			onApply={handleBulkEditField}
 			onCancel={() => setBulkEditOpen(false)}
 		/>
-		<SaleEntryModal
-			open={saleModalOpen}
+		<SaleOrderModal
+			open={saleOrderModalOpen}
 			products={products}
+			clients={clients}
+			sellers={sellers}
 			initialProductId={selectedProductId}
 			tenantId={tenantId}
-			onClose={() => setSaleModalOpen(false)}
-			onRegistered={(updated) => onProductUpdated?.(updated)}
+			onClose={() => setSaleOrderModalOpen(false)}
+			onRegistered={handleOrderRegistered}
 		/>
 		<BulkResultDialog
 			open={bulkResult !== null}
