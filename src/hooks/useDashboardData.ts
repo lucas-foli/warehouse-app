@@ -26,6 +26,7 @@ export const useDashboardData = (tenantId: string | undefined) => {
 	const [history, setHistory] = useState<HistoryItem[]>([]);
 	const [salesTrend, setSalesTrend] = useState<HistoryItem[]>([]);
 	const [clientEvolution, setClientEvolution] = useState<HistoryItem[]>([]);
+	const [salesOrders, setSalesOrders] = useState<SalesOrder[]>([]);
 	const [loading, setLoading] = useState(false);
 
 	useEffect(() => {
@@ -41,10 +42,12 @@ export const useDashboardData = (tenantId: string | undefined) => {
 			try { parsedClients = await fetchClients(tenantId); } catch { /* empty */ }
 			try { parsedSellers = await fetchSellers(tenantId); } catch { /* empty */ }
 
-			let salesOrders: SalesOrder[] = [];
+			let orders: SalesOrder[] = [];
 			let salesItems: SalesItem[] = [];
-			try { salesOrders = await fetchSalesOrders(tenantId); } catch { /* empty */ }
+			try { orders = await fetchSalesOrders(tenantId); } catch { /* empty */ }
 			try { salesItems = await fetchSalesItems(tenantId); } catch { /* empty */ }
+
+			setSalesOrders(orders);
 
 			// Enrich products with sold quantities from sales items
 			if (salesItems.length) {
@@ -71,15 +74,15 @@ export const useDashboardData = (tenantId: string | undefined) => {
 			setCategorySales(categoryFromItems.length ? categoryFromItems : categoryFromProducts);
 
 			// Build history
-			const historyFromOrders = salesOrders.length ? buildHistoryFromOrders(salesOrders) : [];
+			const historyFromOrders = orders.length ? buildHistoryFromOrders(orders) : [];
 			const historyFromProducts = parsedProducts.length ? buildHistoryFromProducts(parsedProducts) : [];
 			setHistory(historyFromOrders.length ? historyFromOrders : historyFromProducts);
-			setSalesTrend(buildRecentDailySalesFromOrders(salesOrders, 20));
+			setSalesTrend(buildRecentDailySalesFromOrders(orders, 20));
 
 			// Enrich clients with last purchase dates from orders.
 			// Orders may link to a client by resolved UUID (client_id) or by the
 			// imported external_id, so index under both and look up under both.
-			if (salesOrders.length && parsedClients.length) {
+			if (orders.length && parsedClients.length) {
 				const lastPurchaseByKey = new Map<string, string>();
 				const remember = (key: string | undefined, soldAt: string) => {
 					if (!key) return;
@@ -88,7 +91,7 @@ export const useDashboardData = (tenantId: string | undefined) => {
 						lastPurchaseByKey.set(key, soldAt);
 					}
 				};
-				salesOrders.forEach((order) => {
+				orders.forEach((order) => {
 					if (!order.sold_at) return;
 					remember(order.client_id, order.sold_at);
 					remember(order.client_external_id, order.sold_at);
@@ -107,7 +110,7 @@ export const useDashboardData = (tenantId: string | undefined) => {
 
 			// Client-base growth: prefer orders (real multi-month dates); fall back
 			// to the clients table's last_purchase_at when there are no orders.
-			const evolutionFromOrders = salesOrders.length ? buildClientEvolutionFromOrders(salesOrders) : [];
+			const evolutionFromOrders = orders.length ? buildClientEvolutionFromOrders(orders) : [];
 			setClientEvolution(
 				evolutionFromOrders.length ? evolutionFromOrders : buildClientEvolutionFromClients(parsedClients),
 			);
@@ -120,7 +123,7 @@ export const useDashboardData = (tenantId: string | undefined) => {
 			});
 
 			const ordersByNumber = new Map<string, { sellerKey?: string }>();
-			salesOrders.forEach((order) => {
+			orders.forEach((order) => {
 				const sellerKey = order.seller_external_id || order.seller_id;
 				if (order.order_number) ordersByNumber.set(order.order_number, { sellerKey });
 				if (!sellerKey) return;
@@ -163,5 +166,5 @@ export const useDashboardData = (tenantId: string | undefined) => {
 		loadData();
 	}, [tenantId]);
 
-	return { products, setProducts, clientes, vendedores, categorySales, history, salesTrend, clientEvolution, loading };
+	return { products, setProducts, clientes, vendedores, categorySales, history, salesTrend, clientEvolution, salesOrders, setSalesOrders, loading };
 };
