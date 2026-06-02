@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { Product } from '../../types';
+import type { Client, Product, Seller } from '../../types';
 import { registerSale } from '../../services/salesService';
 
 type Props = {
 	open: boolean;
 	products: Product[];
+	clients?: Client[];
+	sellers?: Seller[];
 	initialProductId?: string | null;
 	tenantId?: string;
 	onClose: () => void;
@@ -16,6 +18,8 @@ const todayISODate = () => new Date().toISOString().slice(0, 10);
 export const SaleEntryModal = ({
 	open,
 	products,
+	clients = [],
+	sellers = [],
 	initialProductId,
 	tenantId,
 	onClose,
@@ -25,6 +29,8 @@ export const SaleEntryModal = ({
 	const [qty, setQty] = useState('1');
 	const [unitPrice, setUnitPrice] = useState('');
 	const [soldAt, setSoldAt] = useState(todayISODate());
+	const [clientId, setClientId] = useState('');
+	const [sellerId, setSellerId] = useState('');
 	const [submitting, setSubmitting] = useState(false);
 	const [error, setError] = useState('');
 
@@ -38,6 +44,15 @@ export const SaleEntryModal = ({
 		[products, productId],
 	);
 
+	const sortedClients = useMemo(
+		() => [...clients].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')),
+		[clients],
+	);
+	const sortedSellers = useMemo(
+		() => [...sellers].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')),
+		[sellers],
+	);
+
 	// Seed the form when the modal opens (default to the row the user clicked).
 	useEffect(() => {
 		if (!open) return;
@@ -47,6 +62,8 @@ export const SaleEntryModal = ({
 		setUnitPrice(seed?.price !== undefined ? String(seed.price) : '');
 		setQty('1');
 		setSoldAt(todayISODate());
+		setClientId('');
+		setSellerId('');
 		setError('');
 		setSubmitting(false);
 	}, [open, initialProductId, products, sellableProducts]);
@@ -82,6 +99,8 @@ export const SaleEntryModal = ({
 				qty: qtyNumber,
 				unitPrice: priceNumber,
 				soldAt: new Date(`${soldAt}T12:00:00`).toISOString(),
+				clientId: clientId || null,
+				sellerId: sellerId || null,
 			});
 			onRegistered(updated);
 			onClose();
@@ -131,6 +150,37 @@ export const SaleEntryModal = ({
 								Em estoque: {selectedProduct.qty}
 							</p>
 						)}
+					</div>
+
+					<div className="grid grid-cols-2 gap-3">
+						<div>
+							<label className={labelClass}>Cliente</label>
+							<select
+								value={clientId}
+								onChange={(e) => setClientId(e.target.value)}
+								className={`${fieldClass} cursor-pointer`}>
+								<option value="">Sem cliente</option>
+								{sortedClients.map((c) => (
+									<option key={c.id} value={c.id}>
+										{c.cidade && c.cidade !== '—' ? `${c.nome} — ${c.cidade}` : c.nome}
+									</option>
+								))}
+							</select>
+						</div>
+						<div>
+							<label className={labelClass}>Vendedor</label>
+							<select
+								value={sellerId}
+								onChange={(e) => setSellerId(e.target.value)}
+								className={`${fieldClass} cursor-pointer`}>
+								<option value="">Sem vendedor</option>
+								{sortedSellers.map((s) => (
+									<option key={s.id} value={s.id}>
+										{s.nome}
+									</option>
+								))}
+							</select>
+						</div>
 					</div>
 
 					<div className="grid grid-cols-2 gap-3">
