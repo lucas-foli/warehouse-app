@@ -538,59 +538,32 @@ export type Database = {
       }
     }
     Views: {
-      tenant_branding: {
-        Row: {
-          accept_join_requests: boolean | null
-          company_name: string | null
-          logo_url: string | null
-          primary_color: string | null
-          secondary_color: string | null
-          slug: string | null
-          theme_tokens: Json | null
-          ui_preset: string | null
-        }
-        Insert: {
-          accept_join_requests?: boolean | null
-          company_name?: string | null
-          logo_url?: string | null
-          primary_color?: string | null
-          secondary_color?: string | null
-          slug?: string | null
-          theme_tokens?: Json | null
-          ui_preset?: string | null
-        }
-        Update: {
-          accept_join_requests?: boolean | null
-          company_name?: string | null
-          logo_url?: string | null
-          primary_color?: string | null
-          secondary_color?: string | null
-          slug?: string | null
-          theme_tokens?: Json | null
-          ui_preset?: string | null
-        }
-        Relationships: []
-      }
-      tenant_members_with_email: {
-        Row: {
-          created_at: string | null
-          email: string | null
-          role: string | null
-          tenant_id: string | null
-          user_id: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "tenant_members_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
+      [_ in never]: never
     }
     Functions: {
+      get_tenant_branding: {
+        Args: { p_slug: string }
+        Returns: {
+          slug: string
+          company_name: string
+          logo_url: string | null
+          primary_color: string
+          secondary_color: string
+          ui_preset: string
+          theme_tokens: Json
+          accept_join_requests: boolean
+        }[]
+      }
+      get_tenant_members_with_email: {
+        Args: { target_tenant_id: string }
+        Returns: {
+          tenant_id: string
+          user_id: string
+          role: string
+          created_at: string
+          email: string | null
+        }[]
+      }
       is_platform_admin: { Args: never; Returns: boolean }
       is_tenant_admin: { Args: { target_tenant_id: string }; Returns: boolean }
       register_sale: {

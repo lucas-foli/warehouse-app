@@ -138,11 +138,10 @@ export const TenantProvider = ({ children }: { children: React.ReactNode }) => {
 				return;
 			}
 
-			// Fall back to the branding-only view (works for anon/pre-auth — login page theming)
+			// Fall back to the branding-only RPC (works for anon/pre-auth — login page theming).
+			// SECURITY DEFINER function gated to a single slug; replaces the old tenant_branding view.
 			const { data: brandingData, error: brandingError } = await supabase
-				.from('tenant_branding')
-				.select('*')
-				.eq('slug', tenantSlug)
+				.rpc('get_tenant_branding', { p_slug: tenantSlug })
 				.maybeSingle();
 
 			if (brandingError) throw brandingError;
