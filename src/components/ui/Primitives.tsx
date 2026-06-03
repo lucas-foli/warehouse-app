@@ -18,7 +18,11 @@ type CardProps = WithChildren & {
 };
 
 export const Card = ({ children, className, interactive = true, style }: CardProps) => {
-	const base = 'rounded-[var(--radius-card)] bg-muted p-8 text-foreground';
+	// min-w-0 lets the card shrink below its content's min-content width when it is a
+	// flex/grid item. Without it, grid items default to min-width:auto and refuse to
+	// shrink — a wide child (e.g. the recharts chart, a long product row) then forces
+	// the whole grid column past the viewport, causing horizontal scroll on mobile.
+	const base = 'min-w-0 rounded-[var(--radius-card)] bg-muted p-8 text-foreground';
 	const interactiveClasses =
 		'transition-transform duration-200 ease-out hover:-translate-y-1 hover:scale-[1.01] hover:shadow-[var(--shadow-card)]';
 

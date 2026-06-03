@@ -94,7 +94,7 @@ const Dashboard = ({
 	}, [easynumbersLogo]);
 
 	return (
-		<div className="flex min-h-screen flex-col bg-background text-foreground">
+		<div className="flex min-h-screen flex-col overflow-x-clip bg-background text-foreground">
 			<header className="border-b border-border/30 bg-card">
 				<div className="flex w-full flex-col gap-4 px-4 py-5 sm:px-10 lg:px-16">
 					<div className="flex w-full flex-wrap items-center gap-4">
