@@ -237,19 +237,19 @@ const OverviewPage = ({
 						</div>
 						<div className="mt-5 space-y-3">
 							{topProducts.map((product, index) => (
-								<ListItem key={product.id}>
-									<div className="flex items-center gap-3">
-										<span className="flex h-6 w-6 items-center justify-center rounded-full bg-muted text-[11px] font-semibold text-foreground">
+								<ListItem key={product.id} className="items-start">
+									<div className="flex min-w-0 flex-1 items-start gap-3">
+										<span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-semibold text-foreground">
 											{index + 1}
 										</span>
-										<div className="flex flex-col">
-											<span className="font-semibold text-foreground">{product.name}</span>
+										<div className="min-w-0 flex-col">
+											<span className="line-clamp-2 font-semibold text-foreground">{product.name}</span>
 											<span className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground/80">
 												SKU {product.sku}
 											</span>
 										</div>
 									</div>
-									<div className="text-right">
+									<div className="ml-4 shrink-0 text-right">
 										<p className="text-xs uppercase tracking-[0.18em] text-muted-foreground/80">Vendidos</p>
 										<p className="text-sm font-semibold text-foreground">
 											{product.totalSold?.toLocaleString('pt-BR') ?? '—'}

@@ -240,11 +240,16 @@ const SellersPage = ({
 										<div key={v.id} className="rounded-2xl border border-border/40 bg-card p-4">
 											<p className="mb-1 text-base font-semibold text-foreground">{v.nome}</p>
 											{/* Relative revenue bar — width proportional to top seller */}
-											<div className="my-3 h-1 overflow-hidden rounded-full bg-muted">
-												<div
-													className="h-full rounded-full"
-													style={{ width: `${barWidth}%`, backgroundColor: primaryColor }}
-												/>
+											<div className="my-3 flex items-center gap-2">
+												<div className="h-1 flex-1 overflow-hidden rounded-full bg-muted">
+													<div
+														className="h-full rounded-full"
+														style={{ width: `${barWidth}%`, backgroundColor: primaryColor }}
+													/>
+												</div>
+												<span className="w-9 shrink-0 text-right text-[11px] tabular-nums text-muted-foreground">
+													{barWidth}%
+												</span>
 											</div>
 											<dl className="divide-y divide-border/20 text-sm">
 												<div className="flex items-center justify-between py-2">

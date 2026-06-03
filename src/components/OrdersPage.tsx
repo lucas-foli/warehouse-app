@@ -113,19 +113,19 @@ const OrdersPage = ({ salesOrders, clientes, vendedores, tenantId, isAdmin, onVo
 											</div>
 											<dl className="divide-y divide-border/20 text-sm">
 												<div className="flex items-center justify-between py-2">
-													<dt className="text-muted-foreground">Data</dt>
+													<dt className="shrink-0 text-muted-foreground">Data</dt>
 													<dd className="tabular-nums text-foreground">{formatDate(order.sold_at)}</dd>
 												</div>
-												<div className="flex items-center justify-between py-2">
-													<dt className="text-muted-foreground">Cliente</dt>
-													<dd className="text-foreground">{clientName(order)}</dd>
+												<div className="flex items-start justify-between gap-4 py-2">
+													<dt className="shrink-0 text-muted-foreground">Cliente</dt>
+													<dd className="text-right text-foreground">{clientName(order)}</dd>
+												</div>
+												<div className="flex items-start justify-between gap-4 py-2">
+													<dt className="shrink-0 text-muted-foreground">Vendedor</dt>
+													<dd className="text-right text-foreground">{sellerName(order)}</dd>
 												</div>
 												<div className="flex items-center justify-between py-2">
-													<dt className="text-muted-foreground">Vendedor</dt>
-													<dd className="text-foreground">{sellerName(order)}</dd>
-												</div>
-												<div className="flex items-center justify-between py-2">
-													<dt className="text-muted-foreground">Total</dt>
+													<dt className="shrink-0 text-muted-foreground">Total</dt>
 													<dd className="tabular-nums font-semibold text-foreground">{formatBRL(order.total_amount)}</dd>
 												</div>
 											</dl>
