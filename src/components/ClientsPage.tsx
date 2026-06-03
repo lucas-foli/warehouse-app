@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
 	Area,
 	AreaChart,
@@ -26,6 +27,9 @@ const ClientsPage = ({
 	primaryColor: string;
 	secondaryColor: string;
 }) => {
+	const [clientsExpanded, setClientsExpanded] = useState(false);
+	const CLIENTS_INITIAL = 5;
+
 	const formatMonthYear = (value?: string) => {
 		if (!value) return '—';
 		const parsed = new Date(value);
@@ -168,7 +172,7 @@ const ClientsPage = ({
 							{clientes.length === 0 && (
 								<p className="py-6 text-center text-sm text-muted-foreground">Nenhum cliente encontrado.</p>
 							)}
-							{clientes.map((c) => (
+							{(clientsExpanded ? clientes : clientes.slice(0, CLIENTS_INITIAL)).map((c) => (
 								<div key={c.id} className="rounded-2xl border border-border/40 bg-card p-4">
 									<p className="text-base font-semibold text-foreground">{c.nome}</p>
 									<dl className="mt-2 divide-y divide-border/20 text-sm">
@@ -189,6 +193,16 @@ const ClientsPage = ({
 									</dl>
 								</div>
 							))}
+							{clientes.length > CLIENTS_INITIAL && (
+								<button
+									type="button"
+									onClick={() => setClientsExpanded((v) => !v)}
+									className="mt-1 w-full rounded-2xl border border-border/30 py-3 text-sm font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground">
+									{clientsExpanded
+										? 'Ver menos'
+										: `Ver mais ${clientes.length - CLIENTS_INITIAL} clientes`}
+								</button>
+							)}
 						</div>
 						{/* Desktop: table */}
 						<div className="hidden overflow-auto md:block">

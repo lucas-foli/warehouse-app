@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
 	Area,
 	AreaChart,
@@ -38,6 +38,9 @@ const SellersPage = ({
 		[sellersSortedByRevenue],
 	);
 	const isSellerListCapped = sellersSortedByRevenue.length > 15;
+
+	const [sellersExpanded, setSellersExpanded] = useState(false);
+	const SELLERS_INITIAL = 5;
 
 	const sellerPerformanceSeries = buildMultiSellerPerformance(sellersForDisplay);
 	const sellerPerformance = sellerPerformanceSeries.length ? sellerPerformanceSeries : [];
@@ -143,7 +146,6 @@ const SellersPage = ({
 										itemStyle={{ fontSize: '12px', fontWeight: 600 }}
 										labelStyle={{ fontSize: '12px', color: 'hsl(var(--muted-foreground))', marginBottom: '8px' }}
 									/>
-									<Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
 									{sellersForDisplay.map((v) => (
 										<Area
 											key={v.id}
@@ -229,7 +231,7 @@ const SellersPage = ({
 									{sellersForDisplay.length === 0 && (
 										<p className="py-6 text-center text-sm text-muted-foreground">Nenhum vendedor encontrado.</p>
 									)}
-									{sellersForDisplay.map((v) => (
+									{(sellersExpanded ? sellersForDisplay : sellersForDisplay.slice(0, SELLERS_INITIAL)).map((v) => (
 										<div key={v.id} className="rounded-2xl border border-border/40 bg-card p-4">
 											<p className="mb-1 text-base font-semibold text-foreground">{v.nome}</p>
 											<dl className="mt-2 divide-y divide-border/20 text-sm">
@@ -252,6 +254,16 @@ const SellersPage = ({
 											</dl>
 										</div>
 									))}
+									{sellersForDisplay.length > SELLERS_INITIAL && (
+										<button
+											type="button"
+											onClick={() => setSellersExpanded((v) => !v)}
+											className="mt-1 w-full rounded-2xl border border-border/30 py-3 text-sm font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground">
+											{sellersExpanded
+												? 'Ver menos'
+												: `Ver mais ${sellersForDisplay.length - SELLERS_INITIAL} vendedores`}
+										</button>
+									)}
 								</div>
 								{/* Desktop: table */}
 								<div className="hidden overflow-auto md:block">

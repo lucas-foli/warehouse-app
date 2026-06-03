@@ -194,7 +194,18 @@ const Dashboard = ({
 												className="fixed inset-0 z-40"
 												onClick={() => setHeaderMenuOpen(false)}
 											/>
-											<div className="absolute right-0 top-12 z-50 min-w-[180px] rounded-2xl border border-border/40 bg-card py-2 shadow-lg">
+											<div className="absolute right-0 top-12 z-50 min-w-[200px] rounded-2xl border border-border/40 bg-card py-2 shadow-lg">
+												<div className="border-b border-border/20 px-4 py-3">
+													<select
+														value="all"
+														onChange={() => {}}
+														className="w-full cursor-pointer bg-transparent text-sm font-medium text-foreground outline-none">
+														<option value="all">Todos os locais</option>
+														{(locations.length ? locations : ['Loja principal']).map((loc) => (
+															<option key={loc} value={loc}>{loc}</option>
+														))}
+													</select>
+												</div>
 												{canImport && (
 													<button
 														type="button"
@@ -222,13 +233,15 @@ const Dashboard = ({
 														Configurações
 													</button>
 												)}
-												<button
-													type="button"
-													onClick={() => { onLogout(); setHeaderMenuOpen(false); }}
-													className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-muted-foreground hover:bg-muted hover:text-foreground">
-													<LuLogOut className="text-base" />
-													Sair
-												</button>
+												<div className="mt-1 border-t border-border/20 pt-1">
+													<button
+														type="button"
+														onClick={() => { onLogout(); setHeaderMenuOpen(false); }}
+														className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-muted">
+														<LuLogOut className="text-base" />
+														Sair
+													</button>
+												</div>
 											</div>
 										</>
 									)}

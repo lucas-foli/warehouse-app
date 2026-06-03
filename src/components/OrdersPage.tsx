@@ -31,6 +31,8 @@ const OrdersPage = ({ salesOrders, clientes, vendedores, tenantId, isAdmin, onVo
 	const [confirmOrder, setConfirmOrder] = useState<SalesOrder | null>(null);
 	const [voidingId, setVoidingId] = useState<string | null>(null);
 	const [error, setError] = useState<string | null>(null);
+	const [ordersExpanded, setOrdersExpanded] = useState(false);
+	const ORDERS_INITIAL = 5;
 
 	// Recent-first by sold_at.
 	const orders = useMemo(
@@ -91,60 +93,119 @@ const OrdersPage = ({ salesOrders, clientes, vendedores, tenantId, isAdmin, onVo
 							Nenhum pedido registrado ainda.
 						</p>
 					) : (
-						<div className="max-h-[480px] overflow-auto">
-							<table className="min-w-full divide-y divide-black/5 text-sm">
-								<thead className="bg-muted text-left text-[11px] uppercase tracking-[0.25em] text-muted-foreground">
-									<tr>
-										<th className="px-4 py-3">Pedido</th>
-										<th className="px-4 py-3">Data</th>
-										<th className="px-4 py-3">Cliente</th>
-										<th className="px-4 py-3">Vendedor</th>
-										<th className="px-4 py-3 text-right">Total</th>
-										<th className="px-4 py-3">Status</th>
-										{isAdmin && <th className="px-4 py-3 text-right">Ações</th>}
-									</tr>
-								</thead>
-								<tbody className="divide-y divide-border/30 bg-card">
-									{orders.map((order) => {
-										const isVoided = order.status === 'voided';
-										return (
-											<tr key={order.id} className="hover:bg-muted/60">
-												<td className="px-4 py-3 font-semibold text-foreground">{order.order_number}</td>
-												<td className="px-4 py-3 text-foreground">{formatDate(order.sold_at)}</td>
-												<td className="px-4 py-3 text-foreground">{clientName(order)}</td>
-												<td className="px-4 py-3 text-foreground">{sellerName(order)}</td>
-												<td className="px-4 py-3 text-right text-foreground">{formatBRL(order.total_amount)}</td>
-												<td className="px-4 py-3">
-													<span
-														className={
-															isVoided
-																? 'inline-flex rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-700'
-																: 'inline-flex rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-700'
-														}
-													>
-														{isVoided ? 'Estornada' : 'Registrada'}
-													</span>
-												</td>
-												{isAdmin && (
-													<td className="px-4 py-3 text-right">
-														{!isVoided && (
-															<button
-																type="button"
-																onClick={() => setConfirmOrder(order)}
-																disabled={voidingId === order.id}
-																className="rounded border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted disabled:opacity-50"
-															>
-																{voidingId === order.id ? 'Estornando…' : 'Estornar'}
-															</button>
-														)}
+						<>
+							{/* Mobile: stacked cards */}
+							<div className="grid grid-cols-1 gap-3 p-3 md:hidden">
+								{(ordersExpanded ? orders : orders.slice(0, ORDERS_INITIAL)).map((order) => {
+									const isVoided = order.status === 'voided';
+									return (
+										<div key={order.id} className="rounded-2xl border border-border/40 bg-card p-4">
+											<div className="mb-2 flex items-center justify-between gap-3">
+												<p className="text-base font-semibold text-foreground">{order.order_number}</p>
+												<span
+													className={
+														isVoided
+															? 'rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-700'
+															: 'rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-700'
+													}>
+													{isVoided ? 'Estornada' : 'Registrada'}
+												</span>
+											</div>
+											<dl className="divide-y divide-border/20 text-sm">
+												<div className="flex items-center justify-between py-2">
+													<dt className="text-muted-foreground">Data</dt>
+													<dd className="tabular-nums text-foreground">{formatDate(order.sold_at)}</dd>
+												</div>
+												<div className="flex items-center justify-between py-2">
+													<dt className="text-muted-foreground">Cliente</dt>
+													<dd className="text-foreground">{clientName(order)}</dd>
+												</div>
+												<div className="flex items-center justify-between py-2">
+													<dt className="text-muted-foreground">Vendedor</dt>
+													<dd className="text-foreground">{sellerName(order)}</dd>
+												</div>
+												<div className="flex items-center justify-between py-2">
+													<dt className="text-muted-foreground">Total</dt>
+													<dd className="tabular-nums font-semibold text-foreground">{formatBRL(order.total_amount)}</dd>
+												</div>
+											</dl>
+											{isAdmin && !isVoided && (
+												<button
+													type="button"
+													onClick={() => setConfirmOrder(order)}
+													disabled={voidingId === order.id}
+													className="mt-3 w-full rounded-xl border border-border/40 py-2 text-sm font-medium text-muted-foreground transition hover:border-red-300 hover:text-red-600 disabled:opacity-50">
+													{voidingId === order.id ? 'Estornando…' : 'Estornar pedido'}
+												</button>
+											)}
+										</div>
+									);
+								})}
+								{orders.length > ORDERS_INITIAL && (
+									<button
+										type="button"
+										onClick={() => setOrdersExpanded((v) => !v)}
+										className="mt-1 w-full rounded-2xl border border-border/30 py-3 text-sm font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground">
+										{ordersExpanded
+											? 'Ver menos'
+											: `Ver mais ${orders.length - ORDERS_INITIAL} pedidos`}
+									</button>
+								)}
+							</div>
+							{/* Desktop: table */}
+							<div className="hidden max-h-[480px] overflow-auto md:block">
+								<table className="min-w-full divide-y divide-black/5 text-sm">
+									<thead className="bg-muted text-left text-[11px] uppercase tracking-[0.25em] text-muted-foreground">
+										<tr>
+											<th className="px-4 py-3">Pedido</th>
+											<th className="px-4 py-3">Data</th>
+											<th className="px-4 py-3">Cliente</th>
+											<th className="px-4 py-3">Vendedor</th>
+											<th className="px-4 py-3 text-right">Total</th>
+											<th className="px-4 py-3">Status</th>
+											{isAdmin && <th className="px-4 py-3 text-right">Ações</th>}
+										</tr>
+									</thead>
+									<tbody className="divide-y divide-border/30 bg-card">
+										{orders.map((order) => {
+											const isVoided = order.status === 'voided';
+											return (
+												<tr key={order.id} className="hover:bg-muted/60">
+													<td className="px-4 py-3 font-semibold text-foreground">{order.order_number}</td>
+													<td className="px-4 py-3 text-foreground">{formatDate(order.sold_at)}</td>
+													<td className="px-4 py-3 text-foreground">{clientName(order)}</td>
+													<td className="px-4 py-3 text-foreground">{sellerName(order)}</td>
+													<td className="px-4 py-3 text-right text-foreground">{formatBRL(order.total_amount)}</td>
+													<td className="px-4 py-3">
+														<span
+															className={
+																isVoided
+																	? 'inline-flex rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-700'
+																	: 'inline-flex rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-700'
+															}>
+															{isVoided ? 'Estornada' : 'Registrada'}
+														</span>
 													</td>
-												)}
-											</tr>
-										);
-									})}
-								</tbody>
-							</table>
-						</div>
+													{isAdmin && (
+														<td className="px-4 py-3 text-right">
+															{!isVoided && (
+																<button
+																	type="button"
+																	onClick={() => setConfirmOrder(order)}
+																	disabled={voidingId === order.id}
+																	className="rounded border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted disabled:opacity-50">
+																	{voidingId === order.id ? 'Estornando…' : 'Estornar'}
+																</button>
+															)}
+														</td>
+													)}
+												</tr>
+											);
+										})}
+									</tbody>
+								</table>
+							</div>
+						</>
 					)}
 				</Card>
 			</Section>
