@@ -106,6 +106,7 @@ const SellersPage = ({
 				</Card>
 			</Section>
 
+			<div className="hidden md:block">
 				<Section className="grid gap-10 2xl:grid-cols-2">
 					<Card>
 						<p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-muted-foreground">
@@ -218,6 +219,7 @@ const SellersPage = ({
 					</div>
 				</Card>
 			</Section>
+			</div>
 
 						<Section>
 							<Card interactive={false} className="border border-border/30 bg-muted">
@@ -231,14 +233,20 @@ const SellersPage = ({
 									{sellersForDisplay.length === 0 && (
 										<p className="py-6 text-center text-sm text-muted-foreground">Nenhum vendedor encontrado.</p>
 									)}
-									{(sellersExpanded ? sellersForDisplay : sellersForDisplay.slice(0, SELLERS_INITIAL)).map((v) => (
+									{(sellersExpanded ? sellersForDisplay : sellersForDisplay.slice(0, SELLERS_INITIAL)).map((v) => {
+										const topBruto = sellersForDisplay[0]?.bruto || 1;
+										const barWidth = Math.round((v.bruto / topBruto) * 100);
+										return (
 										<div key={v.id} className="rounded-2xl border border-border/40 bg-card p-4">
 											<p className="mb-1 text-base font-semibold text-foreground">{v.nome}</p>
-											<dl className="mt-2 divide-y divide-border/20 text-sm">
-												<div className="flex items-center justify-between py-2">
-													<dt className="text-muted-foreground">Itens vendidos</dt>
-													<dd className="tabular-nums font-medium text-foreground">{v.itens}</dd>
-												</div>
+											{/* Relative revenue bar — width proportional to top seller */}
+											<div className="my-3 h-1 overflow-hidden rounded-full bg-muted">
+												<div
+													className="h-full rounded-full"
+													style={{ width: `${barWidth}%`, backgroundColor: primaryColor }}
+												/>
+											</div>
+											<dl className="divide-y divide-border/20 text-sm">
 												<div className="flex items-center justify-between py-2">
 													<dt className="text-muted-foreground">Valor bruto</dt>
 													<dd className="tabular-nums font-medium text-foreground">R$ {v.bruto.toLocaleString('pt-BR')}</dd>
@@ -248,12 +256,13 @@ const SellersPage = ({
 													<dd className="tabular-nums font-medium text-foreground">R$ {v.liquido.toLocaleString('pt-BR')}</dd>
 												</div>
 												<div className="flex items-center justify-between py-2">
-													<dt className="text-muted-foreground">Boletos</dt>
-													<dd className="tabular-nums font-medium text-foreground">{v.boletos}</dd>
+													<dt className="text-muted-foreground">Itens</dt>
+													<dd className="tabular-nums font-medium text-foreground">{v.itens}</dd>
 												</div>
 											</dl>
 										</div>
-									))}
+										);
+									})}
 									{sellersForDisplay.length > SELLERS_INITIAL && (
 										<button
 											type="button"

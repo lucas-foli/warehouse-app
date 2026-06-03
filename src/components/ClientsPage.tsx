@@ -3,7 +3,6 @@ import {
 	Area,
 	AreaChart,
 	CartesianGrid,
-	Legend,
 	ResponsiveContainer,
 	Tooltip,
 	XAxis,
@@ -114,9 +113,8 @@ const ClientsPage = ({
 										}}
 										itemStyle={{ fontSize: '12px', fontWeight: 600, color: 'hsl(var(--foreground))' }}
 										labelStyle={{ fontSize: '12px', color: 'hsl(var(--muted-foreground))', marginBottom: '8px' }}
-										formatter={(value: number) => [value, 'Cliente']}
+										formatter={(value: number) => [value, 'Clientes']}
 									/>
-								<Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
 								<Area
 									type="monotone"
 									dataKey="value"
