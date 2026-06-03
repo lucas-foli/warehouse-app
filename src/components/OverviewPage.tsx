@@ -173,9 +173,9 @@ const OverviewPage = ({
 						<p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-muted-foreground">
 							Tendência (últimos 20 dias)
 						</p>
-						<div className="mt-4 h-56 w-full rounded-xl bg-muted/60 py-4">
+						<div className="mt-4 h-56 w-full overflow-hidden rounded-xl bg-muted/60 py-4">
 						<ResponsiveContainer width="100%" height="100%">
-							<AreaChart data={salesTrend} margin={{ top: 4, right: 12, bottom: 0, left: 12 }}>
+							<AreaChart data={salesTrend} margin={{ top: 4, right: 24, bottom: 0, left: 12 }}>
 								<defs>
 									<linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
 										<stop offset="5%" stopColor={primaryColor} stopOpacity={0.3} />
