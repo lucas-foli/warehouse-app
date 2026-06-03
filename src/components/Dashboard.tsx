@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { BiListCheck } from 'react-icons/bi';
 import { FiUploadCloud } from 'react-icons/fi';
-import { LuLogOut, LuSettings } from 'react-icons/lu';
+import { LuLogOut, LuMenu, LuSettings } from 'react-icons/lu';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTenant } from '../context/TenantContext';
 import { useTheme } from '../context/ThemeContext';
@@ -53,6 +53,7 @@ const Dashboard = ({
 	const [brandLogoSrc, setBrandLogoSrc] = useState(logoUrl);
 	const [madeBySrc, setMadeBySrc] = useState(madeBySarkUrl);
 	const [easynumbersSrc, setEasynumbersSrc] = useState(easynumbersLogo);
+	const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
 	// View is derived from the URL, not local state. This is what makes the
 	// browser back/forward buttons work: a history pop changes the path, which
 	// re-renders this component with a new resolved view. The in-app tabs and
@@ -137,44 +138,101 @@ const Dashboard = ({
 										}}
 									/>
 								) : null}
-								{canImport && (
+								{/* Desktop: individual icon buttons */}
+								<div className="hidden sm:flex items-center gap-3">
+									{canImport && (
+										<button
+											type="button"
+											onClick={onOpenImport}
+											className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border/50 text-xl transition hover:border-border"
+											title="Importar dados"
+											aria-label="Importar dados">
+											<FiUploadCloud />
+										</button>
+									)}
+									{canOpenStatusForm && (
+										<button
+											type="button"
+											onClick={onOpenStatusForm}
+											className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border/50 text-xl transition hover:border-border"
+											title="Atualizar status"
+											aria-label="Atualizar status">
+											<BiListCheck />
+										</button>
+									)}
+									{canOpenSettings && (
+										<button
+											type="button"
+											onClick={() => navigate('/settings')}
+											className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border/50 text-xl transition hover:border-border"
+											title="Configurações"
+											aria-label="Configurações">
+											<LuSettings />
+										</button>
+									)}
 									<button
 										type="button"
-										onClick={onOpenImport}
-										className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border/50 text-xl transition hover:border-border"
-										title="Importar dados"
-										aria-label="Importar dados">
-										<FiUploadCloud />
+										onClick={onLogout}
+										className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border/50 text-xl text-muted-foreground transition hover:border-border hover:text-foreground"
+										title="Sair"
+										aria-label="Sair">
+										<LuLogOut />
 									</button>
-								)}
-								{canOpenStatusForm && (
-								<button
-									type="button"
-									onClick={onOpenStatusForm}
-									className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border/50 text-xl transition hover:border-border"
-									title="Atualizar status"
-									aria-label="Atualizar status">
-									<BiListCheck />
-								</button>
-								)}
-								{canOpenSettings && (
-								<button
-									type="button"
-									onClick={() => navigate('/settings')}
-									className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border/50 text-xl transition hover:border-border"
-									title="Settings"
-									aria-label="Settings">
-									<LuSettings />
-								</button>
-								)}
-								<button
-									type="button"
-									onClick={onLogout}
-									className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border/50 text-xl text-muted-foreground transition hover:border-border hover:text-foreground"
-									title="Sair"
-									aria-label="Sair">
-									<LuLogOut />
-								</button>
+								</div>
+								{/* Mobile: hamburger menu */}
+								<div className="relative sm:hidden">
+									<button
+										type="button"
+										onClick={() => setHeaderMenuOpen((v) => !v)}
+										className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border/50 text-xl transition hover:border-border"
+										aria-label="Menu">
+										<LuMenu />
+									</button>
+									{headerMenuOpen && (
+										<>
+											<div
+												className="fixed inset-0 z-40"
+												onClick={() => setHeaderMenuOpen(false)}
+											/>
+											<div className="absolute right-0 top-12 z-50 min-w-[180px] rounded-2xl border border-border/40 bg-card py-2 shadow-lg">
+												{canImport && (
+													<button
+														type="button"
+														onClick={() => { onOpenImport(); setHeaderMenuOpen(false); }}
+														className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-muted">
+														<FiUploadCloud className="text-base" />
+														Importar dados
+													</button>
+												)}
+												{canOpenStatusForm && (
+													<button
+														type="button"
+														onClick={() => { onOpenStatusForm(); setHeaderMenuOpen(false); }}
+														className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-muted">
+														<BiListCheck className="text-base" />
+														Atualizar status
+													</button>
+												)}
+												{canOpenSettings && (
+													<button
+														type="button"
+														onClick={() => { navigate('/settings'); setHeaderMenuOpen(false); }}
+														className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-muted">
+														<LuSettings className="text-base" />
+														Configurações
+													</button>
+												)}
+												<button
+													type="button"
+													onClick={() => { onLogout(); setHeaderMenuOpen(false); }}
+													className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-muted-foreground hover:bg-muted hover:text-foreground">
+													<LuLogOut className="text-base" />
+													Sair
+												</button>
+											</div>
+										</>
+									)}
+								</div>
 						</div>
 					</div>
 				</div>
@@ -192,8 +250,8 @@ const Dashboard = ({
 								{page === 'vendas' && 'Vendas'}
 							</Title>
 						</div>
-							<div className="flex items-center gap-3 text-sm text-muted-foreground">
-								<div className="inline-flex rounded-full bg-muted p-1 text-xs font-medium uppercase tracking-[0.25em] text-foreground">
+							<div className="w-full overflow-x-auto sm:w-auto">
+								<div className="inline-flex rounded-full bg-muted p-1 text-xs font-medium uppercase tracking-[0.25em] text-foreground whitespace-nowrap">
 									{(
 										[
 											{ key: 'overview', label: 'Dashboard', path: '/' },

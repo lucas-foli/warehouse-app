@@ -224,32 +224,62 @@ const SellersPage = ({
 										Exibindo Top 15 de {sellersSortedByRevenue.length} vendedores por faturamento.
 									</p>
 								)}
-								<div className="overflow-auto">
+								{/* Mobile: stacked cards */}
+								<div className="grid grid-cols-1 gap-3 p-3 md:hidden">
+									{sellersForDisplay.length === 0 && (
+										<p className="py-6 text-center text-sm text-muted-foreground">Nenhum vendedor encontrado.</p>
+									)}
+									{sellersForDisplay.map((v) => (
+										<div key={v.id} className="rounded-2xl border border-border/40 bg-card p-4">
+											<p className="mb-3 font-semibold text-foreground">{v.nome}</p>
+											<dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+												<div className="flex min-w-0 justify-between gap-2">
+													<dt className="text-muted-foreground">Itens</dt>
+													<dd className="text-foreground">{v.itens}</dd>
+												</div>
+												<div className="flex min-w-0 justify-between gap-2">
+													<dt className="text-muted-foreground">Boletos</dt>
+													<dd className="text-foreground">{v.boletos}</dd>
+												</div>
+												<div className="flex min-w-0 justify-between gap-2">
+													<dt className="text-muted-foreground">Valor bruto</dt>
+													<dd className="text-foreground">R$ {v.bruto.toLocaleString('pt-BR')}</dd>
+												</div>
+												<div className="flex min-w-0 justify-between gap-2">
+													<dt className="text-muted-foreground">Valor líquido</dt>
+													<dd className="text-foreground">R$ {v.liquido.toLocaleString('pt-BR')}</dd>
+												</div>
+											</dl>
+										</div>
+									))}
+								</div>
+								{/* Desktop: table */}
+								<div className="hidden overflow-auto md:block">
 									<table className="min-w-full divide-y divide-black/5 text-sm">
-									<thead className="bg-muted text-left text-[11px] uppercase tracking-[0.25em] text-muted-foreground">
-										<tr>
-											<th className="px-4 py-3">Vendedor(a)</th>
-											<th className="px-4 py-3">Itens</th>
-											<th className="px-4 py-3">Valor bruto</th>
-											<th className="px-4 py-3">Valor líquido</th>
-											<th className="px-4 py-3">Nº Boletos</th>
-										</tr>
-									</thead>
-									<tbody className="divide-y divide-border/30 bg-card">
-										{sellersForDisplay.map((v) => (
-											<tr key={v.id} className="hover:bg-muted/60">
-												<td className="px-4 py-3 font-semibold text-foreground">{v.nome}</td>
-												<td className="px-4 py-3 text-foreground">{v.itens}</td>
-												<td className="px-4 py-3 text-foreground">R$ {v.bruto.toLocaleString('pt-BR')}</td>
-												<td className="px-4 py-3 text-foreground">R$ {v.liquido.toLocaleString('pt-BR')}</td>
-												<td className="px-4 py-3 text-foreground">{v.boletos}</td>
+										<thead className="bg-muted text-left text-[11px] uppercase tracking-[0.25em] text-muted-foreground">
+											<tr>
+												<th className="px-4 py-3">Vendedor(a)</th>
+												<th className="px-4 py-3">Itens</th>
+												<th className="px-4 py-3">Valor bruto</th>
+												<th className="px-4 py-3">Valor líquido</th>
+												<th className="px-4 py-3">Nº Boletos</th>
 											</tr>
-										))}
-									</tbody>
-								</table>
-							</div>
-						</Card>
-					</Section>
+										</thead>
+										<tbody className="divide-y divide-border/30 bg-card">
+											{sellersForDisplay.map((v) => (
+												<tr key={v.id} className="hover:bg-muted/60">
+													<td className="px-4 py-3 font-semibold text-foreground">{v.nome}</td>
+													<td className="px-4 py-3 text-foreground">{v.itens}</td>
+													<td className="px-4 py-3 text-foreground">R$ {v.bruto.toLocaleString('pt-BR')}</td>
+													<td className="px-4 py-3 text-foreground">R$ {v.liquido.toLocaleString('pt-BR')}</td>
+													<td className="px-4 py-3 text-foreground">{v.boletos}</td>
+												</tr>
+											))}
+										</tbody>
+									</table>
+								</div>
+							</Card>
+						</Section>
 		</>
 	);
 };

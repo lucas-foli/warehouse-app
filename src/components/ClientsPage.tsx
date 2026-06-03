@@ -163,7 +163,32 @@ const ClientsPage = ({
 
 				<Section>
 					<Card interactive={false} className="border border-border/30 bg-muted">
-						<div className="overflow-auto">
+						{/* Mobile: stacked cards */}
+						<div className="grid grid-cols-1 gap-3 p-3 md:hidden">
+							{clientes.length === 0 && (
+								<p className="py-6 text-center text-sm text-muted-foreground">Nenhum cliente encontrado.</p>
+							)}
+							{clientes.map((c) => (
+								<div key={c.id} className="rounded-2xl border border-border/40 bg-card p-4">
+									<div className="mb-3">
+										<p className="font-semibold text-foreground">{c.nome}</p>
+										<span className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">{c.cidade}</span>
+									</div>
+									<dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+										<div className="flex min-w-0 justify-between gap-2">
+											<dt className="text-muted-foreground">Telefone</dt>
+											<dd className="min-w-0 truncate text-right text-foreground">{c.telefone ?? '—'}</dd>
+										</div>
+										<div className="flex min-w-0 justify-between gap-2">
+											<dt className="text-muted-foreground">Última compra</dt>
+											<dd className="text-right text-foreground">{formatMonthYear(c.ultimaCompra)}</dd>
+										</div>
+									</dl>
+								</div>
+							))}
+						</div>
+						{/* Desktop: table */}
+						<div className="hidden overflow-auto md:block">
 							<table className="min-w-full divide-y divide-black/5 text-sm">
 								<thead className="bg-muted text-left text-[11px] uppercase tracking-[0.25em] text-muted-foreground">
 									<tr>
