@@ -170,18 +170,21 @@ const ClientsPage = ({
 							)}
 							{clientes.map((c) => (
 								<div key={c.id} className="rounded-2xl border border-border/40 bg-card p-4">
-									<div className="mb-3">
-										<p className="font-semibold text-foreground">{c.nome}</p>
-										<span className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">{c.cidade}</span>
-									</div>
-									<dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-										<div className="flex min-w-0 justify-between gap-2">
+									<p className="text-base font-semibold text-foreground">{c.nome}</p>
+									<dl className="mt-2 divide-y divide-border/20 text-sm">
+										{c.cidade ? (
+											<div className="flex items-center justify-between py-2">
+												<dt className="text-muted-foreground">Cidade</dt>
+												<dd className="text-foreground">{c.cidade}</dd>
+											</div>
+										) : null}
+										<div className="flex items-center justify-between py-2">
 											<dt className="text-muted-foreground">Telefone</dt>
-											<dd className="min-w-0 truncate text-right text-foreground">{c.telefone ?? '—'}</dd>
+											<dd className="text-foreground">{c.telefone ?? '—'}</dd>
 										</div>
-										<div className="flex min-w-0 justify-between gap-2">
+										<div className="flex items-center justify-between py-2">
 											<dt className="text-muted-foreground">Última compra</dt>
-											<dd className="text-right text-foreground">{formatMonthYear(c.ultimaCompra)}</dd>
+											<dd className="tabular-nums text-foreground">{formatMonthYear(c.ultimaCompra)}</dd>
 										</div>
 									</dl>
 								</div>

@@ -231,23 +231,23 @@ const SellersPage = ({
 									)}
 									{sellersForDisplay.map((v) => (
 										<div key={v.id} className="rounded-2xl border border-border/40 bg-card p-4">
-											<p className="mb-3 font-semibold text-foreground">{v.nome}</p>
-											<dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-												<div className="flex min-w-0 justify-between gap-2">
-													<dt className="text-muted-foreground">Itens</dt>
-													<dd className="text-foreground">{v.itens}</dd>
+											<p className="mb-1 text-base font-semibold text-foreground">{v.nome}</p>
+											<dl className="mt-2 divide-y divide-border/20 text-sm">
+												<div className="flex items-center justify-between py-2">
+													<dt className="text-muted-foreground">Itens vendidos</dt>
+													<dd className="tabular-nums font-medium text-foreground">{v.itens}</dd>
 												</div>
-												<div className="flex min-w-0 justify-between gap-2">
-													<dt className="text-muted-foreground">Boletos</dt>
-													<dd className="text-foreground">{v.boletos}</dd>
-												</div>
-												<div className="flex min-w-0 justify-between gap-2">
+												<div className="flex items-center justify-between py-2">
 													<dt className="text-muted-foreground">Valor bruto</dt>
-													<dd className="text-foreground">R$ {v.bruto.toLocaleString('pt-BR')}</dd>
+													<dd className="tabular-nums font-medium text-foreground">R$ {v.bruto.toLocaleString('pt-BR')}</dd>
 												</div>
-												<div className="flex min-w-0 justify-between gap-2">
+												<div className="flex items-center justify-between py-2">
 													<dt className="text-muted-foreground">Valor líquido</dt>
-													<dd className="text-foreground">R$ {v.liquido.toLocaleString('pt-BR')}</dd>
+													<dd className="tabular-nums font-medium text-foreground">R$ {v.liquido.toLocaleString('pt-BR')}</dd>
+												</div>
+												<div className="flex items-center justify-between py-2">
+													<dt className="text-muted-foreground">Boletos</dt>
+													<dd className="tabular-nums font-medium text-foreground">{v.boletos}</dd>
 												</div>
 											</dl>
 										</div>
