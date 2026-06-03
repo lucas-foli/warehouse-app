@@ -5,7 +5,6 @@ import {
 	ResponsiveContainer,
 	Tooltip,
 	XAxis,
-	YAxis,
 } from 'recharts';
 import type { CategorySale, HistoryItem, Product } from '../types';
 import { Card, ListItem, Metric, Section } from './ui/Primitives';
