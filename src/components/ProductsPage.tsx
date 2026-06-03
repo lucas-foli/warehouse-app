@@ -444,12 +444,6 @@ const ProductsPage = ({
 						</button>
 						<button
 							type="button"
-							onClick={() => setIsEditPanelOpen((current) => !current)}
-							className="rounded-full border border-border/40 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-foreground transition hover:bg-primary hover:text-primary-foreground">
-							{isEditPanelOpen ? 'Fechar ajustes' : 'Ajustes'}
-						</button>
-						<button
-							type="button"
 							onClick={startCreateProduct}
 							className="rounded-full border border-border/40 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-foreground transition hover:bg-primary hover:text-primary-foreground">
 							Novo produto
