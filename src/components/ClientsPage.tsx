@@ -1,8 +1,8 @@
+import { useState } from 'react';
 import {
 	Area,
 	AreaChart,
 	CartesianGrid,
-	Legend,
 	ResponsiveContainer,
 	Tooltip,
 	XAxis,
@@ -26,6 +26,9 @@ const ClientsPage = ({
 	primaryColor: string;
 	secondaryColor: string;
 }) => {
+	const [clientsExpanded, setClientsExpanded] = useState(false);
+	const CLIENTS_INITIAL = 5;
+
 	const formatMonthYear = (value?: string) => {
 		if (!value) return '—';
 		const parsed = new Date(value);
@@ -110,9 +113,8 @@ const ClientsPage = ({
 										}}
 										itemStyle={{ fontSize: '12px', fontWeight: 600, color: 'hsl(var(--foreground))' }}
 										labelStyle={{ fontSize: '12px', color: 'hsl(var(--muted-foreground))', marginBottom: '8px' }}
-										formatter={(value: number) => [value, 'Cliente']}
+										formatter={(value: number) => [value, 'Clientes']}
 									/>
-								<Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
 								<Area
 									type="monotone"
 									dataKey="value"
@@ -163,7 +165,45 @@ const ClientsPage = ({
 
 				<Section>
 					<Card interactive={false} className="border border-border/30 bg-muted">
-						<div className="overflow-auto">
+						{/* Mobile: stacked cards */}
+						<div className="grid grid-cols-1 gap-3 p-3 md:hidden">
+							{clientes.length === 0 && (
+								<p className="py-6 text-center text-sm text-muted-foreground">Nenhum cliente encontrado.</p>
+							)}
+							{(clientsExpanded ? clientes : clientes.slice(0, CLIENTS_INITIAL)).map((c) => (
+								<div key={c.id} className="rounded-2xl border border-border/40 bg-card p-4">
+									<p className="text-base font-semibold text-foreground">{c.nome}</p>
+									<dl className="mt-2 divide-y divide-border/20 text-sm">
+										{c.cidade ? (
+											<div className="flex items-center justify-between py-2">
+												<dt className="text-muted-foreground">Cidade</dt>
+												<dd className="text-foreground">{c.cidade}</dd>
+											</div>
+										) : null}
+										<div className="flex items-center justify-between py-2">
+											<dt className="text-muted-foreground">Telefone</dt>
+											<dd className="text-foreground">{c.telefone ?? '—'}</dd>
+										</div>
+										<div className="flex items-center justify-between py-2">
+											<dt className="text-muted-foreground">Última compra</dt>
+											<dd className="tabular-nums text-foreground">{formatMonthYear(c.ultimaCompra)}</dd>
+										</div>
+									</dl>
+								</div>
+							))}
+							{clientes.length > CLIENTS_INITIAL && (
+								<button
+									type="button"
+									onClick={() => setClientsExpanded((v) => !v)}
+									className="mt-1 w-full rounded-2xl border border-border/30 py-3 text-sm font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground">
+									{clientsExpanded
+										? 'Ver menos'
+										: `Ver mais ${clientes.length - CLIENTS_INITIAL} clientes`}
+								</button>
+							)}
+						</div>
+						{/* Desktop: table */}
+						<div className="hidden overflow-auto md:block">
 							<table className="min-w-full divide-y divide-black/5 text-sm">
 								<thead className="bg-muted text-left text-[11px] uppercase tracking-[0.25em] text-muted-foreground">
 									<tr>

@@ -83,3 +83,12 @@ video {
 	background: hsl(var(--primary) / 0.18);
 	color: hsl(var(--foreground));
 }
+
+/* Prevent iOS Safari from auto-zooming when inputs are focused */
+@media (max-width: 768px) {
+	input,
+	select,
+	textarea {
+		font-size: 16px;
+	}
+}

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
 	Area,
 	AreaChart,
@@ -38,6 +38,9 @@ const SellersPage = ({
 		[sellersSortedByRevenue],
 	);
 	const isSellerListCapped = sellersSortedByRevenue.length > 15;
+
+	const [sellersExpanded, setSellersExpanded] = useState(false);
+	const SELLERS_INITIAL = 5;
 
 	const sellerPerformanceSeries = buildMultiSellerPerformance(sellersForDisplay);
 	const sellerPerformance = sellerPerformanceSeries.length ? sellerPerformanceSeries : [];
@@ -103,6 +106,7 @@ const SellersPage = ({
 				</Card>
 			</Section>
 
+			<div className="hidden md:block">
 				<Section className="grid gap-10 2xl:grid-cols-2">
 					<Card>
 						<p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-muted-foreground">
@@ -143,7 +147,6 @@ const SellersPage = ({
 										itemStyle={{ fontSize: '12px', fontWeight: 600 }}
 										labelStyle={{ fontSize: '12px', color: 'hsl(var(--muted-foreground))', marginBottom: '8px' }}
 									/>
-									<Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
 									{sellersForDisplay.map((v) => (
 										<Area
 											key={v.id}
@@ -216,6 +219,7 @@ const SellersPage = ({
 					</div>
 				</Card>
 			</Section>
+			</div>
 
 						<Section>
 							<Card interactive={false} className="border border-border/30 bg-muted">
@@ -224,32 +228,84 @@ const SellersPage = ({
 										Exibindo Top 15 de {sellersSortedByRevenue.length} vendedores por faturamento.
 									</p>
 								)}
-								<div className="overflow-auto">
+								{/* Mobile: stacked cards */}
+								<div className="grid grid-cols-1 gap-3 p-3 md:hidden">
+									{sellersForDisplay.length === 0 && (
+										<p className="py-6 text-center text-sm text-muted-foreground">Nenhum vendedor encontrado.</p>
+									)}
+									{(sellersExpanded ? sellersForDisplay : sellersForDisplay.slice(0, SELLERS_INITIAL)).map((v) => {
+										const topBruto = sellersForDisplay[0]?.bruto || 1;
+										const barWidth = Math.round((v.bruto / topBruto) * 100);
+										return (
+										<div key={v.id} className="rounded-2xl border border-border/40 bg-card p-4">
+											<p className="mb-1 text-base font-semibold text-foreground">{v.nome}</p>
+											{/* Relative revenue bar — width proportional to top seller */}
+											<div className="my-3 flex items-center gap-2">
+												<div className="h-1 flex-1 overflow-hidden rounded-full bg-muted">
+													<div
+														className="h-full rounded-full"
+														style={{ width: `${barWidth}%`, backgroundColor: primaryColor }}
+													/>
+												</div>
+												<span className="w-9 shrink-0 text-right text-[11px] tabular-nums text-muted-foreground">
+													{barWidth}%
+												</span>
+											</div>
+											<dl className="divide-y divide-border/20 text-sm">
+												<div className="flex items-center justify-between py-2">
+													<dt className="text-muted-foreground">Valor bruto</dt>
+													<dd className="tabular-nums font-medium text-foreground">R$ {v.bruto.toLocaleString('pt-BR')}</dd>
+												</div>
+												<div className="flex items-center justify-between py-2">
+													<dt className="text-muted-foreground">Valor líquido</dt>
+													<dd className="tabular-nums font-medium text-foreground">R$ {v.liquido.toLocaleString('pt-BR')}</dd>
+												</div>
+												<div className="flex items-center justify-between py-2">
+													<dt className="text-muted-foreground">Itens</dt>
+													<dd className="tabular-nums font-medium text-foreground">{v.itens}</dd>
+												</div>
+											</dl>
+										</div>
+										);
+									})}
+									{sellersForDisplay.length > SELLERS_INITIAL && (
+										<button
+											type="button"
+											onClick={() => setSellersExpanded((v) => !v)}
+											className="mt-1 w-full rounded-2xl border border-border/30 py-3 text-sm font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground">
+											{sellersExpanded
+												? 'Ver menos'
+												: `Ver mais ${sellersForDisplay.length - SELLERS_INITIAL} vendedores`}
+										</button>
+									)}
+								</div>
+								{/* Desktop: table */}
+								<div className="hidden overflow-auto md:block">
 									<table className="min-w-full divide-y divide-black/5 text-sm">
-									<thead className="bg-muted text-left text-[11px] uppercase tracking-[0.25em] text-muted-foreground">
-										<tr>
-											<th className="px-4 py-3">Vendedor(a)</th>
-											<th className="px-4 py-3">Itens</th>
-											<th className="px-4 py-3">Valor bruto</th>
-											<th className="px-4 py-3">Valor líquido</th>
-											<th className="px-4 py-3">Nº Boletos</th>
-										</tr>
-									</thead>
-									<tbody className="divide-y divide-border/30 bg-card">
-										{sellersForDisplay.map((v) => (
-											<tr key={v.id} className="hover:bg-muted/60">
-												<td className="px-4 py-3 font-semibold text-foreground">{v.nome}</td>
-												<td className="px-4 py-3 text-foreground">{v.itens}</td>
-												<td className="px-4 py-3 text-foreground">R$ {v.bruto.toLocaleString('pt-BR')}</td>
-												<td className="px-4 py-3 text-foreground">R$ {v.liquido.toLocaleString('pt-BR')}</td>
-												<td className="px-4 py-3 text-foreground">{v.boletos}</td>
+										<thead className="bg-muted text-left text-[11px] uppercase tracking-[0.25em] text-muted-foreground">
+											<tr>
+												<th className="px-4 py-3">Vendedor(a)</th>
+												<th className="px-4 py-3">Itens</th>
+												<th className="px-4 py-3">Valor bruto</th>
+												<th className="px-4 py-3">Valor líquido</th>
+												<th className="px-4 py-3">Nº Boletos</th>
 											</tr>
-										))}
-									</tbody>
-								</table>
-							</div>
-						</Card>
-					</Section>
+										</thead>
+										<tbody className="divide-y divide-border/30 bg-card">
+											{sellersForDisplay.map((v) => (
+												<tr key={v.id} className="hover:bg-muted/60">
+													<td className="px-4 py-3 font-semibold text-foreground">{v.nome}</td>
+													<td className="px-4 py-3 text-foreground">{v.itens}</td>
+													<td className="px-4 py-3 text-foreground">R$ {v.bruto.toLocaleString('pt-BR')}</td>
+													<td className="px-4 py-3 text-foreground">R$ {v.liquido.toLocaleString('pt-BR')}</td>
+													<td className="px-4 py-3 text-foreground">{v.boletos}</td>
+												</tr>
+											))}
+										</tbody>
+									</table>
+								</div>
+							</Card>
+						</Section>
 		</>
 	);
 };

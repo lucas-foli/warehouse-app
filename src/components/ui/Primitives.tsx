@@ -18,7 +18,11 @@ type CardProps = WithChildren & {
 };
 
 export const Card = ({ children, className, interactive = true, style }: CardProps) => {
-	const base = 'rounded-[var(--radius-card)] bg-muted p-8 text-foreground';
+	// min-w-0 lets the card shrink below its content's min-content width when it is a
+	// flex/grid item. Without it, grid items default to min-width:auto and refuse to
+	// shrink — a wide child (e.g. the recharts chart, a long product row) then forces
+	// the whole grid column past the viewport, causing horizontal scroll on mobile.
+	const base = 'min-w-0 rounded-[var(--radius-card)] bg-muted p-8 text-foreground';
 	const interactiveClasses =
 		'transition-transform duration-200 ease-out hover:-translate-y-1 hover:scale-[1.01] hover:shadow-[var(--shadow-card)]';
 
@@ -45,9 +49,21 @@ export const Metric = ({
 	suffix?: string;
 		className?: string;
 		valueClassName?: string;
-}) => (
+}) => {
+	// Scale the value down as it gets longer so big figures (e.g. R$ 302.881.052)
+	// fit on a single line on narrow cards instead of wrapping mid-digit. Only the
+	// default sizing reacts to length; an explicit valueClassName opts out entirely.
+	const displayLength = `${prefix ?? ''}${value}${suffix ?? ''}`.length;
+	const defaultSize =
+		displayLength <= 9
+			? 'text-4xl sm:text-5xl'
+			: displayLength <= 13
+				? 'text-3xl sm:text-4xl'
+				: 'text-2xl sm:text-3xl';
+
+	return (
 	<div className={merge("flex min-w-0 flex-col gap-2", className)}>
-		<p className={merge("text-4xl font-semibold leading-[1.1] tracking-tight break-words hyphens-auto sm:text-5xl", valueClassName)}>
+		<p className={merge(`${valueClassName ? '' : defaultSize} font-semibold leading-[1.1] tracking-tight break-words tabular-nums`, valueClassName)}>
 			{prefix}
 			{value}
 			{suffix}
@@ -57,7 +73,8 @@ export const Metric = ({
 			{detail || '\u00A0'}
 		</p>
 	</div>
-);
+	);
+};
 
 export const ListItem = ({ children, className }: WithChildren & { className?: string }) => (
 	<div className={merge('flex items-center justify-between rounded-2xl bg-card px-4 py-3 text-sm text-foreground', className)}>
