@@ -625,7 +625,7 @@ const ProductsPage = ({
 									<th className="px-4 py-3">Foto</th>
 									<th className="px-4 py-3">SKU</th>
 									<th className="px-4 py-3">Produto</th>
-									<th className="px-4 py-3">Status</th>
+									<th className="px-4 py-3">Onde</th>
 									<th className="px-4 py-3">Local</th>
 									<th className="px-4 py-3">Qtd</th>
 									<th className="px-4 py-3">Mínimo</th>
@@ -781,7 +781,7 @@ const ProductsPage = ({
 										)}
 										<div>
 											<label className="block text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-												Status
+												Onde
 											</label>
 											<input
 												value={editDraft.status}

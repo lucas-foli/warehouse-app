@@ -411,7 +411,7 @@ const StatusUpdateForm = ({ session, onBack }: Props) => {
 						)}
 
 						<label className="block text-left text-[10px] font-semibold uppercase tracking-[0.25em] text-muted-foreground sm:text-[11px] sm:tracking-[0.35em]">
-							Status*
+							Onde*
 							<select
 								id="product-location-select"
 								value={status}
@@ -419,7 +419,7 @@ const StatusUpdateForm = ({ session, onBack }: Props) => {
 								className="mt-2 w-full cursor-pointer rounded-2xl border border-input bg-card px-4 py-3 text-sm uppercase tracking-[0.2em] text-foreground outline-none transition hover:border-border/70 focus:border-ring/60 focus:ring-2 focus:ring-ring/25 disabled:cursor-not-allowed disabled:opacity-50"
 								required>
 								<option value="" disabled>
-									Selecione um status
+									Selecione onde está
 								</option>
 								{STATUS_SUGGESTIONS.map((suggestion) => (
 									<option key={suggestion} value={suggestion}>
