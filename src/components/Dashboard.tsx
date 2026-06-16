@@ -78,6 +78,13 @@ const Dashboard = ({
 		[products],
 	);
 
+	const [locationFilter, setLocationFilter] = useState<'all' | string>('all');
+
+	const visibleProducts = useMemo(
+		() => (locationFilter === 'all' ? products : products.filter((p) => p.location === locationFilter)),
+		[products, locationFilter],
+	);
+
 	useEffect(() => {
 		setBrandLogoSrc(logoUrl);
 	}, [logoUrl]);
@@ -111,11 +118,11 @@ const Dashboard = ({
 									<h1 className="text-xl font-bold tracking-tight text-foreground">{companyName}</h1>
 								)}
 								<select
-									value="all"
-									onChange={() => {}}
+									value={locationFilter}
+									onChange={(e) => setLocationFilter(e.target.value)}
 									className="h-9 cursor-pointer rounded-full border border-border/40 bg-card px-3 text-[11px] uppercase tracking-[0.3em] text-muted-foreground outline-none transition hover:border-border/70 focus:border-ring/60 focus:ring-1 focus:ring-ring/20">
 									<option value="all">Todos os locais</option>
-									{(locations.length ? locations : ['Loja principal']).map((loc) => (
+									{locations.map((loc) => (
 										<option key={loc} value={loc}>
 											{loc}
 										</option>
@@ -219,7 +226,7 @@ const Dashboard = ({
 
 					{page === 'overview' && surface === 'dashboard' && (
 						<OverviewPage
-							products={products}
+							products={visibleProducts}
 							categorySales={categorySales}
 							history={history}
 							salesTrend={salesTrend}
@@ -234,7 +241,7 @@ const Dashboard = ({
 
 					{page === 'overview' && surface === 'products' && (
 						<ProductsPage
-							products={products}
+							products={visibleProducts}
 							clients={clientes}
 							sellers={vendedores}
 							loading={loading}
