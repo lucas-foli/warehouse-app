@@ -20,11 +20,6 @@ type Mode = 'barcode' | 'sku';
 
 const StatusUpdateForm = ({ session, onBack }: Props) => {
 	const { tenant } = useTenant();
-	const [ondeOptions, setOndeOptions] = useState<string[]>([]);
-	useEffect(() => {
-		if (!tenant?.id) return;
-		void listProductOptions(tenant.id, 'onde').then(setOndeOptions).catch(() => {});
-	}, [tenant?.id]);
 	const [mode, setMode] = useState<Mode>('barcode');
 	const [barcodePhotos, setBarcodePhotos] = useState<File[]>([]);
 	const [barcodeInput, setBarcodeInput] = useState('');
@@ -35,6 +30,16 @@ const StatusUpdateForm = ({ session, onBack }: Props) => {
 	const [notes, setNotes] = useState('');
 	const [feedback, setFeedback] = useState<Feedback | null>(null);
 	const [submitting, setSubmitting] = useState(false);
+	const [ondeOptions, setOndeOptions] = useState<string[]>([]);
+	const [ondeLoading, setOndeLoading] = useState(true);
+	useEffect(() => {
+		if (!tenant?.id) return;
+		setOndeLoading(true);
+		void listProductOptions(tenant.id, 'onde')
+			.then(setOndeOptions)
+			.catch(() => {})
+			.finally(() => setOndeLoading(false));
+	}, [tenant?.id]);
 
 	const userEmail = session.user.email ?? 'Usuário autenticado';
 
@@ -422,9 +427,10 @@ const StatusUpdateForm = ({ session, onBack }: Props) => {
 								value={status}
 								onChange={(event) => setStatus(event.target.value)}
 								className="mt-2 w-full cursor-pointer rounded-2xl border border-input bg-card px-4 py-3 text-sm uppercase tracking-[0.2em] text-foreground outline-none transition hover:border-border/70 focus:border-ring/60 focus:ring-2 focus:ring-ring/25 disabled:cursor-not-allowed disabled:opacity-50"
+								disabled={ondeLoading || submitting}
 								required>
 								<option value="" disabled>
-									Selecione onde está
+									{ondeLoading ? 'Carregando…' : 'Selecione onde está'}
 								</option>
 								{ondeOptions.map((opt) => (
 									<option key={opt} value={opt}>{opt}</option>
