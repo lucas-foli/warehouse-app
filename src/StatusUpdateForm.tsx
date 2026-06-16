@@ -1,9 +1,9 @@
 import type { Session } from '@supabase/supabase-js';
 import { motion } from 'framer-motion';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTenant } from './context/TenantContext';
 import { supabase } from './lib/supabaseClient';
-const STATUS_SUGGESTIONS = ['ESTOQUE', 'GAVETA', 'VM'];
+import { listProductOptions } from './services/productOptions';
 const GMT3_OFFSET_MINUTES = -180;
 
 type Props = {
@@ -20,6 +20,11 @@ type Mode = 'barcode' | 'sku';
 
 const StatusUpdateForm = ({ session, onBack }: Props) => {
 	const { tenant } = useTenant();
+	const [ondeOptions, setOndeOptions] = useState<string[]>([]);
+	useEffect(() => {
+		if (!tenant?.id) return;
+		void listProductOptions(tenant.id, 'onde').then(setOndeOptions).catch(() => {});
+	}, [tenant?.id]);
 	const [mode, setMode] = useState<Mode>('barcode');
 	const [barcodePhotos, setBarcodePhotos] = useState<File[]>([]);
 	const [barcodeInput, setBarcodeInput] = useState('');
@@ -421,10 +426,8 @@ const StatusUpdateForm = ({ session, onBack }: Props) => {
 								<option value="" disabled>
 									Selecione onde está
 								</option>
-								{STATUS_SUGGESTIONS.map((suggestion) => (
-									<option key={suggestion} value={suggestion}>
-										{suggestion}
-									</option>
+								{ondeOptions.map((opt) => (
+									<option key={opt} value={opt}>{opt}</option>
 								))}
 							</select>
 						</label>
