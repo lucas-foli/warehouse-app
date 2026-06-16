@@ -54,14 +54,16 @@ create policy "Platform admins read product options"
 
 -- Backfill from values already present on products so nothing breaks for
 -- existing tenants. Distinct, non-empty values become the starting list.
+-- Values are upper(btrim(...)) to match the service's normalizeOptionValue, so
+-- a backfilled "Estoque" and a UI-added "ESTOQUE" can't become two entries.
 insert into public.tenant_product_options (tenant_id, kind, value)
-select distinct tenant_id, 'onde', status
+select distinct tenant_id, 'onde', upper(btrim(status))
 from public.products
 where tenant_id is not null and status is not null and btrim(status) <> ''
 on conflict (tenant_id, kind, value) do nothing;
 
 insert into public.tenant_product_options (tenant_id, kind, value)
-select distinct tenant_id, 'local', location
+select distinct tenant_id, 'local', upper(btrim(location))
 from public.products
 where tenant_id is not null and location is not null and btrim(location) <> ''
 on conflict (tenant_id, kind, value) do nothing;
