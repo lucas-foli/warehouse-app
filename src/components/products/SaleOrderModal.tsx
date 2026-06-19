@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Client, Product, Seller } from '../../types';
 import { registerSaleOrder } from '../../services/salesService';
+import { listProductOptions } from '../../services/productOptions';
 import { mergeCartLines, type CartLine } from '../../utils/cart';
 import { findProductByCode } from '../../utils/barcode';
 
@@ -40,6 +41,8 @@ export const SaleOrderModal = ({
 	const [soldAt, setSoldAt] = useState(todayISODate());
 	const [clientId, setClientId] = useState('');
 	const [sellerId, setSellerId] = useState('');
+	const [location, setLocation] = useState('');
+	const [localOptions, setLocalOptions] = useState<string[]>([]);
 	const [submitting, setSubmitting] = useState(false);
 	const [error, setError] = useState('');
 	const [notice, setNotice] = useState('');
@@ -67,6 +70,11 @@ export const SaleOrderModal = ({
 		[sellers],
 	);
 
+	useEffect(() => {
+		if (!tenantId) return;
+		void listProductOptions(tenantId, 'local').then(setLocalOptions).catch(() => {});
+	}, [tenantId]);
+
 	// Reset the whole cart whenever the modal opens (default the editor to the row
 	// the user had selected, falling back to the first sellable product).
 	useEffect(() => {
@@ -82,6 +90,7 @@ export const SaleOrderModal = ({
 		setSoldAt(todayISODate());
 		setClientId('');
 		setSellerId('');
+		setLocation('');
 		setError('');
 		setNotice('');
 		setSubmitting(false);
@@ -160,6 +169,7 @@ export const SaleOrderModal = ({
 				soldAt: new Date(`${soldAt}T12:00:00`).toISOString(),
 				clientId: clientId || null,
 				sellerId: sellerId || null,
+				location: location || null,
 			});
 			onRegistered(lines.map((l) => l.sku));
 			onClose();
@@ -335,6 +345,18 @@ export const SaleOrderModal = ({
 									<option key={s.id} value={s.id}>
 										{s.nome}
 									</option>
+								))}
+							</select>
+						</div>
+						<div>
+							<label className={labelClass}>Loja</label>
+							<select
+								value={location}
+								onChange={(e) => setLocation(e.target.value)}
+								className={`${fieldClass} cursor-pointer`}>
+								<option value="">—</option>
+								{localOptions.map((opt) => (
+									<option key={opt} value={opt}>{opt}</option>
 								))}
 							</select>
 						</div>
