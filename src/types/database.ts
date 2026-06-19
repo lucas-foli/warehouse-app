@@ -577,9 +577,19 @@ export type Database = {
           p_sold_at?: string
           p_client_id?: string | null
           p_seller_id?: string | null
-          p_location?: string | null
         }
         Returns: Database["public"]["Tables"]["products"]["Row"]
+      }
+      register_sale_order: {
+        Args: {
+          p_tenant_id: string
+          p_items: Json
+          p_sold_at?: string
+          p_client_id?: string | null
+          p_seller_id?: string | null
+          p_location?: string | null
+        }
+        Returns: Database["public"]["Tables"]["sales_orders"]["Row"]
       }
       tenant_has_active_access: {
         Args: { target_tenant_id: string }
