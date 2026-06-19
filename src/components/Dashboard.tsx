@@ -9,12 +9,16 @@ import { useTheme } from '../context/ThemeContext';
 import { useDashboardData } from '../hooks/useDashboardData';
 import type { Product } from '../types';
 import {
+	buildCategorySalesFromItems,
+	buildHistoryFromOrders,
+	buildRecentDailySalesFromOrders,
 	resolveEasynumbersLogoStorageUrl,
 	resolveEasynumbersLogoUrl,
 	resolveMadeBySarkStorageUrl,
 	resolveMadeBySarkUrl,
 	resolveSarkLogoStorageUrl,
 } from '../utils/helpers';
+import { filterSalesByLocation } from '../utils/salesByLocation';
 import ClientsPage from './ClientsPage';
 import OrdersPage from './OrdersPage';
 import OverviewPage from './OverviewPage';
@@ -72,6 +76,7 @@ const Dashboard = ({
 		clientEvolution,
 		salesOrders,
 		setSalesOrders,
+		salesItems,
 		reload,
 		loading,
 	} = useDashboardData(tenantId);
@@ -87,6 +92,31 @@ const Dashboard = ({
 		() => (locationFilter === 'all' ? products : products.filter((p) => p.location === locationFilter)),
 		[products, locationFilter],
 	);
+
+	const visibleSales = useMemo(
+		() => filterSalesByLocation(salesOrders, salesItems, locationFilter),
+		[salesOrders, salesItems, locationFilter],
+	);
+	const statusBySku = useMemo(
+		() => new Map(products.map((p) => [p.sku, p.status])),
+		[products],
+	);
+	const visibleCategorySales = useMemo(() => {
+		if (locationFilter === 'all') return categorySales;
+		const voidedNumbers = new Set(
+			salesOrders.filter((o) => o.status === 'voided').map((o) => o.order_number),
+		);
+		const activeItems = visibleSales.items.filter((i) => !voidedNumbers.has(i.order_number));
+		return buildCategorySalesFromItems(activeItems, statusBySku);
+	}, [locationFilter, categorySales, visibleSales, statusBySku, salesOrders]);
+	const visibleHistory = useMemo(() => {
+		if (locationFilter === 'all') return history;
+		return buildHistoryFromOrders(visibleSales.orders.filter((o) => o.status !== 'voided'));
+	}, [locationFilter, history, visibleSales]);
+	const visibleSalesTrend = useMemo(() => {
+		if (locationFilter === 'all') return salesTrend;
+		return buildRecentDailySalesFromOrders(visibleSales.orders.filter((o) => o.status !== 'voided'), 20);
+	}, [locationFilter, salesTrend, visibleSales]);
 
 	useEffect(() => {
 		setBrandLogoSrc(logoUrl);
@@ -296,9 +326,9 @@ const Dashboard = ({
 					{page === 'overview' && surface === 'dashboard' && (
 						<OverviewPage
 							products={visibleProducts}
-							categorySales={categorySales}
-							history={history}
-							salesTrend={salesTrend}
+							categorySales={visibleCategorySales}
+							history={visibleHistory}
+							salesTrend={visibleSalesTrend}
 							primaryColor={primaryColor}
 							secondaryColor={secondaryColor}
 							onViewAllProducts={() => navigate('/products')}
