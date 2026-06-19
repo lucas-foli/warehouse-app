@@ -6,7 +6,7 @@ export type SalesOrder = {
 	order_number: string;
 	client_id?: string;
 	client_external_id?: string;
-	location?: string | null;
+	location: string | null;
 	seller_id?: string;
 	seller_external_id?: string;
 	status?: string;
