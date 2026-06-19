@@ -18,6 +18,7 @@ import AdminLayout from './components/admin/AdminLayout';
 import RequestsPage from './components/admin/RequestsPage';
 import TenantSettingsLayout from './components/settings/TenantSettingsLayout';
 import JoinRequestsPage from './components/settings/JoinRequestsPage';
+import ProductOptionsPage from './components/settings/ProductOptionsPage';
 import { useTenant } from './context/TenantContext';
 import { supabase } from './lib/supabaseClient';
 import StatusUpdateForm from './StatusUpdateForm';
@@ -435,6 +436,7 @@ const App = () => {
 				{isAdmin && (
 					<Route element={<TenantSettingsLayout />}>
 						<Route path="/settings/join-requests" element={<JoinRequestsPage />} />
+						<Route path="/settings/product-options" element={<ProductOptionsPage />} />
 						<Route path="/settings" element={<Navigate to="/settings/join-requests" replace />} />
 					</Route>
 				)}

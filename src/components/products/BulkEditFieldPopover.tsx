@@ -103,7 +103,7 @@ export const BulkEditFieldPopover = ({
           onChange={(e) => setField(e.target.value as BulkEditableField)}
           className={inputClass}
         >
-          <option value="status">Status</option>
+          <option value="status">Onde</option>
           <option value="is_active">Active</option>
           <option value="location">Location</option>
           <option value="price">Price</option>

@@ -43,6 +43,15 @@ const TenantSettingsLayout = () => {
             }`}>
             Join requests
           </Link>
+          <Link
+            to="/settings/product-options"
+            className={`rounded-full px-3 py-1 transition ${
+              location.pathname.startsWith("/settings/product-options")
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            }`}>
+            Onde / Local
+          </Link>
         </nav>
       </header>
       <main className="p-6">

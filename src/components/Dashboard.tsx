@@ -81,6 +81,13 @@ const Dashboard = ({
 		[products],
 	);
 
+	const [locationFilter, setLocationFilter] = useState<'all' | string>('all');
+
+	const visibleProducts = useMemo(
+		() => (locationFilter === 'all' ? products : products.filter((p) => p.location === locationFilter)),
+		[products, locationFilter],
+	);
+
 	useEffect(() => {
 		setBrandLogoSrc(logoUrl);
 	}, [logoUrl]);
@@ -114,11 +121,11 @@ const Dashboard = ({
 									<h1 className="text-xl font-bold tracking-tight text-foreground">{companyName}</h1>
 								)}
 								<select
-									value="all"
-									onChange={() => {}}
+									value={locationFilter}
+									onChange={(e) => setLocationFilter(e.target.value)}
 									className="hidden sm:block h-9 cursor-pointer rounded-full border border-border/40 bg-card px-3 text-[11px] uppercase tracking-[0.3em] text-muted-foreground outline-none transition hover:border-border/70 focus:border-ring/60 focus:ring-1 focus:ring-ring/20">
 									<option value="all">Todos os locais</option>
-									{(locations.length ? locations : ['Loja principal']).map((loc) => (
+									{locations.map((loc) => (
 										<option key={loc} value={loc}>
 											{loc}
 										</option>
@@ -197,8 +204,8 @@ const Dashboard = ({
 											<div className="absolute right-0 top-12 z-50 min-w-[200px] rounded-2xl border border-border/40 bg-card py-2 shadow-lg">
 												<div className="border-b border-border/20 px-4 py-3">
 													<select
-														value="all"
-														onChange={() => {}}
+														value={locationFilter}
+														onChange={(e) => setLocationFilter(e.target.value)}
 														className="w-full cursor-pointer bg-transparent text-sm font-medium text-foreground outline-none">
 														<option value="all">Todos os locais</option>
 														{(locations.length ? locations : ['Loja principal']).map((loc) => (
@@ -288,7 +295,7 @@ const Dashboard = ({
 
 					{page === 'overview' && surface === 'dashboard' && (
 						<OverviewPage
-							products={products}
+							products={visibleProducts}
 							categorySales={categorySales}
 							history={history}
 							salesTrend={salesTrend}
@@ -300,7 +307,7 @@ const Dashboard = ({
 
 					{page === 'overview' && surface === 'products' && (
 						<ProductsPage
-							products={products}
+							products={visibleProducts}
 							clients={clientes}
 							sellers={vendedores}
 							loading={loading}

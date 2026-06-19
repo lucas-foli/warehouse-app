@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { fetchProducts } from '../services/dashboardService';
+import { listProductOptions } from '../services/productOptions';
 import type { Client, Product, Seller } from '../types';
 import { aggregateBulkResults, chunked, type BulkResult } from '../utils/bulk';
 import { BulkActionBar } from './products/BulkActionBar';
@@ -63,6 +64,14 @@ const ProductsPage = ({
 	const [bulkBusy, setBulkBusy] = useState(false);
 	const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
 	const [saleOrderModalOpen, setSaleOrderModalOpen] = useState(false);
+	const [ondeOptions, setOndeOptions] = useState<string[]>([]);
+	const [localOptions, setLocalOptions] = useState<string[]>([]);
+
+	useEffect(() => {
+		if (!tenantId) return;
+		void listProductOptions(tenantId, 'onde').then(setOndeOptions).catch(() => {});
+		void listProductOptions(tenantId, 'local').then(setLocalOptions).catch(() => {});
+	}, [tenantId]);
 
 	const toggleSelection = (id: string) => {
 		setSelectedIds((current) => {
@@ -619,7 +628,7 @@ const ProductsPage = ({
 									<th className="px-4 py-3">Foto</th>
 									<th className="px-4 py-3">SKU</th>
 									<th className="px-4 py-3">Produto</th>
-									<th className="px-4 py-3">Status</th>
+									<th className="px-4 py-3">Onde</th>
 									<th className="px-4 py-3">Local</th>
 									<th className="px-4 py-3">Qtd</th>
 									<th className="px-4 py-3">Mínimo</th>
@@ -784,23 +793,35 @@ const ProductsPage = ({
 										)}
 										<div>
 											<label className="block text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-												Status
+												Onde
 											</label>
-											<input
+											<select
 												value={editDraft.status}
 												onChange={(event) => updateDraft({ status: event.target.value })}
-												className="mt-2 block w-full rounded-xl border border-input bg-card px-3 py-2 text-sm text-foreground outline-none transition focus:border-ring/60 focus:ring-2 focus:ring-ring/25"
-											/>
+												className="mt-2 block w-full rounded-xl border border-input bg-card px-3 py-2 text-sm text-foreground outline-none transition focus:border-ring/60 focus:ring-2 focus:ring-ring/25">
+												{!ondeOptions.includes(editDraft.status) && (
+													<option value={editDraft.status}>{editDraft.status || 'Selecione…'}</option>
+												)}
+												{ondeOptions.map((opt) => (
+													<option key={opt} value={opt}>{opt}</option>
+												))}
+											</select>
 										</div>
 										<div>
 											<label className="block text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
 												Local
 											</label>
-											<input
+											<select
 												value={editDraft.location}
 												onChange={(event) => updateDraft({ location: event.target.value })}
-												className="mt-2 block w-full rounded-xl border border-input bg-card px-3 py-2 text-sm text-foreground outline-none transition focus:border-ring/60 focus:ring-2 focus:ring-ring/25"
-											/>
+												className="mt-2 block w-full rounded-xl border border-input bg-card px-3 py-2 text-sm text-foreground outline-none transition focus:border-ring/60 focus:ring-2 focus:ring-ring/25">
+												{!localOptions.includes(editDraft.location) && (
+													<option value={editDraft.location}>{editDraft.location || 'Selecione…'}</option>
+												)}
+												{localOptions.map((opt) => (
+													<option key={opt} value={opt}>{opt}</option>
+												))}
+											</select>
 										</div>
 										<div className="grid grid-cols-2 gap-3">
 											<div>
@@ -941,8 +962,8 @@ const ProductsPage = ({
 		<BulkEditFieldPopover
 			open={bulkEditOpen}
 			count={selectedIds.size}
-			statusOptions={statusOptions}
-			locationOptions={locations}
+			statusOptions={ondeOptions.length ? ondeOptions : statusOptions}
+			locationOptions={localOptions.length ? localOptions : locations}
 			onApply={handleBulkEditField}
 			onCancel={() => setBulkEditOpen(false)}
 		/>
