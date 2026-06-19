@@ -453,12 +453,6 @@ const ProductsPage = ({
 						</button>
 						<button
 							type="button"
-							onClick={() => setIsEditPanelOpen((current) => !current)}
-							className="rounded-full border border-border/40 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-foreground transition hover:bg-primary hover:text-primary-foreground">
-							{isEditPanelOpen ? 'Fechar ajustes' : 'Ajustes'}
-						</button>
-						<button
-							type="button"
 							onClick={startCreateProduct}
 							className="rounded-full border border-border/40 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-foreground transition hover:bg-primary hover:text-primary-foreground">
 							Novo produto
@@ -715,7 +709,16 @@ const ProductsPage = ({
 					</div>
 				</Card>
 				{isEditPanelOpen && (
-					<Card interactive={false} className="border border-border/30 bg-muted">
+					<>
+						{/* Mobile backdrop */}
+						<div className="fixed inset-0 z-40 bg-black/40 md:hidden" onClick={closeEditPanel} />
+						{/* Bottom sheet on mobile, inline sidebar on desktop */}
+						<div className="fixed inset-x-0 bottom-0 z-50 max-h-[90dvh] overflow-y-auto md:contents">
+						<Card interactive={false} className="rounded-b-none rounded-t-2xl border-0 bg-card md:rounded-[var(--radius-card)] md:border md:border-border/30 md:bg-muted">
+						{/* Drag handle – mobile only */}
+						<div className="flex justify-center py-2 md:hidden">
+							<div className="h-1 w-10 rounded-full bg-border" />
+						</div>
 						<div className="space-y-6">
 							<div className="flex items-start justify-between gap-4">
 								<div>
@@ -926,6 +929,8 @@ const ProductsPage = ({
 							)}
 						</div>
 					</Card>
+					</div>{/* end bottom-sheet wrapper */}
+				</>
 				)}
 			</div>
 		<ConfirmDialog

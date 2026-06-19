@@ -171,8 +171,13 @@ export const SaleOrderModal = ({
 	};
 
 	return (
-		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-			<div className="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-[var(--radius-card)] bg-card p-6 shadow-xl">
+		<div className="fixed inset-0 z-50 bg-black/60 sm:flex sm:items-center sm:justify-center sm:p-4">
+			<div className="absolute inset-x-0 bottom-0 flex max-h-[92dvh] w-full flex-col rounded-t-2xl bg-card shadow-xl sm:static sm:max-h-[90vh] sm:max-w-2xl sm:rounded-[var(--radius-card)]">
+				{/* Drag handle – mobile only */}
+				<div className="flex flex-shrink-0 justify-center py-3 sm:hidden">
+					<div className="h-1 w-10 rounded-full bg-border" />
+				</div>
+				<div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-6 pt-2 sm:pt-6">
 				<div className="flex items-start justify-between gap-4">
 					<div>
 						<p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-muted-foreground">
@@ -356,7 +361,8 @@ export const SaleOrderModal = ({
 					{error && <p className="text-xs text-rose-500">{error}</p>}
 				</div>
 
-				<div className="mt-6 flex justify-end gap-3">
+				</div>{/* end scrollable body */}
+				<div className="flex flex-shrink-0 justify-end gap-3 border-t border-border/20 px-6 py-4">
 					<button
 						type="button"
 						onClick={onClose}
