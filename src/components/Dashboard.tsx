@@ -11,6 +11,7 @@ import { listProductOptions } from '../services/productOptions';
 import type { Product } from '../types';
 import {
 	buildCategorySalesFromItems,
+	buildClientEvolutionFromOrders,
 	buildHistoryFromOrders,
 	buildRecentDailySalesFromOrders,
 	resolveEasynumbersLogoStorageUrl,
@@ -19,6 +20,8 @@ import {
 	resolveMadeBySarkUrl,
 	resolveSarkLogoStorageUrl,
 } from '../utils/helpers';
+import { aggregateSellers } from '../utils/sellerRollup';
+import { filterClientsByStoreOrders } from '../utils/clientsByStore';
 import { filterSalesByLocation } from '../utils/salesByLocation';
 import { buildStoreFilterOptions } from '../utils/storeFilterOptions';
 import ClientsPage from './ClientsPage';
@@ -110,26 +113,51 @@ const Dashboard = ({
 		() => filterSalesByLocation(salesOrders, salesItems, locationFilter),
 		[salesOrders, salesItems, locationFilter],
 	);
+	// The raw sales exposed by the hook include voided rows; exclude them once
+	// here so every per-store rollup matches the 'all' baseline's exclusion.
+	const voidedNumbers = useMemo(
+		() => new Set(salesOrders.filter((o) => o.status === 'voided').map((o) => o.order_number)),
+		[salesOrders],
+	);
+	const visibleActiveOrders = useMemo(
+		() => visibleSales.orders.filter((o) => o.status !== 'voided'),
+		[visibleSales],
+	);
+	const visibleActiveItems = useMemo(
+		() => visibleSales.items.filter((i) => !voidedNumbers.has(i.order_number)),
+		[visibleSales, voidedNumbers],
+	);
 	const statusBySku = useMemo(
 		() => new Map(products.map((p) => [p.sku, p.status])),
 		[products],
 	);
-	const visibleCategorySales = useMemo(() => {
-		if (locationFilter === 'all') return categorySales;
-		const voidedNumbers = new Set(
-			salesOrders.filter((o) => o.status === 'voided').map((o) => o.order_number),
-		);
-		const activeItems = visibleSales.items.filter((i) => !voidedNumbers.has(i.order_number));
-		return buildCategorySalesFromItems(activeItems, statusBySku);
-	}, [locationFilter, categorySales, visibleSales, statusBySku, salesOrders]);
-	const visibleHistory = useMemo(() => {
-		if (locationFilter === 'all') return history;
-		return buildHistoryFromOrders(visibleSales.orders.filter((o) => o.status !== 'voided'));
-	}, [locationFilter, history, visibleSales]);
-	const visibleSalesTrend = useMemo(() => {
-		if (locationFilter === 'all') return salesTrend;
-		return buildRecentDailySalesFromOrders(visibleSales.orders.filter((o) => o.status !== 'voided'), 20);
-	}, [locationFilter, salesTrend, visibleSales]);
+	const visibleCategorySales = useMemo(
+		() => (locationFilter === 'all' ? categorySales : buildCategorySalesFromItems(visibleActiveItems, statusBySku)),
+		[locationFilter, categorySales, visibleActiveItems, statusBySku],
+	);
+	const visibleHistory = useMemo(
+		() => (locationFilter === 'all' ? history : buildHistoryFromOrders(visibleActiveOrders)),
+		[locationFilter, history, visibleActiveOrders],
+	);
+	const visibleSalesTrend = useMemo(
+		() => (locationFilter === 'all' ? salesTrend : buildRecentDailySalesFromOrders(visibleActiveOrders, 20)),
+		[locationFilter, salesTrend, visibleActiveOrders],
+	);
+	const visibleVendedores = useMemo(
+		() =>
+			locationFilter === 'all'
+				? vendedores
+				: aggregateSellers(vendedores, visibleActiveOrders, visibleActiveItems),
+		[locationFilter, vendedores, visibleActiveOrders, visibleActiveItems],
+	);
+	const visibleClientes = useMemo(
+		() => (locationFilter === 'all' ? clientes : filterClientsByStoreOrders(clientes, visibleActiveOrders)),
+		[locationFilter, clientes, visibleActiveOrders],
+	);
+	const visibleClientEvolution = useMemo(
+		() => (locationFilter === 'all' ? clientEvolution : buildClientEvolutionFromOrders(visibleActiveOrders)),
+		[locationFilter, clientEvolution, visibleActiveOrders],
+	);
 
 	useEffect(() => {
 		setBrandLogoSrc(logoUrl);
@@ -374,8 +402,8 @@ const Dashboard = ({
 
 					{page === 'clientes' && (
 						<ClientsPage
-							clientes={clientes}
-							clientEvolution={clientEvolution}
+							clientes={visibleClientes}
+							clientEvolution={visibleClientEvolution}
 							primaryColor={primaryColor}
 							secondaryColor={secondaryColor}
 						/>
@@ -383,7 +411,7 @@ const Dashboard = ({
 
 					{page === 'vendedores' && (
 						<SellersPage
-							vendedores={vendedores}
+							vendedores={visibleVendedores}
 							primaryColor={primaryColor}
 							secondaryColor={secondaryColor}
 						/>
@@ -391,7 +419,7 @@ const Dashboard = ({
 
 					{page === 'vendas' && (
 						<OrdersPage
-							salesOrders={salesOrders}
+							salesOrders={locationFilter === 'all' ? salesOrders : visibleSales.orders}
 							clientes={clientes}
 							vendedores={vendedores}
 							tenantId={tenantId}
