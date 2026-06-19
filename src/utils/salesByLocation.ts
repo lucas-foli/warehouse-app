@@ -7,12 +7,12 @@ import type { SalesItem, SalesOrder } from '../services/dashboardService';
  * location are unattributed and excluded from any specific-store view.
  */
 export function filterSalesByLocation(
-  orders: SalesOrder[],
-  items: SalesItem[],
-  location: 'all' | string,
+	orders: SalesOrder[],
+	items: SalesItem[],
+	location: 'all' | string,
 ): { orders: SalesOrder[]; items: SalesItem[] } {
-  if (location === 'all') return { orders, items };
-  const keptOrders = orders.filter((o) => o.location === location);
-  const keptNumbers = new Set(keptOrders.map((o) => o.order_number));
-  return { orders: keptOrders, items: items.filter((i) => keptNumbers.has(i.order_number)) };
+	if (location === 'all') return { orders, items };
+	const keptOrders = orders.filter((o) => o.location === location);
+	const keptNumbers = new Set(keptOrders.map((o) => o.order_number));
+	return { orders: keptOrders, items: items.filter((i) => keptNumbers.has(i.order_number)) };
 }
