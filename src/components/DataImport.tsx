@@ -4,6 +4,7 @@ import { useTenant } from '../context/TenantContext';
 import {
 	buildProductsFromCsvText,
 	buildClientsFromCsvText,
+	buildProductOptionsFromCsvText,
 	buildSalesItemsFromCsvText,
 	buildSalesOrdersFromCsvText,
 	buildSellersFromCsvText,
@@ -18,7 +19,7 @@ type Props = {
 	onBack: () => void;
 };
 
-type ImportKind = 'products' | 'clients' | 'sellers' | 'orders' | 'items';
+type ImportKind = 'products' | 'clients' | 'sellers' | 'orders' | 'items' | 'options';
 
 type ImportConfig = {
 	label: string;
@@ -65,6 +66,12 @@ const IMPORT_CONFIG: Record<ImportKind, ImportConfig> = {
 		table: 'sales_items',
 		onConflict: 'tenant_id,order_number,sku',
 	},
+	options: {
+		label: 'Locais / Campos (Onde / Local)',
+		description: 'Importe as listas gerenciadas: Onde (local físico) e Local (loja) do select de venda.',
+		table: 'tenant_product_options',
+		onConflict: 'tenant_id,kind,value',
+	},
 };
 
 const CSV_GUIDE: Record<ImportKind, CsvGuide> = {
@@ -105,6 +112,16 @@ const CSV_GUIDE: Record<ImportKind, CsvGuide> = {
 		notes: [
 			'Se total_price estiver vazio, calculamos unit_price x qty (qty padrao = 1).',
 			'Somente SKUs cadastrados e ativos em produtos sao aceitos.',
+		],
+	},
+	options: {
+		required: ['kind', 'value'],
+		optional: ['sort_order'],
+		example: 'kind,value,sort_order',
+		notes: [
+			'kind aceita apenas "onde" (local fisico) ou "local" (loja). Linhas com outro kind sao ignoradas.',
+			'value e convertido para MAIUSCULAS automaticamente (igual a tela Onde / Local).',
+			'"local" alimenta o select de loja do modal de venda.',
 		],
 	},
 };
@@ -183,6 +200,8 @@ const DataImport = ({ onBack }: Props) => {
 				return buildSalesOrdersFromCsvText(text, tenantId) as CsvImportResult<unknown>;
 			case 'items':
 				return buildSalesItemsFromCsvText(text, tenantId) as CsvImportResult<unknown>;
+			case 'options':
+				return buildProductOptionsFromCsvText(text, tenantId) as CsvImportResult<unknown>;
 		}
 	};
 
@@ -372,6 +391,13 @@ const DataImport = ({ onBack }: Props) => {
 				return;
 			}
 
+			if (kind === 'options') {
+				const uploaded = await upsertRows(csvRows as Record<string, unknown>[]);
+				setImportedRows(uploaded);
+				setLoading(false);
+				return;
+			}
+
 			if (kind === 'orders') {
 				const rows = (csvRows as SalesOrderUpsertRow[]).map((row) => ({
 					...row,
@@ -447,6 +473,7 @@ const DataImport = ({ onBack }: Props) => {
 		if (kind === 'orders') return 'Limpa pedidos e itens deste tenant.';
 		if (kind === 'items') return 'Limpa todos os itens de venda antes do import.';
 		if (kind === 'products') return 'Limpa a tabela mestre de produtos deste tenant antes do import.';
+		if (kind === 'options') return 'Limpa TODAS as listas Onde e Local deste tenant antes do import.';
 		return 'Limpa os dados deste tipo antes do import.';
 	}, [kind]);
 

@@ -811,3 +811,103 @@ export const buildSalesItemsFromCsvText = (csvText: string, tenantId: string): C
 		warnings,
 	};
 };
+
+// ---- Product options (Onde / Local) import --------------------------------
+
+export type ProductOptionUpsertRow = {
+	tenant_id: string;
+	kind: 'onde' | 'local';
+	value: string;
+	sort_order?: number;
+};
+
+type OptionField = 'kind' | 'value' | 'sort_order';
+
+const OPTION_HEADER_ALIASES: Record<string, OptionField> = {
+	kind: 'kind',
+	tipo: 'kind',
+	lista: 'kind',
+
+	value: 'value',
+	valor: 'value',
+	nome: 'value',
+	name: 'value',
+
+	sort_order: 'sort_order',
+	ordem: 'sort_order',
+	sort: 'sort_order',
+};
+
+// Mirror of productOptions.normalizeOptionValue (kept local to avoid importing
+// the supabase-backed service into this pure parser): trim, collapse internal
+// whitespace, uppercase — so CSV-imported values match UI-added ones.
+const normalizeOptionValue = (raw: string) => raw.trim().replace(/\s+/g, ' ').toUpperCase();
+
+const OPTION_KINDS = new Set(['onde', 'local']);
+
+export const buildProductOptionsFromCsvText = (
+	csvText: string,
+	tenantId: string,
+): CsvImportResult<ProductOptionUpsertRow> => {
+	const { headers, rows } = parseCsvText(csvText);
+	const warnings: string[] = [];
+
+	if (!headers.length) {
+		return { preview: [], rows: [], totalRows: 0, validRows: 0, skippedRows: 0, warnings: ['CSV sem cabecalho.'] };
+	}
+
+	const canonicalByIndex: Array<OptionField | undefined> = headers.map((h) => {
+		const normalized = normalizeHeader(h);
+		return OPTION_HEADER_ALIASES[normalized];
+	});
+
+	const seenCanonicals = new Set(canonicalByIndex.filter(Boolean) as OptionField[]);
+	if (!seenCanonicals.has('kind')) warnings.push('Coluna de tipo (kind) nao detectada.');
+	if (!seenCanonicals.has('value')) warnings.push('Coluna de valor (value) nao detectada.');
+
+	const preview = rows.slice(0, 5).map((cols) =>
+		headers.reduce<Record<string, string>>((acc, header, idx) => {
+			acc[header] = (cols[idx] ?? '').trim();
+			return acc;
+		}, {}),
+	);
+
+	let skippedRows = 0;
+	const optionRows: ProductOptionUpsertRow[] = [];
+
+	for (const cols of rows) {
+		const fields: Partial<Record<OptionField, string>> = {};
+		for (let i = 0; i < cols.length; i++) {
+			const canonical = canonicalByIndex[i];
+			if (!canonical) continue;
+			const existing = fields[canonical];
+			const next = (cols[i] ?? '').trim();
+			if (!existing && next) fields[canonical] = next;
+		}
+
+		const kind = (fields.kind ?? '').trim().toLowerCase();
+		const value = normalizeOptionValue(fields.value ?? '');
+		if (!OPTION_KINDS.has(kind) || !value) {
+			skippedRows++;
+			continue;
+		}
+
+		const sortOrder = fields.sort_order ? parseInteger(fields.sort_order) : undefined;
+
+		optionRows.push({
+			tenant_id: tenantId,
+			kind: kind as 'onde' | 'local',
+			value,
+			sort_order: sortOrder ?? undefined,
+		});
+	}
+
+	return {
+		preview,
+		rows: optionRows,
+		totalRows: rows.length,
+		validRows: optionRows.length,
+		skippedRows,
+		warnings,
+	};
+};
