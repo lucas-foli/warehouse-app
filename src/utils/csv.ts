@@ -135,6 +135,7 @@ export type SalesOrderUpsertRow = {
 	status?: string;
 	total_amount?: number;
 	sold_at?: string;
+	location?: string;
 };
 
 export type SalesItemUpsertRow = {
@@ -591,7 +592,14 @@ export const buildSellersFromCsvText = (csvText: string, tenantId: string): CsvI
 	};
 };
 
-type OrderField = 'order_number' | 'client_external_id' | 'seller_external_id' | 'status' | 'total_amount' | 'sold_at';
+type OrderField =
+	| 'order_number'
+	| 'client_external_id'
+	| 'seller_external_id'
+	| 'status'
+	| 'total_amount'
+	| 'sold_at'
+	| 'location';
 
 const ORDER_HEADER_ALIASES: Record<string, OrderField> = {
 	order_number: 'order_number',
@@ -630,6 +638,12 @@ const ORDER_HEADER_ALIASES: Record<string, OrderField> = {
 	data: 'sold_at',
 	date: 'sold_at',
 	created_at: 'sold_at',
+
+	location: 'location',
+	local: 'location',
+	localizacao: 'location',
+	localização: 'location',
+	loja: 'location',
 };
 
 export const buildSalesOrdersFromCsvText = (csvText: string, tenantId: string): CsvImportResult<SalesOrderUpsertRow> => {
@@ -684,6 +698,7 @@ export const buildSalesOrdersFromCsvText = (csvText: string, tenantId: string): 
 			status: (fields.status ?? '').trim() || undefined,
 			total_amount: totalAmount,
 			sold_at: (fields.sold_at ?? '').trim() || undefined,
+			location: (fields.location ?? '').trim() || undefined,
 		});
 	}
 

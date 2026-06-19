@@ -91,9 +91,12 @@ const CSV_GUIDE: Record<ImportKind, CsvGuide> = {
 	},
 	orders: {
 		required: ['order_number'],
-		optional: ['client_external_id', 'seller_external_id', 'status', 'total_amount', 'sold_at'],
-		example: 'order_number,client_external_id,seller_external_id,status,total_amount,sold_at',
-		notes: ['Use os mesmos external_id dos CSVs de clientes e vendedores para vincular.'],
+		optional: ['client_external_id', 'seller_external_id', 'status', 'total_amount', 'sold_at', 'location'],
+		example: 'order_number,client_external_id,seller_external_id,status,total_amount,sold_at,location',
+		notes: [
+			'Use os mesmos external_id dos CSVs de clientes e vendedores para vincular.',
+			'location (aliases: loja, local) atribui a venda a uma loja para o filtro de receita por loja.',
+		],
 	},
 	items: {
 		required: ['order_number', 'sku'],
