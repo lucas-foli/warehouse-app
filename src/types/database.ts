@@ -206,6 +206,7 @@ export type Database = {
           client_id: string | null
           created_at: string
           id: string
+          location: string | null
           order_number: string
           seller_external_id: string | null
           seller_id: string | null
@@ -220,6 +221,7 @@ export type Database = {
           client_id?: string | null
           created_at?: string
           id?: string
+          location?: string | null
           order_number: string
           seller_external_id?: string | null
           seller_id?: string | null
@@ -575,6 +577,7 @@ export type Database = {
           p_sold_at?: string
           p_client_id?: string | null
           p_seller_id?: string | null
+          p_location?: string | null
         }
         Returns: Database["public"]["Tables"]["products"]["Row"]
       }
