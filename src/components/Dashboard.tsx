@@ -7,6 +7,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useTenant } from '../context/TenantContext';
 import { useTheme } from '../context/ThemeContext';
 import { useDashboardData } from '../hooks/useDashboardData';
+import { listProductOptions } from '../services/productOptions';
 import type { Product } from '../types';
 import {
 	buildCategorySalesFromItems,
@@ -19,6 +20,7 @@ import {
 	resolveSarkLogoStorageUrl,
 } from '../utils/helpers';
 import { filterSalesByLocation } from '../utils/salesByLocation';
+import { buildStoreFilterOptions } from '../utils/storeFilterOptions';
 import ClientsPage from './ClientsPage';
 import OrdersPage from './OrdersPage';
 import OverviewPage from './OverviewPage';
@@ -81,9 +83,20 @@ const Dashboard = ({
 		loading,
 	} = useDashboardData(tenantId);
 
+	const [managedLocations, setManagedLocations] = useState<string[]>([]);
+	useEffect(() => {
+		if (!tenantId) return;
+		void listProductOptions(tenantId, 'local').then(setManagedLocations).catch(() => {});
+	}, [tenantId]);
+
 	const locations = useMemo(
-		() => Array.from(new Set(products.map((p) => p.location))).filter(Boolean),
-		[products],
+		() =>
+			buildStoreFilterOptions(
+				managedLocations,
+				salesOrders.map((o) => o.location),
+				products.map((p) => p.location),
+			),
+		[managedLocations, salesOrders, products],
 	);
 
 	const [locationFilter, setLocationFilter] = useState<'all' | string>('all');
