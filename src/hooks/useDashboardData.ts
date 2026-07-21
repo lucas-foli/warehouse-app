@@ -29,6 +29,7 @@ export const useDashboardData = (tenantId: string | undefined) => {
 	const [clientEvolution, setClientEvolution] = useState<HistoryItem[]>([]);
 	const [salesOrders, setSalesOrders] = useState<SalesOrder[]>([]);
 	const [rawSalesItems, setRawSalesItems] = useState<SalesItem[]>([]);
+	const [lastSaleBySku, setLastSaleBySku] = useState<Map<string, string>>(new Map());
 	const [loading, setLoading] = useState(false);
 
 	const reload = useCallback(async () => {
@@ -119,6 +120,29 @@ export const useDashboardData = (tenantId: string | undefined) => {
 
 			setClientes(parsedClients);
 
+			// Last sale date per SKU, used downstream to flag "no turnover" risk.
+			// Join active sales items to their order's sold_at by order_number,
+			// then keep the most recent date per SKU (uppercase, like other keys).
+			// Mirrors the lastPurchaseByKey pattern above.
+			const lastSaleBySku = new Map<string, string>();
+			if (activeItems.length && activeOrders.length) {
+				const soldAtByOrderNumber = new Map<string, string>();
+				activeOrders.forEach((order) => {
+					if (order.sold_at) soldAtByOrderNumber.set(order.order_number, order.sold_at);
+				});
+				activeItems.forEach((item) => {
+					if (!item.sku) return;
+					const soldAt = soldAtByOrderNumber.get(item.order_number);
+					if (!soldAt) return;
+					const key = item.sku.trim().toUpperCase();
+					const current = lastSaleBySku.get(key);
+					if (!current || new Date(soldAt) > new Date(current)) {
+						lastSaleBySku.set(key, soldAt);
+					}
+				});
+			}
+			setLastSaleBySku(lastSaleBySku);
+
 			// Client-base growth: prefer orders (real multi-month dates); fall back
 			// to the clients table's last_purchase_at when there are no orders.
 			const evolutionFromOrders = activeOrders.length ? buildClientEvolutionFromOrders(activeOrders) : [];
@@ -140,5 +164,5 @@ export const useDashboardData = (tenantId: string | undefined) => {
 		reload();
 	}, [reload]);
 
-	return { products, setProducts, clientes, vendedores, categorySales, history, salesTrend, clientEvolution, salesOrders, setSalesOrders, salesItems: rawSalesItems, reload, loading };
+	return { products, setProducts, clientes, vendedores, categorySales, history, salesTrend, clientEvolution, salesOrders, setSalesOrders, salesItems: rawSalesItems, lastSaleBySku, reload, loading };
 };
