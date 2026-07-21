@@ -82,6 +82,18 @@ export async function fetchProducts(tenantId: string): Promise<Product[]> {
 			return Number.isFinite(parsed) ? parsed : undefined;
 		};
 
+		// Unlike `num`, treats an absent/NULL value as undefined instead of 0.
+		// `min` is nullable in the schema and "no minimum registered" must stay
+		// undefined so getProductRisk's `min !== undefined` guard (and the "—"
+		// display fallback) work correctly. Scoped to `min` only — `num` stays
+		// as-is since price/totalSold rely on its current 0-fallback semantics.
+		const numOrUndefined = (...keys: string[]) => {
+			const value = str(...keys);
+			if (!value) return undefined;
+			const parsed = Number(value);
+			return Number.isFinite(parsed) ? parsed : undefined;
+		};
+
 		return {
 			id: str('id') || str('sku') || crypto.randomUUID(),
 			name: str('name', 'descricao', 'Descrição'),
@@ -90,7 +102,7 @@ export async function fetchProducts(tenantId: string): Promise<Product[]> {
 			status: str('status', 'Status') || 'ESTOQUE',
 			location: str('location', 'local', 'Local') || 'Loja principal',
 			qty: num('qty', 'quantidade_estoque', 'Quantidade_Estoque', 'total_estoque', 'Total_Estoque') ?? 0,
-			min: num('min', 'estoque_minimo', 'Estoque_Minimo') ?? undefined,
+			min: numOrUndefined('min', 'estoque_minimo', 'Estoque_Minimo'),
 			price: num('price') ?? currency('preco_venda', 'Preço de Venda Normal') ?? undefined,
 			totalSold: num('total_sold') ?? undefined,
 			image: str('image_url', 'image', 'foto', 'Foto') || undefined,
