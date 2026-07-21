@@ -18,6 +18,7 @@ import {
 	buildRecentDailySalesFromOrders,
 } from '../utils/helpers';
 import { aggregateSellers } from '../utils/sellerRollup';
+import { buildLastSaleBySku } from '../utils/lastSaleBySku';
 
 export const useDashboardData = (tenantId: string | undefined) => {
 	const [products, setProducts] = useState<Product[]>([]);
@@ -121,27 +122,9 @@ export const useDashboardData = (tenantId: string | undefined) => {
 			setClientes(parsedClients);
 
 			// Last sale date per SKU, used downstream to flag "no turnover" risk.
-			// Join active sales items to their order's sold_at by order_number,
-			// then keep the most recent date per SKU (uppercase, like other keys).
-			// Mirrors the lastPurchaseByKey pattern above.
-			const lastSaleBySku = new Map<string, string>();
-			if (activeItems.length && activeOrders.length) {
-				const soldAtByOrderNumber = new Map<string, string>();
-				activeOrders.forEach((order) => {
-					if (order.sold_at) soldAtByOrderNumber.set(order.order_number, order.sold_at);
-				});
-				activeItems.forEach((item) => {
-					if (!item.sku) return;
-					const soldAt = soldAtByOrderNumber.get(item.order_number);
-					if (!soldAt) return;
-					const key = item.sku.trim().toUpperCase();
-					const current = lastSaleBySku.get(key);
-					if (!current || new Date(soldAt) > new Date(current)) {
-						lastSaleBySku.set(key, soldAt);
-					}
-				});
-			}
-			setLastSaleBySku(lastSaleBySku);
+			// See src/utils/lastSaleBySku.ts.
+			const nextLastSaleBySku = buildLastSaleBySku(activeOrders, activeItems);
+			setLastSaleBySku(nextLastSaleBySku);
 
 			// Client-base growth: prefer orders (real multi-month dates); fall back
 			// to the clients table's last_purchase_at when there are no orders.
