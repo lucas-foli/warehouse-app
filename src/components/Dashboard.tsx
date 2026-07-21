@@ -82,6 +82,7 @@ const Dashboard = ({
 		salesOrders,
 		setSalesOrders,
 		salesItems,
+		lastSaleBySku,
 		reload,
 		loading,
 	} = useDashboardData(tenantId);
@@ -370,6 +371,7 @@ const Dashboard = ({
 							categorySales={visibleCategorySales}
 							history={visibleHistory}
 							salesTrend={visibleSalesTrend}
+							lastSaleBySku={lastSaleBySku}
 							primaryColor={primaryColor}
 							secondaryColor={secondaryColor}
 							onViewAllProducts={() => navigate('/products')}
@@ -381,6 +383,7 @@ const Dashboard = ({
 							products={visibleProducts}
 							clients={clientes}
 							sellers={vendedores}
+							lastSaleBySku={lastSaleBySku}
 							loading={loading}
 							tenantId={tenantId}
 							onProductUpdated={(updated) =>

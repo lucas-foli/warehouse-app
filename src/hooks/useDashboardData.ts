@@ -18,6 +18,7 @@ import {
 	buildRecentDailySalesFromOrders,
 } from '../utils/helpers';
 import { aggregateSellers } from '../utils/sellerRollup';
+import { buildLastSaleBySku } from '../utils/lastSaleBySku';
 
 export const useDashboardData = (tenantId: string | undefined) => {
 	const [products, setProducts] = useState<Product[]>([]);
@@ -29,6 +30,7 @@ export const useDashboardData = (tenantId: string | undefined) => {
 	const [clientEvolution, setClientEvolution] = useState<HistoryItem[]>([]);
 	const [salesOrders, setSalesOrders] = useState<SalesOrder[]>([]);
 	const [rawSalesItems, setRawSalesItems] = useState<SalesItem[]>([]);
+	const [lastSaleBySku, setLastSaleBySku] = useState<Map<string, string>>(new Map());
 	const [loading, setLoading] = useState(false);
 
 	const reload = useCallback(async () => {
@@ -119,6 +121,11 @@ export const useDashboardData = (tenantId: string | undefined) => {
 
 			setClientes(parsedClients);
 
+			// Last sale date per SKU, used downstream to flag "no turnover" risk.
+			// See src/utils/lastSaleBySku.ts.
+			const nextLastSaleBySku = buildLastSaleBySku(activeOrders, activeItems);
+			setLastSaleBySku(nextLastSaleBySku);
+
 			// Client-base growth: prefer orders (real multi-month dates); fall back
 			// to the clients table's last_purchase_at when there are no orders.
 			const evolutionFromOrders = activeOrders.length ? buildClientEvolutionFromOrders(activeOrders) : [];
@@ -140,5 +147,5 @@ export const useDashboardData = (tenantId: string | undefined) => {
 		reload();
 	}, [reload]);
 
-	return { products, setProducts, clientes, vendedores, categorySales, history, salesTrend, clientEvolution, salesOrders, setSalesOrders, salesItems: rawSalesItems, reload, loading };
+	return { products, setProducts, clientes, vendedores, categorySales, history, salesTrend, clientEvolution, salesOrders, setSalesOrders, salesItems: rawSalesItems, lastSaleBySku, reload, loading };
 };

@@ -1,0 +1,11 @@
+sku,name,status,location,qty,min,price,image_url,is_active
+RSK-001,Controle saudavel,ESTOQUE,LOJA RISCO,50,10,50,https://placehold.co/200x200?text=RSK-001,true
+RSK-002,Vitrine sem giro,VITRINE,LOJA RISCO,50,10,50,https://placehold.co/200x200?text=RSK-002,true
+RSK-003,Vitrine precisa comprar,VITRINE,LOJA RISCO,5,10,50,https://placehold.co/200x200?text=RSK-003,true
+RSK-004,Estoque zerado sem minimo,ESTOQUE,LOJA RISCO,0,,50,https://placehold.co/200x200?text=RSK-004,true
+RSK-005,Sem foto cadastrada,ESTOQUE,LOJA RISCO,50,10,50,,true
+RSK-006,Nunca vendido recem cadastrado,ESTOQUE,LOJA RISCO,50,10,50,https://placehold.co/200x200?text=RSK-006,true
+RSK-007,Nunca vendido antigo (exige SQL),ESTOQUE,LOJA RISCO,50,10,50,https://placehold.co/200x200?text=RSK-007,true
+RSK-008,Venda recente estornada,ESTOQUE,LOJA RISCO,50,10,50,https://placehold.co/200x200?text=RSK-008,true
+RSK-009,Fronteira quase 30 dias,ESTOQUE,LOJA RISCO,50,10,50,https://placehold.co/200x200?text=RSK-009,true
+RSK-010,Fronteira 31 dias,ESTOQUE,LOJA RISCO,50,10,50,https://placehold.co/200x200?text=RSK-010,true
