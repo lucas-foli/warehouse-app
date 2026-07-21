@@ -580,6 +580,11 @@ const ProductsPage = ({
 													</div>
 													<div className="min-w-0 flex-1">
 														<p className="line-clamp-2 text-sm font-semibold text-foreground">{product.name}</p>
+														{risk?.critical && (
+															<p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-rose-500">
+																Risco: {risk.reasons.join(', ')}
+															</p>
+														)}
 														<div className="mt-1 flex flex-wrap items-center gap-2">
 															<span className="rounded-full bg-black/5 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.15em] text-foreground">
 																{product.status}
@@ -588,11 +593,6 @@ const ProductsPage = ({
 																SKU {product.sku}
 															</span>
 														</div>
-														{risk?.critical && (
-															<p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-rose-500">
-																Risco: {risk.reasons.join(', ')}
-															</p>
-														)}
 													</div>
 												</div>
 												<dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
@@ -697,16 +697,18 @@ const ProductsPage = ({
 														</div>
 													</td>
 													<td className="px-4 py-3 font-semibold text-foreground">{product.sku}</td>
-													<td className="px-4 py-3 text-foreground">{product.name}</td>
-													<td className="px-4 py-3">
-														<span className="rounded-full bg-black/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground">
-															{product.status}
-														</span>
+													<td className="px-4 py-3 text-foreground">
+														{product.name}
 														{risk?.critical && (
 															<p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-rose-500">
 																Risco: {risk.reasons.join(', ')}
 															</p>
 														)}
+													</td>
+													<td className="px-4 py-3">
+														<span className="rounded-full bg-black/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground">
+															{product.status}
+														</span>
 													</td>
 													<td className="px-4 py-3 text-foreground">{product.location}</td>
 													<td className="px-4 py-3 text-foreground">{product.qty}</td>

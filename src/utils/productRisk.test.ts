@@ -107,6 +107,34 @@ describe('getProductRisk', () => {
 		expect(result.reasons).toContain('comprar');
 	});
 
+	it('guard-rail: a healthy product is never critical regardless of status "SEM GIRO" (old keyword behavior must not come back)', () => {
+		const product = baseProduct({ status: 'SEM GIRO', qty: 50, min: 2, image: 'foto.jpg' });
+		const lastSaleBySku = new Map([['ABC123', daysAgo(1)]]);
+		expect(getProductRisk(product, lastSaleBySku, NOW)).toEqual({ critical: false, reasons: [] });
+	});
+
+	it('guard-rail: a healthy product is never critical regardless of status "EM RISCO" or "COMPRAR"', () => {
+		const lastSaleBySku = new Map([['ABC123', daysAgo(1)]]);
+		const emRisco = baseProduct({ status: 'EM RISCO', qty: 50, min: 2, image: 'foto.jpg' });
+		expect(getProductRisk(emRisco, lastSaleBySku, NOW)).toEqual({ critical: false, reasons: [] });
+
+		const comprar = baseProduct({ status: 'COMPRAR', qty: 50, min: 2, image: 'foto.jpg' });
+		expect(getProductRisk(comprar, lastSaleBySku, NOW)).toEqual({ critical: false, reasons: [] });
+	});
+
+	it('does not flag "sem giro" when lastSale is an invalid date (fails safe: NaN > 30 is false)', () => {
+		const product = baseProduct();
+		const lastSaleBySku = new Map([['ABC123', 'not-a-date']]);
+		const result = getProductRisk(product, lastSaleBySku, NOW);
+		expect(result.reasons).not.toContain('sem giro');
+	});
+
+	it('does not flag "sem giro" for a never-sold product with an invalid created_at (fails safe: NaN > 30 is false)', () => {
+		const product = baseProduct({ created_at: 'not-a-date' });
+		const result = getProductRisk(product, new Map(), NOW);
+		expect(result.reasons).not.toContain('sem giro');
+	});
+
 	it('combines multiple reasons when several triggers fire', () => {
 		const product = baseProduct({ qty: 0, image: undefined, min: 1 });
 		const lastSaleBySku = new Map([['ABC123', daysAgo(SEM_GIRO_DIAS + 1)]]);
