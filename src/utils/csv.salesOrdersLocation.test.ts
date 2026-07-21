@@ -24,4 +24,10 @@ describe('buildSalesOrdersFromCsvText — location', () => {
 		expect(buildSalesOrdersFromCsvText('order_number,location\nVT-0004,\n', TENANT).rows[0].location).toBeUndefined();
 		expect(buildSalesOrdersFromCsvText('order_number,total_amount\nVT-0005,50\n', TENANT).rows[0].location).toBeUndefined();
 	});
+
+	it('normalizes location the same way the managed list does (uppercase, collapsed)', () => {
+		expect(buildSalesOrdersFromCsvText('order_number,location\nVT-0006,  loja   principal \n', TENANT).rows[0].location).toBe(
+			'LOJA PRINCIPAL',
+		);
+	});
 });

@@ -36,4 +36,12 @@ describe('filterClientsByStoreOrders', () => {
 		]);
 		expect(r[0].ultimaCompra).toBe('2026-06-10');
 	});
+
+	it('keeps a store buyer even when the order has no sold_at', () => {
+		const withPrior: Client[] = [{ id: 'c1', nome: 'Ana', cidade: 'BSB', ultimaCompra: '2026-01-01' }];
+		const r = filterClientsByStoreOrders(withPrior, [order({ order_number: 'V-5', client_id: 'c1' })]);
+		expect(r.map((c) => c.id)).toEqual(['c1']);
+		// no date on this order → falls back to the client's existing ultimaCompra
+		expect(r[0].ultimaCompra).toBe('2026-01-01');
+	});
 });

@@ -282,6 +282,15 @@ const parseBoolean = (value: string) => {
 	return undefined;
 };
 
+// Canonical form for managed-list values (product options AND store locations):
+// trim, collapse internal whitespace, uppercase. Mirrors
+// productOptions.normalizeOptionValue (kept local so this pure parser doesn't
+// import the supabase-backed service). Every write path — the Onde/Local UI,
+// the sale modal (which picks from the managed list), and these CSV importers —
+// must land the SAME string, or the Dashboard store filter (strict === match)
+// would split one real store across duplicate entries.
+const normalizeManagedValue = (raw: string) => raw.trim().replace(/\s+/g, ' ').toUpperCase();
+
 export type CsvProductsResult = {
 	preview: Record<string, string>[];
 	rows: ProductUpsertRow[];
@@ -360,7 +369,7 @@ export const buildProductsFromCsvText = (csvText: string, tenantId: string): Csv
 		const isActive = fields.is_active ? parseBoolean(fields.is_active) : undefined;
 		if (typeof isActive === 'boolean') row.is_active = isActive;
 
-		const location = (fields.location ?? '').trim();
+		const location = normalizeManagedValue(fields.location ?? '');
 		if (location) row.location = location;
 
 		const qty = fields.qty ? parseInteger(fields.qty) : undefined;
@@ -698,7 +707,7 @@ export const buildSalesOrdersFromCsvText = (csvText: string, tenantId: string): 
 			status: (fields.status ?? '').trim() || undefined,
 			total_amount: totalAmount,
 			sold_at: (fields.sold_at ?? '').trim() || undefined,
-			location: (fields.location ?? '').trim() || undefined,
+			location: normalizeManagedValue(fields.location ?? '') || undefined,
 		});
 	}
 
@@ -838,11 +847,6 @@ const OPTION_HEADER_ALIASES: Record<string, OptionField> = {
 	sort: 'sort_order',
 };
 
-// Mirror of productOptions.normalizeOptionValue (kept local to avoid importing
-// the supabase-backed service into this pure parser): trim, collapse internal
-// whitespace, uppercase — so CSV-imported values match UI-added ones.
-const normalizeOptionValue = (raw: string) => raw.trim().replace(/\s+/g, ' ').toUpperCase();
-
 const OPTION_KINDS = new Set(['onde', 'local']);
 
 export const buildProductOptionsFromCsvText = (
@@ -886,7 +890,7 @@ export const buildProductOptionsFromCsvText = (
 		}
 
 		const kind = (fields.kind ?? '').trim().toLowerCase();
-		const value = normalizeOptionValue(fields.value ?? '');
+		const value = normalizeManagedValue(fields.value ?? '');
 		if (!OPTION_KINDS.has(kind) || !value) {
 			skippedRows++;
 			continue;
