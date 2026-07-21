@@ -28,6 +28,7 @@ export const useDashboardData = (tenantId: string | undefined) => {
 	const [salesTrend, setSalesTrend] = useState<HistoryItem[]>([]);
 	const [clientEvolution, setClientEvolution] = useState<HistoryItem[]>([]);
 	const [salesOrders, setSalesOrders] = useState<SalesOrder[]>([]);
+	const [rawSalesItems, setRawSalesItems] = useState<SalesItem[]>([]);
 	const [loading, setLoading] = useState(false);
 
 	const reload = useCallback(async () => {
@@ -49,6 +50,7 @@ export const useDashboardData = (tenantId: string | undefined) => {
 			try { salesItems = await fetchSalesItems(tenantId); } catch { /* empty */ }
 
 			setSalesOrders(orders);
+			setRawSalesItems(salesItems);
 
 			// Exclude voided orders/items from every rollup. Slice 4 reverses stock
 			// but leaves these derived aggregates inflated; filter them here once.
@@ -138,5 +140,5 @@ export const useDashboardData = (tenantId: string | undefined) => {
 		reload();
 	}, [reload]);
 
-	return { products, setProducts, clientes, vendedores, categorySales, history, salesTrend, clientEvolution, salesOrders, setSalesOrders, reload, loading };
+	return { products, setProducts, clientes, vendedores, categorySales, history, salesTrend, clientEvolution, salesOrders, setSalesOrders, salesItems: rawSalesItems, reload, loading };
 };

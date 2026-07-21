@@ -7,14 +7,23 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useTenant } from '../context/TenantContext';
 import { useTheme } from '../context/ThemeContext';
 import { useDashboardData } from '../hooks/useDashboardData';
+import { listProductOptions } from '../services/productOptions';
 import type { Product } from '../types';
 import {
+	buildCategorySalesFromItems,
+	buildClientEvolutionFromOrders,
+	buildHistoryFromOrders,
+	buildRecentDailySalesFromOrders,
 	resolveEasynumbersLogoStorageUrl,
 	resolveEasynumbersLogoUrl,
 	resolveMadeBySarkStorageUrl,
 	resolveMadeBySarkUrl,
 	resolveSarkLogoStorageUrl,
 } from '../utils/helpers';
+import { aggregateSellers } from '../utils/sellerRollup';
+import { filterClientsByStoreOrders } from '../utils/clientsByStore';
+import { filterSalesByLocation } from '../utils/salesByLocation';
+import { buildStoreFilterOptions } from '../utils/storeFilterOptions';
 import ClientsPage from './ClientsPage';
 import OrdersPage from './OrdersPage';
 import OverviewPage from './OverviewPage';
@@ -72,13 +81,25 @@ const Dashboard = ({
 		clientEvolution,
 		salesOrders,
 		setSalesOrders,
+		salesItems,
 		reload,
 		loading,
 	} = useDashboardData(tenantId);
 
+	const [managedLocations, setManagedLocations] = useState<string[]>([]);
+	useEffect(() => {
+		if (!tenantId) return;
+		void listProductOptions(tenantId, 'local').then(setManagedLocations).catch(() => {});
+	}, [tenantId]);
+
 	const locations = useMemo(
-		() => Array.from(new Set(products.map((p) => p.location))).filter(Boolean),
-		[products],
+		() =>
+			buildStoreFilterOptions(
+				managedLocations,
+				salesOrders.map((o) => o.location),
+				products.map((p) => p.location),
+			),
+		[managedLocations, salesOrders, products],
 	);
 
 	const [locationFilter, setLocationFilter] = useState<'all' | string>('all');
@@ -86,6 +107,56 @@ const Dashboard = ({
 	const visibleProducts = useMemo(
 		() => (locationFilter === 'all' ? products : products.filter((p) => p.location === locationFilter)),
 		[products, locationFilter],
+	);
+
+	const visibleSales = useMemo(
+		() => filterSalesByLocation(salesOrders, salesItems, locationFilter),
+		[salesOrders, salesItems, locationFilter],
+	);
+	// The raw sales exposed by the hook include voided rows; exclude them once
+	// here so every per-store rollup matches the 'all' baseline's exclusion.
+	const voidedNumbers = useMemo(
+		() => new Set(salesOrders.filter((o) => o.status === 'voided').map((o) => o.order_number)),
+		[salesOrders],
+	);
+	const visibleActiveOrders = useMemo(
+		() => visibleSales.orders.filter((o) => o.status !== 'voided'),
+		[visibleSales],
+	);
+	const visibleActiveItems = useMemo(
+		() => visibleSales.items.filter((i) => !voidedNumbers.has(i.order_number)),
+		[visibleSales, voidedNumbers],
+	);
+	const statusBySku = useMemo(
+		() => new Map(products.map((p) => [p.sku, p.status])),
+		[products],
+	);
+	const visibleCategorySales = useMemo(
+		() => (locationFilter === 'all' ? categorySales : buildCategorySalesFromItems(visibleActiveItems, statusBySku)),
+		[locationFilter, categorySales, visibleActiveItems, statusBySku],
+	);
+	const visibleHistory = useMemo(
+		() => (locationFilter === 'all' ? history : buildHistoryFromOrders(visibleActiveOrders)),
+		[locationFilter, history, visibleActiveOrders],
+	);
+	const visibleSalesTrend = useMemo(
+		() => (locationFilter === 'all' ? salesTrend : buildRecentDailySalesFromOrders(visibleActiveOrders, 20)),
+		[locationFilter, salesTrend, visibleActiveOrders],
+	);
+	const visibleVendedores = useMemo(
+		() =>
+			locationFilter === 'all'
+				? vendedores
+				: aggregateSellers(vendedores, visibleActiveOrders, visibleActiveItems),
+		[locationFilter, vendedores, visibleActiveOrders, visibleActiveItems],
+	);
+	const visibleClientes = useMemo(
+		() => (locationFilter === 'all' ? clientes : filterClientsByStoreOrders(clientes, visibleActiveOrders)),
+		[locationFilter, clientes, visibleActiveOrders],
+	);
+	const visibleClientEvolution = useMemo(
+		() => (locationFilter === 'all' ? clientEvolution : buildClientEvolutionFromOrders(visibleActiveOrders)),
+		[locationFilter, clientEvolution, visibleActiveOrders],
 	);
 
 	useEffect(() => {
@@ -296,9 +367,9 @@ const Dashboard = ({
 					{page === 'overview' && surface === 'dashboard' && (
 						<OverviewPage
 							products={visibleProducts}
-							categorySales={categorySales}
-							history={history}
-							salesTrend={salesTrend}
+							categorySales={visibleCategorySales}
+							history={visibleHistory}
+							salesTrend={visibleSalesTrend}
 							primaryColor={primaryColor}
 							secondaryColor={secondaryColor}
 							onViewAllProducts={() => navigate('/products')}
@@ -331,8 +402,8 @@ const Dashboard = ({
 
 					{page === 'clientes' && (
 						<ClientsPage
-							clientes={clientes}
-							clientEvolution={clientEvolution}
+							clientes={visibleClientes}
+							clientEvolution={visibleClientEvolution}
 							primaryColor={primaryColor}
 							secondaryColor={secondaryColor}
 						/>
@@ -340,7 +411,7 @@ const Dashboard = ({
 
 					{page === 'vendedores' && (
 						<SellersPage
-							vendedores={vendedores}
+							vendedores={visibleVendedores}
 							primaryColor={primaryColor}
 							secondaryColor={secondaryColor}
 						/>
@@ -348,7 +419,7 @@ const Dashboard = ({
 
 					{page === 'vendas' && (
 						<OrdersPage
-							salesOrders={salesOrders}
+							salesOrders={locationFilter === 'all' ? salesOrders : visibleSales.orders}
 							clientes={clientes}
 							vendedores={vendedores}
 							tenantId={tenantId}

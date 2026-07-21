@@ -8,6 +8,7 @@ export type RegisterSaleOrderInput = {
 	soldAt?: string;
 	clientId?: string | null;
 	sellerId?: string | null;
+	location?: string | null;
 };
 
 // Maps the typed exceptions raised by register_sale_order / the sales_items trigger
@@ -44,6 +45,7 @@ export async function registerSaleOrder(input: RegisterSaleOrderInput) {
 		p_sold_at: input.soldAt ?? new Date().toISOString(),
 		p_client_id: input.clientId ?? null,
 		p_seller_id: input.sellerId ?? null,
+		p_location: input.location ?? null,
 	});
 
 	if (error) throw new Error(friendlySaleError(error.message));

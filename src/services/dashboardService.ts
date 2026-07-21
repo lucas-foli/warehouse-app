@@ -6,6 +6,7 @@ export type SalesOrder = {
 	order_number: string;
 	client_id?: string;
 	client_external_id?: string;
+	location: string | null;
 	seller_id?: string;
 	seller_external_id?: string;
 	status?: string;
@@ -135,6 +136,7 @@ export async function fetchSalesOrders(tenantId: string): Promise<SalesOrder[]> 
 		order_number: toText(row.order_number),
 		client_id: toText(row.client_id) || undefined,
 		client_external_id: toText(row.client_external_id) || undefined,
+		location: toText(row.location) || null,
 		seller_id: toText(row.seller_id) || undefined,
 		seller_external_id: toText(row.seller_external_id) || undefined,
 		status: toText(row.status) || undefined,

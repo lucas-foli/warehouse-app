@@ -135,6 +135,7 @@ export type SalesOrderUpsertRow = {
 	status?: string;
 	total_amount?: number;
 	sold_at?: string;
+	location?: string;
 };
 
 export type SalesItemUpsertRow = {
@@ -281,6 +282,15 @@ const parseBoolean = (value: string) => {
 	return undefined;
 };
 
+// Canonical form for managed-list values (product options AND store locations):
+// trim, collapse internal whitespace, uppercase. Mirrors
+// productOptions.normalizeOptionValue (kept local so this pure parser doesn't
+// import the supabase-backed service). Every write path — the Onde/Local UI,
+// the sale modal (which picks from the managed list), and these CSV importers —
+// must land the SAME string, or the Dashboard store filter (strict === match)
+// would split one real store across duplicate entries.
+const normalizeManagedValue = (raw: string) => raw.trim().replace(/\s+/g, ' ').toUpperCase();
+
 export type CsvProductsResult = {
 	preview: Record<string, string>[];
 	rows: ProductUpsertRow[];
@@ -359,7 +369,7 @@ export const buildProductsFromCsvText = (csvText: string, tenantId: string): Csv
 		const isActive = fields.is_active ? parseBoolean(fields.is_active) : undefined;
 		if (typeof isActive === 'boolean') row.is_active = isActive;
 
-		const location = (fields.location ?? '').trim();
+		const location = normalizeManagedValue(fields.location ?? '');
 		if (location) row.location = location;
 
 		const qty = fields.qty ? parseInteger(fields.qty) : undefined;
@@ -591,7 +601,14 @@ export const buildSellersFromCsvText = (csvText: string, tenantId: string): CsvI
 	};
 };
 
-type OrderField = 'order_number' | 'client_external_id' | 'seller_external_id' | 'status' | 'total_amount' | 'sold_at';
+type OrderField =
+	| 'order_number'
+	| 'client_external_id'
+	| 'seller_external_id'
+	| 'status'
+	| 'total_amount'
+	| 'sold_at'
+	| 'location';
 
 const ORDER_HEADER_ALIASES: Record<string, OrderField> = {
 	order_number: 'order_number',
@@ -630,6 +647,12 @@ const ORDER_HEADER_ALIASES: Record<string, OrderField> = {
 	data: 'sold_at',
 	date: 'sold_at',
 	created_at: 'sold_at',
+
+	location: 'location',
+	local: 'location',
+	localizacao: 'location',
+	localização: 'location',
+	loja: 'location',
 };
 
 export const buildSalesOrdersFromCsvText = (csvText: string, tenantId: string): CsvImportResult<SalesOrderUpsertRow> => {
@@ -684,6 +707,7 @@ export const buildSalesOrdersFromCsvText = (csvText: string, tenantId: string): 
 			status: (fields.status ?? '').trim() || undefined,
 			total_amount: totalAmount,
 			sold_at: (fields.sold_at ?? '').trim() || undefined,
+			location: normalizeManagedValue(fields.location ?? '') || undefined,
 		});
 	}
 
@@ -792,6 +816,101 @@ export const buildSalesItemsFromCsvText = (csvText: string, tenantId: string): C
 		rows: itemRows,
 		totalRows: rows.length,
 		validRows: itemRows.length,
+		skippedRows,
+		warnings,
+	};
+};
+
+// ---- Product options (Onde / Local) import --------------------------------
+
+export type ProductOptionUpsertRow = {
+	tenant_id: string;
+	kind: 'onde' | 'local';
+	value: string;
+	sort_order?: number;
+};
+
+type OptionField = 'kind' | 'value' | 'sort_order';
+
+const OPTION_HEADER_ALIASES: Record<string, OptionField> = {
+	kind: 'kind',
+	tipo: 'kind',
+	lista: 'kind',
+
+	value: 'value',
+	valor: 'value',
+	nome: 'value',
+	name: 'value',
+
+	sort_order: 'sort_order',
+	ordem: 'sort_order',
+	sort: 'sort_order',
+};
+
+const OPTION_KINDS = new Set(['onde', 'local']);
+
+export const buildProductOptionsFromCsvText = (
+	csvText: string,
+	tenantId: string,
+): CsvImportResult<ProductOptionUpsertRow> => {
+	const { headers, rows } = parseCsvText(csvText);
+	const warnings: string[] = [];
+
+	if (!headers.length) {
+		return { preview: [], rows: [], totalRows: 0, validRows: 0, skippedRows: 0, warnings: ['CSV sem cabecalho.'] };
+	}
+
+	const canonicalByIndex: Array<OptionField | undefined> = headers.map((h) => {
+		const normalized = normalizeHeader(h);
+		return OPTION_HEADER_ALIASES[normalized];
+	});
+
+	const seenCanonicals = new Set(canonicalByIndex.filter(Boolean) as OptionField[]);
+	if (!seenCanonicals.has('kind')) warnings.push('Coluna de tipo (kind) nao detectada.');
+	if (!seenCanonicals.has('value')) warnings.push('Coluna de valor (value) nao detectada.');
+
+	const preview = rows.slice(0, 5).map((cols) =>
+		headers.reduce<Record<string, string>>((acc, header, idx) => {
+			acc[header] = (cols[idx] ?? '').trim();
+			return acc;
+		}, {}),
+	);
+
+	let skippedRows = 0;
+	const optionRows: ProductOptionUpsertRow[] = [];
+
+	for (const cols of rows) {
+		const fields: Partial<Record<OptionField, string>> = {};
+		for (let i = 0; i < cols.length; i++) {
+			const canonical = canonicalByIndex[i];
+			if (!canonical) continue;
+			const existing = fields[canonical];
+			const next = (cols[i] ?? '').trim();
+			if (!existing && next) fields[canonical] = next;
+		}
+
+		const kind = (fields.kind ?? '').trim().toLowerCase();
+		const value = normalizeManagedValue(fields.value ?? '');
+		if (!OPTION_KINDS.has(kind) || !value) {
+			skippedRows++;
+			continue;
+		}
+
+		const sortOrder = fields.sort_order ? parseInteger(fields.sort_order) : undefined;
+
+		optionRows.push({
+			tenant_id: tenantId,
+			kind: kind as 'onde' | 'local',
+			value,
+			sort_order: sortOrder ?? undefined,
+		});
+	}
+
+	return {
+		preview,
+		rows: optionRows,
+		totalRows: rows.length,
+		validRows: optionRows.length,
 		skippedRows,
 		warnings,
 	};

@@ -1,0 +1,7 @@
+kind,value,sort_order
+local,LOJA TESTE A,1
+local,LOJA TESTE B,2
+local,LOJA TESTE C,3
+onde,ESTOQUE,1
+onde,VITRINE,2
+onde,GAVETA,3
