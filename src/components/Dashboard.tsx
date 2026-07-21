@@ -82,6 +82,7 @@ const Dashboard = ({
 		salesOrders,
 		setSalesOrders,
 		salesItems,
+		lastSaleBySku,
 		reload,
 		loading,
 	} = useDashboardData(tenantId);
@@ -381,6 +382,7 @@ const Dashboard = ({
 							products={visibleProducts}
 							clients={clientes}
 							sellers={vendedores}
+							lastSaleBySku={lastSaleBySku}
 							loading={loading}
 							tenantId={tenantId}
 							onProductUpdated={(updated) =>

@@ -4,6 +4,7 @@ import { fetchProducts } from '../services/dashboardService';
 import { listProductOptions } from '../services/productOptions';
 import type { Client, Product, Seller } from '../types';
 import { aggregateBulkResults, chunked, type BulkResult } from '../utils/bulk';
+import { getProductRisk } from '../utils/productRisk';
 import { BulkActionBar } from './products/BulkActionBar';
 import { BulkEditFieldPopover, type BulkEditableField } from './products/BulkEditFieldPopover';
 import { BulkResultDialog } from './products/BulkResultDialog';
@@ -24,10 +25,15 @@ type ProductDraft = {
 	image: string;
 };
 
+// Referentially stable fallback so a missing `lastSaleBySku` prop doesn't
+// create a new Map identity on every render and bust the risk memo below.
+const EMPTY_LAST_SALE_BY_SKU: Map<string, string> = new Map();
+
 const ProductsPage = ({
 	products,
 	clients = [],
 	sellers = [],
+	lastSaleBySku = EMPTY_LAST_SALE_BY_SKU,
 	loading,
 	onBack,
 	tenantId,
@@ -37,6 +43,7 @@ const ProductsPage = ({
 	products: Product[];
 	clients?: Client[];
 	sellers?: Seller[];
+	lastSaleBySku?: Map<string, string>;
 	loading: boolean;
 	onBack: () => void;
 	tenantId?: string;
@@ -86,14 +93,19 @@ const ProductsPage = ({
 		setSelectedIds(new Set());
 	}, [productQuery, productStatusFilter, productLocationFilter]);
 
-	const isCriticalProduct = (p: Product) => {
-		const zeroStock = (p.qty || 0) <= 0;
-		const noPhoto = !p.image;
-		const status = (p.status || '').toLowerCase();
-		const criticalStatus =
-			status.includes('sem giro') || status.includes('stockout') || status.includes('comprar') || status.includes('em risco');
-		return zeroStock || noPhoto || criticalStatus;
-	};
+	// Risk ("critical"/reasons) is derived once per data change, not per render:
+	// `now` is minted inside this memo (not as a dependency) so opening the
+	// search box or flipping filters — which don't touch `products` or
+	// `lastSaleBySku` — never recomputes it, and the clock never destabilizes
+	// the memo's own identity.
+	const productRiskById = useMemo(() => {
+		const now = new Date();
+		const map = new Map<string, ReturnType<typeof getProductRisk>>();
+		for (const p of products) {
+			map.set(p.id, getProductRisk(p, lastSaleBySku, now));
+		}
+		return map;
+	}, [products, lastSaleBySku]);
 
 	const locations = useMemo(
 		() => Array.from(new Set(products.map((p) => p.location))).filter(Boolean),
@@ -110,7 +122,7 @@ const ProductsPage = ({
 		return products.filter((p) => {
 			if (productLocationFilter !== 'all' && p.location !== productLocationFilter) return false;
 
-			if (productStatusFilter === 'critical' && !isCriticalProduct(p)) return false;
+			if (productStatusFilter === 'critical' && !productRiskById.get(p.id)?.critical) return false;
 			if (productStatusFilter === 'no-photo' && p.image) return false;
 			if (productStatusFilter === 'zero-stock' && (p.qty || 0) > 0) return false;
 
@@ -119,7 +131,7 @@ const ProductsPage = ({
 			const haystack = `${p.sku} ${p.name} ${p.status} ${p.location}`.toLowerCase();
 			return haystack.includes(query);
 		});
-	}, [products, productLocationFilter, productQuery, productStatusFilter]);
+	}, [products, productLocationFilter, productQuery, productStatusFilter, productRiskById]);
 
 	const startEditProduct = (product: Product) => {
 		setSelectedProductId(product.id);
@@ -529,6 +541,7 @@ const ProductsPage = ({
 								{!loading &&
 									filteredProducts.map((product) => {
 										const isSelected = selectedProductId === product.id;
+										const risk = productRiskById.get(product.id);
 										return (
 											<div
 												key={product.id}
@@ -575,6 +588,11 @@ const ProductsPage = ({
 																SKU {product.sku}
 															</span>
 														</div>
+														{risk?.critical && (
+															<p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-rose-500">
+																Risco: {risk.reasons.join(', ')}
+															</p>
+														)}
 													</div>
 												</div>
 												<dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
@@ -648,6 +666,7 @@ const ProductsPage = ({
 									{!loading &&
 										filteredProducts.map((product) => {
 											const isSelected = selectedProductId === product.id;
+											const risk = productRiskById.get(product.id);
 											return (
 												<tr
 													key={product.id}
@@ -683,6 +702,11 @@ const ProductsPage = ({
 														<span className="rounded-full bg-black/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground">
 															{product.status}
 														</span>
+														{risk?.critical && (
+															<p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-rose-500">
+																Risco: {risk.reasons.join(', ')}
+															</p>
+														)}
 													</td>
 													<td className="px-4 py-3 text-foreground">{product.location}</td>
 													<td className="px-4 py-3 text-foreground">{product.qty}</td>
