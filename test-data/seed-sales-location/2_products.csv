@@ -1,0 +1,5 @@
+sku,name,status,location,qty,min,price,total_sold,is_active
+TST-001,Produto Teste 1,ESTOQUE,LOJA TESTE A,100,10,50,12,true
+TST-002,Produto Teste 2,VITRINE,LOJA TESTE A,5,10,120,8,true
+TST-003,Produto Teste 3,GAVETA,LOJA TESTE B,0,5,80,20,true
+TST-004,Produto Teste 4,ESTOQUE,LOJA TESTE B,30,5,200,7,true
