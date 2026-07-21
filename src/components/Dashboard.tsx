@@ -371,6 +371,7 @@ const Dashboard = ({
 							categorySales={visibleCategorySales}
 							history={visibleHistory}
 							salesTrend={visibleSalesTrend}
+							lastSaleBySku={lastSaleBySku}
 							primaryColor={primaryColor}
 							secondaryColor={secondaryColor}
 							onViewAllProducts={() => navigate('/products')}

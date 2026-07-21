@@ -7,14 +7,19 @@ import {
 	XAxis,
 } from 'recharts';
 import type { CategorySale, HistoryItem, Product } from '../types';
+import { getProductRisk } from '../utils/productRisk';
 import { Card, ListItem, Metric, Section } from './ui/Primitives';
 
+// Referentially stable fallback so a missing `lastSaleBySku` prop doesn't
+// create a new Map identity on every render and bust the risk memo below.
+const EMPTY_LAST_SALE_BY_SKU: Map<string, string> = new Map();
 
 const OverviewPage = ({
 	products,
 	categorySales,
 	history,
 	salesTrend,
+	lastSaleBySku = EMPTY_LAST_SALE_BY_SKU,
 	primaryColor,
 	secondaryColor,
 	onViewAllProducts,
@@ -23,6 +28,7 @@ const OverviewPage = ({
 	categorySales: CategorySale[];
 	history: HistoryItem[];
 	salesTrend: HistoryItem[];
+	lastSaleBySku?: Map<string, string>;
 	primaryColor: string;
 	secondaryColor: string;
 	onViewAllProducts: () => void;
@@ -30,16 +36,14 @@ const OverviewPage = ({
 	const estoqueBaixo = products.filter((p) => p.min !== undefined && p.qty < (p.min ?? 0)).length;
 	const semFoto = products.filter((p) => !p.image).length;
 
-	const isCriticalProduct = (p: Product) => {
-		const zeroStock = (p.qty || 0) <= 0;
-		const noPhoto = !p.image;
-		const status = (p.status || '').toLowerCase();
-		const criticalStatus =
-			status.includes('sem giro') || status.includes('stockout') || status.includes('comprar') || status.includes('em risco');
-		return zeroStock || noPhoto || criticalStatus;
-	};
+	// Risk ("critical") is derived once per data change, not per render:
+	// `now` is minted inside this memo (not as a dependency), mirroring
+	// ProductsPage's productRiskById so the two "Críticos" counts stay in sync.
+	const criticalItems = useMemo(() => {
+		const now = new Date();
+		return products.filter((p) => getProductRisk(p, lastSaleBySku, now).critical).length;
+	}, [products, lastSaleBySku]);
 
-	const criticalItems = products.filter(isCriticalProduct).length;
 	const estoqueZerado = products.filter((p) => (p.qty || 0) === 0).length;
 
 	const latestMonth = history[history.length - 1];
