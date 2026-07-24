@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { Client, Product, Seller } from '../../types';
 import { registerSaleOrder } from '../../services/salesService';
 import { listProductOptions } from '../../services/productOptions';
-import { mergeCartLines, type CartLine } from '../../utils/cart';
+import { mergeCartLines, skusMissingPrice, type CartLine } from '../../utils/cart';
 import { findProductByCode } from '../../utils/barcode';
 
 type Props = {
@@ -153,10 +153,14 @@ export const SaleOrderModal = ({
 	};
 
 	const lineTotal = (l: CartLine) => (l.unitPrice !== null ? l.unitPrice * l.qty : null);
-	const everyLineHasPrice = lines.length > 0 && lines.every((l) => l.unitPrice !== null);
-	const orderTotal = everyLineHasPrice ? lines.reduce((sum, l) => sum + l.unitPrice! * l.qty, 0) : null;
+	// A product with no registered price arrives here as unitPrice null. Selling it
+	// would silently book the item at R$ 0,00, so checkout stays blocked until a
+	// price is typed. An explicit 0 is a real price (courtesy) and passes.
+	const missingPrice = skusMissingPrice(lines);
+	const orderTotal =
+		lines.length > 0 && missingPrice.length === 0 ? lines.reduce((sum, l) => sum + l.unitPrice! * l.qty, 0) : null;
 
-	const canSubmit = !!tenantId && lines.length > 0 && !submitting;
+	const canSubmit = !!tenantId && lines.length > 0 && missingPrice.length === 0 && !submitting;
 
 	const submit = async () => {
 		if (!canSubmit || !tenantId) return;
@@ -379,6 +383,13 @@ export const SaleOrderModal = ({
 							{orderTotal !== null ? formatBRL(orderTotal) : '—'}
 						</span>
 					</div>
+
+					{missingPrice.length > 0 && (
+						<p className="text-xs text-amber-600">
+							Sem preço cadastrado: {missingPrice.join(', ')}. Informe o preço unitário desses itens para
+							registrar a venda.
+						</p>
+					)}
 
 					{error && <p className="text-xs text-rose-500">{error}</p>}
 				</div>

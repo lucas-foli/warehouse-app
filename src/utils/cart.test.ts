@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { mergeCartLines, type CartLine } from './cart';
+import { mergeCartLines, skusMissingPrice, type CartLine } from './cart';
 
 const line = (sku: string, qty: number, unitPrice: number | null = null): CartLine => ({ sku, qty, unitPrice });
 
@@ -16,5 +16,20 @@ describe('mergeCartLines', () => {
 	});
 	it('returns empty for empty input', () => {
 		expect(mergeCartLines([])).toEqual([]);
+	});
+});
+
+describe('skusMissingPrice', () => {
+	it('lists SKUs whose price was never informed', () => {
+		expect(skusMissingPrice([line('abc', 1, null), line('xyz', 1, 10)])).toEqual(['abc']);
+	});
+	it('treats an explicit 0 as a real price (courtesy/gift), not a missing one', () => {
+		expect(skusMissingPrice([line('abc', 1, 0)])).toEqual([]);
+	});
+	it('returns empty when every line has a price', () => {
+		expect(skusMissingPrice([line('abc', 1, 10), line('xyz', 2, 5.5)])).toEqual([]);
+	});
+	it('returns empty for an empty cart', () => {
+		expect(skusMissingPrice([])).toEqual([]);
 	});
 });

@@ -75,18 +75,13 @@ export async function fetchProducts(tenantId: string): Promise<Product[]> {
 			return Number.isFinite(parsed) ? parsed : undefined;
 		};
 
-		const currency = (...keys: string[]) => {
-			const value = str(...keys);
-			if (!value) return undefined;
-			const parsed = Number(value.replace(/[^\d,.-]/g, '').replace(',', '.'));
-			return Number.isFinite(parsed) ? parsed : undefined;
-		};
-
 		// Unlike `num`, treats an absent/NULL value as undefined instead of 0.
-		// `min` is nullable in the schema and "no minimum registered" must stay
-		// undefined so getProductRisk's `min !== undefined` guard (and the "—"
-		// display fallback) work correctly. Scoped to `min` only — `num` stays
-		// as-is since price/totalSold rely on its current 0-fallback semantics.
+		// `price` is nullable in the schema (as are `min` and `total_sold`), and
+		// "not registered" must stay undefined so consumers can tell it apart from
+		// a genuine 0 — e.g. SaleOrderModal leaves the price field empty (forcing a
+		// value) instead of pre-filling R$ 0,00, and getProductRisk's
+		// `min !== undefined` guard / the "—" display fallbacks keep working.
+		// `qty` stays on `num` since "absent = 0" is correct there.
 		const numOrUndefined = (...keys: string[]) => {
 			const value = str(...keys);
 			if (!value) return undefined;
@@ -94,18 +89,22 @@ export async function fetchProducts(tenantId: string): Promise<Product[]> {
 			return Number.isFinite(parsed) ? parsed : undefined;
 		};
 
+		// The mapper reads DB rows (`select('*')`), whose keys are always the
+		// canonical column names — the CSV importer normalizes header aliases
+		// (descricao, preco_venda, foto, …) to those columns before upserting.
+		// So only real column names are read here.
 		return {
 			id: str('id') || str('sku') || crypto.randomUUID(),
-			name: str('name', 'descricao', 'Descrição'),
-			sku: str('sku', 'SKU') || '—',
-			barcode: str('barcode', 'Barcode', 'BARCODE', 'codigo_barras') || undefined,
-			status: str('status', 'Status') || 'ESTOQUE',
-			location: str('location', 'local', 'Local') || 'Loja principal',
-			qty: num('qty', 'quantidade_estoque', 'Quantidade_Estoque', 'total_estoque', 'Total_Estoque') ?? 0,
-			min: numOrUndefined('min', 'estoque_minimo', 'Estoque_Minimo'),
-			price: num('price') ?? currency('preco_venda', 'Preço de Venda Normal') ?? undefined,
-			totalSold: num('total_sold') ?? undefined,
-			image: str('image_url', 'image', 'foto', 'Foto') || undefined,
+			name: str('name'),
+			sku: str('sku') || '—',
+			barcode: str('barcode') || undefined,
+			status: str('status') || 'ESTOQUE',
+			location: str('location') || 'Loja principal',
+			qty: num('qty') ?? 0,
+			min: numOrUndefined('min'),
+			price: numOrUndefined('price'),
+			totalSold: numOrUndefined('total_sold'),
+			image: str('image_url', 'image') || undefined,
 			created_at: str('created_at') || undefined,
 		};
 	});

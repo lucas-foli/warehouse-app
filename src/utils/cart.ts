@@ -23,3 +23,11 @@ export const mergeCartLines = (lines: CartLine[]): CartLine[] => {
 	}
 	return order.map((k) => byKey.get(k)!);
 };
+
+/**
+ * SKUs whose unit price was never informed (`null`). Used to block checkout so a
+ * product with no registered price can't be sold silently. An explicit 0 is a
+ * real price (courtesy/gift) and is deliberately NOT reported as missing.
+ */
+export const skusMissingPrice = (lines: CartLine[]): string[] =>
+	lines.filter((l) => l.unitPrice === null).map((l) => l.sku);
