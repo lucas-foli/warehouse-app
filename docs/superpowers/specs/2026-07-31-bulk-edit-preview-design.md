@@ -109,10 +109,22 @@ export function formatBulkFieldValue(field: BulkEditableField, value: unknown): 
     entrada inválida, **não avança** (botão Revisar desabilitado ou mensagem). A função
     pura só recebe valor já no tipo final.
 - **`preview`**: renderiza `groups` como linhas `formatBulkFieldValue(field, from) → …(to)`
-  com `count`. Linhas `destructive` com destaque de aviso. Grupos `!changed` mostrados como
-  "sem mudança" (visualmente apagados). Rodapé: "X alterados · Y sem mudança". Botões
-  **"Voltar"** (→ `edit`) e **"Confirmar"** (→ `onApply(field, value)`, grava). Se
-  `changedCount === 0`, **Confirmar desabilitado**.
+  com `count`. Grupos `!changed` mostrados como "sem mudança" (visualmente apagados,
+  `opacity-50`) e no fim. Rodapé: "X alterados · Y sem mudança". Botões **"Voltar"**
+  (→ `edit`) e **"Confirmar"** (→ `onApply(field, value)`, grava). Se `changedCount === 0`,
+  **Confirmar desabilitado**.
+- **Destaque destrutivo** (quando `destructiveCount > 0`): o app **não tem token
+  semântico de perigo** — reusar o padrão red default do Tailwind já usado no repo
+  (Onboarding/DataImport/Danger zone):
+  - Banner de aviso: `border border-red-500/30 bg-red-500/10 text-red-700`.
+  - Transições que apagam (seta + `—`): `text-red-600`.
+  - Botão Confirmar destrutivo: `border border-red-500/30 bg-red-500/10 text-red-700
+    font-semibold hover:bg-red-500/20` (não um botão vermelho sólido — não existe no repo).
+  - Confirmar **não-destrutivo** mantém o estilo do Apply atual: `bg-primary
+    text-primary-foreground`.
+
+**Alvo visual:** `2026-07-31-bulk-edit-preview-preview.html` (ao lado desta spec) é a
+referência aprovada dos dois estados, já com as classes reais. Implementar contra ele.
 - `open` reseta para `step: 'edit'`.
 
 ### 3. `ProductsPage.tsx` — mudança cirúrgica
