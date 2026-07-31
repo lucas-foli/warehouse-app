@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { fetchProducts } from '../services/dashboardService';
+import { fetchProducts, rowToProduct } from '../services/dashboardService';
 import { listProductOptions } from '../services/productOptions';
 import type { Client, Product, Seller } from '../types';
 import { aggregateBulkResults, chunked, type BulkResult } from '../utils/bulk';
@@ -245,7 +245,7 @@ const ProductsPage = ({
 					}
 					return;
 				}
-				if (data && onProductUpdated) onProductUpdated(data as Product);
+				if (data && onProductUpdated) onProductUpdated(rowToProduct(data as Record<string, unknown>));
 				closeEditPanel();
 				return;
 			}
