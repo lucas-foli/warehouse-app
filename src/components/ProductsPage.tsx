@@ -423,7 +423,7 @@ const ProductsPage = ({
 		if (onProductUpdated) {
 			products.forEach((p) => {
 				if (selectedIds.has(p.id) && !result.failed.some((f) => f.id === p.id)) {
-					onProductUpdated({ ...p, [field]: value } as Product);
+					onProductUpdated({ ...p, [field]: value ?? undefined } as Product);
 				}
 			});
 		}
