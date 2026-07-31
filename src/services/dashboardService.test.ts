@@ -23,7 +23,7 @@ vi.mock('../lib/supabaseClient', () => {
 });
 
 // Imported after vi.mock so the stub is in place.
-const { fetchProducts } = await import('./dashboardService');
+const { fetchProducts, rowToProduct } = await import('./dashboardService');
 
 describe('fetchProducts price/total_sold mapping', () => {
 	beforeEach(() => {
@@ -68,5 +68,51 @@ describe('fetchProducts price/total_sold mapping', () => {
 		const [product] = await fetchProducts('tenant-1');
 
 		expect(product.qty).toBe(0);
+	});
+});
+
+describe('rowToProduct', () => {
+	it('normaliza um price NULL para undefined', () => {
+		const product = rowToProduct({ id: 'p1', sku: 'SKU1', name: 'Sem preço', qty: 5, price: null });
+
+		expect(product.price).toBeUndefined();
+	});
+
+	it('preenche os defaults de status e location de uma linha mínima', () => {
+		const product = rowToProduct({ id: 'p1', sku: 'SKU1', name: 'Mínimo' });
+
+		expect(product.status).toBe('ESTOQUE');
+		expect(product.location).toBe('Loja principal');
+		expect(product.qty).toBe(0);
+	});
+});
+
+describe('fetchProducts is_active mapping', () => {
+	beforeEach(() => {
+		mockRows = [];
+	});
+
+	it('mapeia is_active false, para que o produto pare de ser vendável', async () => {
+		mockRows = [{ id: 'p1', sku: 'SKU1', name: 'Desativado', qty: 5, is_active: false }];
+
+		const [product] = await fetchProducts('tenant-1');
+
+		expect(product.is_active).toBe(false);
+	});
+
+	it('mapeia is_active true', async () => {
+		mockRows = [{ id: 'p1', sku: 'SKU1', name: 'Ativo', qty: 5, is_active: true }];
+
+		const [product] = await fetchProducts('tenant-1');
+
+		expect(product.is_active).toBe(true);
+	});
+
+	it('deixa is_active undefined quando a chave está ausente (fail-open: segue vendável)', async () => {
+		mockRows = [{ id: 'p1', sku: 'SKU1', name: 'Sem flag', qty: 5 }];
+
+		const [product] = await fetchProducts('tenant-1');
+
+		expect(product.is_active).toBeUndefined();
 	});
 });

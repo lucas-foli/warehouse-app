@@ -137,12 +137,19 @@ export const SaleOrderModal = ({
 	const addBySku = (sku: string, price: number | null) => addToCart({ sku, qty: 1, unitPrice: price });
 
 	const handleScan = () => {
-		const match = findProductByCode(products, scan);
+		const match = findProductByCode(sellableProducts, scan);
 		if (match) {
 			addBySku(match.sku, match.price ?? null);
 			setScanMsg(`✓ ${match.sku} — ${match.name}`);
 		} else {
-			setScanMsg(`Código não encontrado: ${scan.trim()}`);
+			// Distinguish "deactivated" from "unknown": both miss the sellable list,
+			// but only one is a cataloging problem worth chasing.
+			const inactive = findProductByCode(products, scan);
+			setScanMsg(
+				inactive
+					? `${inactive.sku} está desativado e não pode ser vendido.`
+					: `Código não encontrado: ${scan.trim()}`,
+			);
 		}
 		setScan('');
 	};

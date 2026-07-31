@@ -55,59 +55,75 @@ async function fetchAllRows(
 	return rows;
 }
 
+const str = (row: Record<string, unknown>, ...keys: string[]) => {
+	for (const key of keys) {
+		const value = row[key];
+		if (typeof value === 'string' && value.trim()) return value.trim();
+		if (typeof value === 'number') return String(value);
+	}
+	return '';
+};
+
+const num = (row: Record<string, unknown>, ...keys: string[]) => {
+	const value = str(row, ...keys);
+	const parsed = Number(value);
+	return Number.isFinite(parsed) ? parsed : undefined;
+};
+
+// Unlike `num`, treats an absent/NULL value as undefined instead of 0.
+// `min`, `price`, and `total_sold` are nullable in the schema, and "not
+// registered" must stay undefined so consumers can tell it apart from a
+// genuine 0 — e.g. SaleOrderModal leaves the price field empty (forcing a
+// value) instead of pre-filling R$ 0,00, and getProductRisk's
+// `min !== undefined` guard / the "—" display fallbacks keep working.
+// `qty` stays on `num` since "absent = 0" is correct there.
+const numOrUndefined = (row: Record<string, unknown>, ...keys: string[]) => {
+	const value = str(row, ...keys);
+	if (!value) return undefined;
+	const parsed = Number(value);
+	return Number.isFinite(parsed) ? parsed : undefined;
+};
+
+// Read as a boolean, never through `str` (which would stringify it). The column
+// is `not null default true`, so a real row is always boolean; anything else
+// stays undefined, which SaleOrderModal's `is_active !== false` filter treats as
+// sellable. Fail open: a weird row must never silently hide a product.
+const bool = (row: Record<string, unknown>, key: string) =>
+	typeof row[key] === 'boolean' ? (row[key] as boolean) : undefined;
+
+/**
+ * The single normalizer for a `products` row. Every path that puts a product
+ * into React state must go through here — a raw row carries NULLs the UI
+ * doesn't speak.
+ *
+ * The mapper reads DB rows (`select('*')`), whose keys are always the
+ * canonical column names — the CSV importer normalizes header aliases
+ * (descricao, preco_venda, foto, …) to those columns before upserting.
+ * So only real column names are read here.
+ */
+export function rowToProduct(row: Record<string, unknown>): Product {
+	return {
+		id: str(row, 'id') || str(row, 'sku') || crypto.randomUUID(),
+		name: str(row, 'name'),
+		sku: str(row, 'sku') || '—',
+		barcode: str(row, 'barcode') || undefined,
+		status: str(row, 'status') || 'ESTOQUE',
+		location: str(row, 'location') || 'Loja principal',
+		qty: num(row, 'qty') ?? 0,
+		min: numOrUndefined(row, 'min'),
+		price: numOrUndefined(row, 'price'),
+		totalSold: numOrUndefined(row, 'total_sold'),
+		image: str(row, 'image_url', 'image') || undefined,
+		is_active: bool(row, 'is_active'),
+		created_at: str(row, 'created_at') || undefined,
+	};
+}
+
 export async function fetchProducts(tenantId: string): Promise<Product[]> {
 	const data = await fetchAllRows('products', tenantId);
 	if (!data.length) return [];
 
-	return data.map((row) => {
-		const str = (...keys: string[]) => {
-			for (const key of keys) {
-				const value = row[key];
-				if (typeof value === 'string' && value.trim()) return value.trim();
-				if (typeof value === 'number') return String(value);
-			}
-			return '';
-		};
-
-		const num = (...keys: string[]) => {
-			const value = str(...keys);
-			const parsed = Number(value);
-			return Number.isFinite(parsed) ? parsed : undefined;
-		};
-
-		// Unlike `num`, treats an absent/NULL value as undefined instead of 0.
-		// `price` is nullable in the schema (as are `min` and `total_sold`), and
-		// "not registered" must stay undefined so consumers can tell it apart from
-		// a genuine 0 — e.g. SaleOrderModal leaves the price field empty (forcing a
-		// value) instead of pre-filling R$ 0,00, and getProductRisk's
-		// `min !== undefined` guard / the "—" display fallbacks keep working.
-		// `qty` stays on `num` since "absent = 0" is correct there.
-		const numOrUndefined = (...keys: string[]) => {
-			const value = str(...keys);
-			if (!value) return undefined;
-			const parsed = Number(value);
-			return Number.isFinite(parsed) ? parsed : undefined;
-		};
-
-		// The mapper reads DB rows (`select('*')`), whose keys are always the
-		// canonical column names — the CSV importer normalizes header aliases
-		// (descricao, preco_venda, foto, …) to those columns before upserting.
-		// So only real column names are read here.
-		return {
-			id: str('id') || str('sku') || crypto.randomUUID(),
-			name: str('name'),
-			sku: str('sku') || '—',
-			barcode: str('barcode') || undefined,
-			status: str('status') || 'ESTOQUE',
-			location: str('location') || 'Loja principal',
-			qty: num('qty') ?? 0,
-			min: numOrUndefined('min'),
-			price: numOrUndefined('price'),
-			totalSold: numOrUndefined('total_sold'),
-			image: str('image_url', 'image') || undefined,
-			created_at: str('created_at') || undefined,
-		};
-	});
+	return data.map(rowToProduct);
 }
 
 export async function fetchClients(tenantId: string): Promise<Client[]> {
