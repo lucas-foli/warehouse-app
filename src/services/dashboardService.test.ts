@@ -23,7 +23,7 @@ vi.mock('../lib/supabaseClient', () => {
 });
 
 // Imported after vi.mock so the stub is in place.
-const { fetchProducts } = await import('./dashboardService');
+const { fetchProducts, rowToProduct } = await import('./dashboardService');
 
 describe('fetchProducts price/total_sold mapping', () => {
 	beforeEach(() => {
@@ -67,6 +67,22 @@ describe('fetchProducts price/total_sold mapping', () => {
 
 		const [product] = await fetchProducts('tenant-1');
 
+		expect(product.qty).toBe(0);
+	});
+});
+
+describe('rowToProduct', () => {
+	it('normaliza um price NULL para undefined', () => {
+		const product = rowToProduct({ id: 'p1', sku: 'SKU1', name: 'Sem preço', qty: 5, price: null });
+
+		expect(product.price).toBeUndefined();
+	});
+
+	it('preenche os defaults de status e location de uma linha mínima', () => {
+		const product = rowToProduct({ id: 'p1', sku: 'SKU1', name: 'Mínimo' });
+
+		expect(product.status).toBe('ESTOQUE');
+		expect(product.location).toBe('Loja principal');
 		expect(product.qty).toBe(0);
 	});
 });
