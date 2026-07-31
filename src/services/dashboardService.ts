@@ -70,19 +70,12 @@ const num = (row: Record<string, unknown>, ...keys: string[]) => {
 	return Number.isFinite(parsed) ? parsed : undefined;
 };
 
-const currency = (row: Record<string, unknown>, ...keys: string[]) => {
-	const value = str(row, ...keys);
-	if (!value) return undefined;
-	const parsed = Number(value.replace(/[^\d,.-]/g, '').replace(',', '.'));
-	return Number.isFinite(parsed) ? parsed : undefined;
-};
-
 // Unlike `num`, treats an absent/NULL value as undefined instead of 0.
 // `min`, `price`, and `total_sold` are nullable in the schema, and "not
 // registered" must stay undefined so consumers can tell it apart from a
 // genuine 0 — e.g. SaleOrderModal leaves the price field empty (forcing a
 // value) instead of pre-filling R$ 0,00, and getProductRisk's
-// `min !== undefined` guard / the "—" display fallback keep working.
+// `min !== undefined` guard / the "—" display fallbacks keep working.
 // `qty` stays on `num` since "absent = 0" is correct there.
 const numOrUndefined = (row: Record<string, unknown>, ...keys: string[]) => {
 	const value = str(row, ...keys);
@@ -93,22 +86,26 @@ const numOrUndefined = (row: Record<string, unknown>, ...keys: string[]) => {
 
 /**
  * The single normalizer for a `products` row. Every path that puts a product
- * into React state must go through here — a raw row carries NULLs and column
- * names the UI doesn't speak.
+ * into React state must go through here — a raw row carries NULLs the UI
+ * doesn't speak.
  */
+// The mapper reads DB rows (`select('*')`), whose keys are always the
+// canonical column names — the CSV importer normalizes header aliases
+// (descricao, preco_venda, foto, …) to those columns before upserting.
+// So only real column names are read here.
 export function rowToProduct(row: Record<string, unknown>): Product {
 	return {
 		id: str(row, 'id') || str(row, 'sku') || crypto.randomUUID(),
-		name: str(row, 'name', 'descricao', 'Descrição'),
-		sku: str(row, 'sku', 'SKU') || '—',
-		barcode: str(row, 'barcode', 'Barcode', 'BARCODE', 'codigo_barras') || undefined,
-		status: str(row, 'status', 'Status') || 'ESTOQUE',
-		location: str(row, 'location', 'local', 'Local') || 'Loja principal',
-		qty: num(row, 'qty', 'quantidade_estoque', 'Quantidade_Estoque', 'total_estoque', 'Total_Estoque') ?? 0,
-		min: numOrUndefined(row, 'min', 'estoque_minimo', 'Estoque_Minimo'),
-		price: numOrUndefined(row, 'price') ?? currency(row, 'preco_venda', 'Preço de Venda Normal'),
+		name: str(row, 'name'),
+		sku: str(row, 'sku') || '—',
+		barcode: str(row, 'barcode') || undefined,
+		status: str(row, 'status') || 'ESTOQUE',
+		location: str(row, 'location') || 'Loja principal',
+		qty: num(row, 'qty') ?? 0,
+		min: numOrUndefined(row, 'min'),
+		price: numOrUndefined(row, 'price'),
 		totalSold: numOrUndefined(row, 'total_sold'),
-		image: str(row, 'image_url', 'image', 'foto', 'Foto') || undefined,
+		image: str(row, 'image_url', 'image') || undefined,
 		created_at: str(row, 'created_at') || undefined,
 	};
 }
