@@ -95,11 +95,12 @@ const bool = (row: Record<string, unknown>, key: string) =>
  * The single normalizer for a `products` row. Every path that puts a product
  * into React state must go through here — a raw row carries NULLs the UI
  * doesn't speak.
+ *
+ * The mapper reads DB rows (`select('*')`), whose keys are always the
+ * canonical column names — the CSV importer normalizes header aliases
+ * (descricao, preco_venda, foto, …) to those columns before upserting.
+ * So only real column names are read here.
  */
-// The mapper reads DB rows (`select('*')`), whose keys are always the
-// canonical column names — the CSV importer normalizes header aliases
-// (descricao, preco_venda, foto, …) to those columns before upserting.
-// So only real column names are read here.
 export function rowToProduct(row: Record<string, unknown>): Product {
 	return {
 		id: str(row, 'id') || str(row, 'sku') || crypto.randomUUID(),

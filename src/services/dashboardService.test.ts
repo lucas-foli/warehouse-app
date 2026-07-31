@@ -108,7 +108,7 @@ describe('fetchProducts is_active mapping', () => {
 		expect(product.is_active).toBe(true);
 	});
 
-	it('deixa is_active undefined quando o valor não é boolean (fail-open: segue vendável)', async () => {
+	it('deixa is_active undefined quando a chave está ausente (fail-open: segue vendável)', async () => {
 		mockRows = [{ id: 'p1', sku: 'SKU1', name: 'Sem flag', qty: 5 }];
 
 		const [product] = await fetchProducts('tenant-1');
