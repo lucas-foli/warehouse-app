@@ -84,6 +84,13 @@ const numOrUndefined = (row: Record<string, unknown>, ...keys: string[]) => {
 	return Number.isFinite(parsed) ? parsed : undefined;
 };
 
+// Read as a boolean, never through `str` (which would stringify it). The column
+// is `not null default true`, so a real row is always boolean; anything else
+// stays undefined, which SaleOrderModal's `is_active !== false` filter treats as
+// sellable. Fail open: a weird row must never silently hide a product.
+const bool = (row: Record<string, unknown>, key: string) =>
+	typeof row[key] === 'boolean' ? (row[key] as boolean) : undefined;
+
 /**
  * The single normalizer for a `products` row. Every path that puts a product
  * into React state must go through here — a raw row carries NULLs the UI
@@ -106,6 +113,7 @@ export function rowToProduct(row: Record<string, unknown>): Product {
 		price: numOrUndefined(row, 'price'),
 		totalSold: numOrUndefined(row, 'total_sold'),
 		image: str(row, 'image_url', 'image') || undefined,
+		is_active: bool(row, 'is_active'),
 		created_at: str(row, 'created_at') || undefined,
 	};
 }

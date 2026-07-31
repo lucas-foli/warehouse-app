@@ -86,3 +86,33 @@ describe('rowToProduct', () => {
 		expect(product.qty).toBe(0);
 	});
 });
+
+describe('fetchProducts is_active mapping', () => {
+	beforeEach(() => {
+		mockRows = [];
+	});
+
+	it('mapeia is_active false, para que o produto pare de ser vendável', async () => {
+		mockRows = [{ id: 'p1', sku: 'SKU1', name: 'Desativado', qty: 5, is_active: false }];
+
+		const [product] = await fetchProducts('tenant-1');
+
+		expect(product.is_active).toBe(false);
+	});
+
+	it('mapeia is_active true', async () => {
+		mockRows = [{ id: 'p1', sku: 'SKU1', name: 'Ativo', qty: 5, is_active: true }];
+
+		const [product] = await fetchProducts('tenant-1');
+
+		expect(product.is_active).toBe(true);
+	});
+
+	it('deixa is_active undefined quando o valor não é boolean (fail-open: segue vendável)', async () => {
+		mockRows = [{ id: 'p1', sku: 'SKU1', name: 'Sem flag', qty: 5 }];
+
+		const [product] = await fetchProducts('tenant-1');
+
+		expect(product.is_active).toBeUndefined();
+	});
+});
