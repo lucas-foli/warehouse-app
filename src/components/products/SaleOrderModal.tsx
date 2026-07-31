@@ -137,7 +137,7 @@ export const SaleOrderModal = ({
 	const addBySku = (sku: string, price: number | null) => addToCart({ sku, qty: 1, unitPrice: price });
 
 	const handleScan = () => {
-		const match = findProductByCode(products, scan);
+		const match = findProductByCode(sellableProducts, scan);
 		if (match) {
 			addBySku(match.sku, match.price ?? null);
 			setScanMsg(`✓ ${match.sku} — ${match.name}`);
