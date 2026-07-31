@@ -94,7 +94,7 @@ cujo produto foi desativado ainda precisa exibir nome e estoque.
 
 - **Update e bulk paths** (`ProductsPage.tsx:262`, `388`, `426`) não passam a usar
   `rowToProduct`. Eles fazem patch sobre um `Product` já normalizado
-  (`{ ...existing, ... }`, `{ ...p, [field]: value }`), não sobre linha crua — o
+  (`{ ...existing, ... }`, `{ ...p, [field]: value ?? undefined }`), não sobre linha crua — o
   `as Product` ali é cast de índice dinâmico, não de row de banco.
 
   **Ressalva encontrada na revisão final:** o spread é sobre um `Product`, mas o **valor**
