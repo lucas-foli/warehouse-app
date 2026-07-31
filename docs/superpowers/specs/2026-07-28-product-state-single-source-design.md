@@ -92,18 +92,22 @@ cujo produto foi desativado ainda precisa exibir nome e estoque.
 
 ## Fora de escopo
 
-- **Update e bulk paths** (`ProductsPage.tsx:262`, `388`, `426`) ficam como estão. Eles fazem
-  patch sobre um `Product` já normalizado (`{ ...existing, ... }`, `{ ...p, [field]: value }`),
-  não sobre linha crua — o `as Product` ali é cast de índice dinâmico, não de row de banco.
-  O spread é sobre um `Product`, mas o **valor** injetado pode ser `null`: o Apply do
-  `BulkEditFieldPopover` não é desabilitado com o campo vazio (`:38-39`), e um preço ou
-  mínimo apagado entrava no estado como `null`, com o mesmo sintoma do Bug B. Corrigido
-  nesta fatia com a mesma coerção `?? undefined` do update path. A causa a montante — o
-  Apply aceitar campo vazio sem confirmar — fica para uma fatia própria, que vai
+- **Update e bulk paths** (`ProductsPage.tsx:262`, `388`, `426`) não passam a usar
+  `rowToProduct`. Eles fazem patch sobre um `Product` já normalizado
+  (`{ ...existing, ... }`, `{ ...p, [field]: value }`), não sobre linha crua — o
+  `as Product` ali é cast de índice dinâmico, não de row de banco.
+
+  **Ressalva encontrada na revisão final:** o spread é sobre um `Product`, mas o **valor**
+  injetado pelo bulk edit pode ser `null` — o Apply do `BulkEditFieldPopover` não é
+  desabilitado com o campo vazio (`:38-39`), então apagar um preço ou mínimo em massa
+  entrava no estado como `null`, com o mesmo sintoma do Bug B. Isso foi corrigido nesta
+  fatia com a mesma coerção `?? undefined` que o update path já usava. A causa a montante —
+  o Apply aceitar campo vazio sem confirmar nada — fica para uma fatia própria, que vai
   introduzir uma modal de confirmação com preview do que muda.
-  Convergir o update para `.select().single()` + `rowToProduct` eliminaria a
-  lista manual de campos e detectaria update bloqueado por RLS, mas muda uma query e o
-  comportamento de erro; fica como observação no PR.
+
+  Convergir o update para `.select().single()` + `rowToProduct` eliminaria a lista manual de
+  campos e detectaria update bloqueado por RLS, mas muda uma query e o comportamento de
+  erro; fica como observação no PR.
 - **Migração**: nenhuma. A coluna `is_active` já existe.
 - **`salesIntegrity.ts` / `DataImport.tsx`**: têm um `isActive` próprio, montado de uma query
   direta (`select('id, sku, is_active, status')`). Não passam pelo mapper e não mudam.
@@ -134,10 +138,15 @@ Os fixes 3 e 4 são verificados por leitura e pelo e2e manual abaixo.
 ## Verificação manual (e2e)
 
 1. Desativar um produto → ele some do dropdown de venda → **F5** → continua fora (Bug A).
-2. Com o produto desativado, bipar/digitar o código de barras dele no scanner → "Código não
-   encontrado" em vez de entrar no carrinho (Bug C).
+2. Com o produto desativado, bipar/digitar o código de barras dele no scanner → a mensagem é
+   `<SKU> está desativado e não pode ser vendido.`, e nada entra no carrinho (Bug C). Bipar um
+   código que não existe em produto nenhum ainda diz `Código não encontrado: <código>` — as
+   duas situações precisam ser distinguíveis.
 3. Criar produto novo sem preço → o campo de preço fica vazio, não "null"; o produto aparece
    na venda e o "Adicionar item" pede um preço em vez de travar (Bug B).
+4. Selecionar vários produtos → editar em massa → campo "Preço" → deixar em branco → Apply →
+   os produtos ficam com o preço vazio na tela (não "null") e o "Adicionar item" pede um preço
+   em vez de travar, **sem** precisar de F5 (ressalva do bulk edit).
 
 ## Gates
 
