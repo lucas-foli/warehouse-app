@@ -96,18 +96,13 @@ const num = (row: Record<string, unknown>, ...keys: string[]) => {
 	return Number.isFinite(parsed) ? parsed : undefined;
 };
 
-const currency = (row: Record<string, unknown>, ...keys: string[]) => {
-	const value = str(row, ...keys);
-	if (!value) return undefined;
-	const parsed = Number(value.replace(/[^\d,.-]/g, '').replace(',', '.'));
-	return Number.isFinite(parsed) ? parsed : undefined;
-};
-
 // Unlike `num`, treats an absent/NULL value as undefined instead of 0.
-// `min` is nullable in the schema and "no minimum registered" must stay
-// undefined so getProductRisk's `min !== undefined` guard (and the "—"
-// display fallback) work correctly. Scoped to `min` only — `num` stays
-// as-is since price/totalSold rely on its current 0-fallback semantics.
+// `min`, `price`, and `total_sold` are nullable in the schema, and "not
+// registered" must stay undefined so consumers can tell it apart from a
+// genuine 0 — e.g. SaleOrderModal leaves the price field empty (forcing a
+// value) instead of pre-filling R$ 0,00, and getProductRisk's
+// `min !== undefined` guard / the "—" display fallbacks keep working.
+// `qty` stays on `num` since "absent = 0" is correct there.
 const numOrUndefined = (row: Record<string, unknown>, ...keys: string[]) => {
 	const value = str(row, ...keys);
 	if (!value) return undefined;
@@ -117,22 +112,26 @@ const numOrUndefined = (row: Record<string, unknown>, ...keys: string[]) => {
 
 /**
  * The single normalizer for a `products` row. Every path that puts a product
- * into React state must go through here — a raw row carries NULLs and column
- * names the UI doesn't speak.
+ * into React state must go through here — a raw row carries NULLs the UI
+ * doesn't speak.
  */
+// The mapper reads DB rows (`select('*')`), whose keys are always the
+// canonical column names — the CSV importer normalizes header aliases
+// (descricao, preco_venda, foto, …) to those columns before upserting.
+// So only real column names are read here.
 export function rowToProduct(row: Record<string, unknown>): Product {
 	return {
 		id: str(row, 'id') || str(row, 'sku') || crypto.randomUUID(),
-		name: str(row, 'name', 'descricao', 'Descrição'),
-		sku: str(row, 'sku', 'SKU') || '—',
-		barcode: str(row, 'barcode', 'Barcode', 'BARCODE', 'codigo_barras') || undefined,
-		status: str(row, 'status', 'Status') || 'ESTOQUE',
-		location: str(row, 'location', 'local', 'Local') || 'Loja principal',
-		qty: num(row, 'qty', 'quantidade_estoque', 'Quantidade_Estoque', 'total_estoque', 'Total_Estoque') ?? 0,
-		min: numOrUndefined(row, 'min', 'estoque_minimo', 'Estoque_Minimo'),
-		price: num(row, 'price') ?? currency(row, 'preco_venda', 'Preço de Venda Normal') ?? undefined,
-		totalSold: num(row, 'total_sold') ?? undefined,
-		image: str(row, 'image_url', 'image', 'foto', 'Foto') || undefined,
+		name: str(row, 'name'),
+		sku: str(row, 'sku') || '—',
+		barcode: str(row, 'barcode') || undefined,
+		status: str(row, 'status') || 'ESTOQUE',
+		location: str(row, 'location') || 'Loja principal',
+		qty: num(row, 'qty') ?? 0,
+		min: numOrUndefined(row, 'min'),
+		price: numOrUndefined(row, 'price'),
+		totalSold: numOrUndefined(row, 'total_sold'),
+		image: str(row, 'image_url', 'image') || undefined,
 		created_at: str(row, 'created_at') || undefined,
 	};
 }
@@ -145,7 +144,9 @@ export async function fetchProducts(tenantId: string): Promise<Product[]> {
 }
 ```
 
-Atenção: as funções `str`/`num`/`currency`/`numOrUndefined` deixaram de ser closures sobre `row` e agora recebem `row` como **primeiro argumento**. Não deixe nenhuma chamada antiga sem o `row`.
+Atenção: as funções `str`/`num`/`numOrUndefined` deixaram de ser closures sobre `row` e agora recebem `row` como **primeiro argumento**. Não deixe nenhuma chamada antiga sem o `row`.
+
+O corpo de `rowToProduct` acima deve ser **idêntico** ao mapper que está hoje em `origin/main`, com a única diferença de `row` ter virado parâmetro. O PR #61 já havia removido de propósito o helper `currency`, o fallback `?? currency(...)` do price e os aliases de coluna não-canônicos (`descricao`, `SKU`, `codigo_barras`, `quantidade_estoque`, `foto`, …): o importador de CSV normaliza os headers para as colunas reais antes do upsert, então `select('*')` nunca traz esses nomes. **Não** reintroduza nenhum deles. Se o que você está escrevendo diverge de `git show origin/main:src/services/dashboardService.ts` em qualquer ponto além do parâmetro `row`, pare e reporte.
 
 - [ ] **Step 4: Rodar os testes**
 
@@ -233,7 +234,7 @@ const bool = (row: Record<string, unknown>, key: string) =>
 E acrescente o campo ao objeto retornado por `rowToProduct`, entre `image` e `created_at`:
 
 ```ts
-		image: str(row, 'image_url', 'image', 'foto', 'Foto') || undefined,
+		image: str(row, 'image_url', 'image') || undefined,
 		is_active: bool(row, 'is_active'),
 		created_at: str(row, 'created_at') || undefined,
 ```
