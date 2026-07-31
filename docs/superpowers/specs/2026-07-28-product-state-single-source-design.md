@@ -95,7 +95,13 @@ cujo produto foi desativado ainda precisa exibir nome e estoque.
 - **Update e bulk paths** (`ProductsPage.tsx:262`, `388`, `426`) ficam como estão. Eles fazem
   patch sobre um `Product` já normalizado (`{ ...existing, ... }`, `{ ...p, [field]: value }`),
   não sobre linha crua — o `as Product` ali é cast de índice dinâmico, não de row de banco.
-  Não têm o bug. Convergir o update para `.select().single()` + `rowToProduct` eliminaria a
+  O spread é sobre um `Product`, mas o **valor** injetado pode ser `null`: o Apply do
+  `BulkEditFieldPopover` não é desabilitado com o campo vazio (`:38-39`), e um preço ou
+  mínimo apagado entrava no estado como `null`, com o mesmo sintoma do Bug B. Corrigido
+  nesta fatia com a mesma coerção `?? undefined` do update path. A causa a montante — o
+  Apply aceitar campo vazio sem confirmar — fica para uma fatia própria, que vai
+  introduzir uma modal de confirmação com preview do que muda.
+  Convergir o update para `.select().single()` + `rowToProduct` eliminaria a
   lista manual de campos e detectaria update bloqueado por RLS, mas muda uma query e o
   comportamento de erro; fica como observação no PR.
 - **Migração**: nenhuma. A coluna `is_active` já existe.
