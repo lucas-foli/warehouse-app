@@ -40,6 +40,17 @@ describe('computeBulkEditPreview', () => {
     expect(r.groups.find((g) => !g.changed)?.count).toBe(2);
   });
 
+  it('min vazio apaga só os que tinham valor (path numérico)', () => {
+    const r = computeBulkEditPreview('min', null, [
+      p({ id: 'a', min: undefined }),
+      p({ id: 'b', min: 5 }),
+      p({ id: 'c', min: 10 }),
+    ]);
+    expect(r.changedCount).toBe(2);
+    expect(r.destructiveCount).toBe(2);
+    expect(r.unchangedCount).toBe(1);
+  });
+
   it('is_active nunca é destrutivo e agrupa undefined à parte', () => {
     const r = computeBulkEditPreview('is_active', false, [
       p({ id: 'a', is_active: true }),
