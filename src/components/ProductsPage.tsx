@@ -990,6 +990,7 @@ const ProductsPage = ({
 			count={selectedIds.size}
 			statusOptions={ondeOptions.length ? ondeOptions : statusOptions}
 			locationOptions={localOptions.length ? localOptions : locations}
+			selectedProducts={products.filter((sp) => selectedIds.has(sp.id))}
 			onApply={handleBulkEditField}
 			onCancel={() => setBulkEditOpen(false)}
 		/>
