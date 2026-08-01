@@ -213,7 +213,7 @@ const normalize = (field: BulkEditableField, v: unknown): unknown => {
 
 // Chave estável de agrupamento que distingue null, undefined e '' entre si.
 const keyOf = (v: unknown): string =>
-  v === null ? ' null' : v === undefined ? ' undef' : String(v);
+  v === null ? ' null' : v === undefined ? ' undef' : String(v);
 
 export function computeBulkEditPreview(
   field: BulkEditableField,
