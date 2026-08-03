@@ -11,6 +11,14 @@ import {
 export type { BulkEditableField } from '../../utils/bulkEditPreview';
 import type { BulkEditableField } from '../../utils/bulkEditPreview';
 
+const FIELD_LABELS: Record<BulkEditableField, string> = {
+  status: 'Onde',
+  is_active: 'Active',
+  location: 'Location',
+  price: 'Price',
+  min: 'Min stock',
+};
+
 type Props = {
   open: boolean;
   count: number;
@@ -181,7 +189,12 @@ export const BulkEditFieldPopover = ({
       <>
         <h3 className="text-lg font-semibold text-foreground">Revisar alterações</h3>
         <p className="mt-1 text-sm text-muted-foreground">
-          {count} produtos · campo {field}
+          {count} produtos · campo {FIELD_LABELS[field]}
+          {!hasDestructive && (
+            <>
+              {' '}→ <span className="text-foreground">{formatBulkFieldValue(field, pending)}</span>
+            </>
+          )}
         </p>
 
         {hasDestructive && (
