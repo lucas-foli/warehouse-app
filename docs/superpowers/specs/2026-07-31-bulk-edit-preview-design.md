@@ -167,7 +167,7 @@ preview do popover é verificado na checagem manual.
 
 ## Gates por commit
 
-- `npx tsc --noEmit` → 0 erros.
+- `npx tsc -b` → 0 erros.
 - `npx vitest run` → tudo passa (baseline 101 + novos).
 - eslint limpo nos arquivos tocados. **Não tocar** os ~6 warnings pré-existentes fora da
   fatia (LoginForm, RequestsPage, MembersPage, JoinRequestsPage, ProductOptionsPage,

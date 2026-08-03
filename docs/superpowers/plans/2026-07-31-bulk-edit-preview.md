@@ -19,7 +19,7 @@ aprovada dos dois estados; implementar contra ele).
 ## Global Constraints
 
 - Base da branch: `origin/main` @ `3f36088` (#62 mergeado). Baseline = 101 testes.
-- Gate por commit: `npx tsc --noEmit` → 0 erros; `npx vitest run` → tudo passa; eslint limpo
+- Gate por commit: `npx tsc -b` → 0 erros; `npx vitest run` → tudo passa; eslint limpo
   **nos arquivos tocados**.
 - **Não tocar** os ~6 warnings de eslint pré-existentes fora da fatia (LoginForm,
   RequestsPage, MembersPage, JoinRequestsPage, ProductOptionsPage, PlatformAdminContext).
@@ -269,7 +269,7 @@ Expected: PASS (todos os casos).
 
 - [ ] **Step 5: Full gate**
 
-Run: `npx tsc --noEmit && npx vitest run`
+Run: `npx tsc -b && npx vitest run`
 Expected: 0 erros tsc; 101 baseline + os novos passam.
 
 - [ ] **Step 6: Commit**
@@ -587,7 +587,7 @@ passa a ser (só a linha `selectedProducts` é nova):
 
 - [ ] **Step 3: Full gate**
 
-Run: `npx tsc --noEmit && npx vitest run && npx eslint src/components/products/BulkEditFieldPopover.tsx src/components/ProductsPage.tsx`
+Run: `npx tsc -b && npx vitest run && npx eslint src/components/products/BulkEditFieldPopover.tsx src/components/ProductsPage.tsx`
 Expected: 0 erros tsc; 101 + novos passam; eslint sem erros novos nos dois arquivos.
 
 - [ ] **Step 4: Verificação manual (dados reais — desfazer o que alterar)**
