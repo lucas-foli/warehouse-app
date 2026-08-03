@@ -43,7 +43,7 @@ export function computeBulkEditPreview(
 
   const map = new Map<string, { from: unknown; count: number }>();
   for (const item of selected) {
-    const from = normalize(field, (item as Record<string, unknown>)[field]);
+    const from = normalize(field, item[field]);
     const key = keyOf(from);
     const entry = map.get(key);
     if (entry) entry.count += 1;
