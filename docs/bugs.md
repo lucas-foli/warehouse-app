@@ -147,3 +147,32 @@ controlada antes de fechar a causa.
   case-sensitive segue frágil.
 - **Esperado:** normalizar/casar external_id de forma case-insensitive no upsert do import, e/ou
   backfill dos registros antigos.
+
+## 2026-08-05 — Backdrop de modal deslocado pelo espaçamento do shell (`src/components/Dashboard.tsx`)
+
+### BUG-14 — O backdrop escurecido da modal não cobre o topo da tela (CONFIRMADO)
+
+- **Atual:** o overlay de toda modal é `fixed inset-0 z-50 bg-black/60`
+  (`sellers/SellerFormModal.tsx:134`, e idêntico em `products/SaleOrderModal.tsx:193`,
+  `products/ConfirmDialog.tsx:40`, `products/BulkResultDialog.tsx:15`). A modal é renderizada
+  inline dentro da página, que por sua vez é filha do wrapper de conteúdo do shell
+  `<div className="w-full space-y-10 ... p-8 sm:p-10">` (`Dashboard.tsx:334`). O utilitário
+  `space-y-10` do Tailwind aplica `margin-top: 2.5rem` (40px) a todo filho que não seja o primeiro
+  (`.space-y-10 > * + *`). O overlay é um filho não-primeiro desse container, então herda
+  `margin-top: 40px` — e num elemento `position: fixed; inset: 0` esse margin desloca a caixa 40px
+  para baixo. Confirmado no DOM ao vivo: overlay com `inset:0`, `transform:none`, `html`/`body` sem
+  transform e sem scroll, mas `margin-top: 40px` → rect `top:40`, deixando os 40px superiores da
+  viewport (a faixa do `<header>`) sem o escurecimento.
+- **Consequência:** o backdrop não cobre a tela inteira — sobra uma faixa clara no topo (o header
+  fica sem escurecer), quebrando a sensação de foco da modal. É sistêmico: atinge qualquer modal
+  aberta a partir de uma página do Dashboard (vendedores, clientes, produtos, confirmações), não só
+  a de vendedor.
+- **Esperado:** o backdrop cobre 100% da viewport em todos os breakpoints, independente da posição
+  da modal na árvore. O overlay não deve participar do fluxo de espaçamento vertical do shell.
+- **Referência de padrão / fix sugerido:** renderizar a modal via `createPortal` para
+  `document.body` (react-dom já é dependência), que a tira da árvore do `space-y` e de qualquer
+  containing block ancestral — padrão canônico de modal e correção única para todas de uma vez.
+  Alternativa local e frágil: neutralizar o margin herdado no próprio overlay (ex.: `!mt-0`), sem
+  resolver a raiz (modais viverem dentro do container de espaçamento).
+- **Origem:** reportado no uso manual (2026-08-05, modal "Novo vendedor"); causa raiz confirmada no
+  DOM renderizado, não só no código.
