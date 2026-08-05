@@ -54,3 +54,21 @@ visão do Business Owner (quem tem atividade comercial recente).
 
 **Escopo:** afeta o display (fetch em `dashboardService` + render das páginas), **não**
 o CRUD entregue no PR #67. Feature própria, com spec quando priorizada.
+
+## 2026-08-05 — Validação de e-mail e máscara de telefone nos modais
+
+**Origem:** e2e do CRUD de clientes/vendedores (PR #67). Os campos de e-mail e telefone
+nos modais (`ClientFormModal`, `SellerFormModal`) aceitam qualquer texto: o `type="email"`
+não valida porque o submit é por botão, não por `<form>`; o telefone é texto livre, sem
+formatação.
+
+**O que implementar:**
+- Validação de formato de e-mail antes de salvar (mensagem amigável se inválido).
+- Máscara/formatação de telefone. Duas abordagens a avaliar:
+  - Simples: formatar conforme a contagem de dígitos (padrão US vs BR).
+  - Rica: seletor de DDI com bandeira e, a partir da escolha, aplicar o formato do país.
+- Decidir se o telefone inválido bloqueia o salvamento ou só formata/avisa.
+
+**Fora do escopo do MVP/apresentação** — deferido conscientemente no e2e. Feature de
+polimento dos modais, com spec quando priorizada. Pesar a complexidade do seletor de DDI
+antes de adotá-lo.

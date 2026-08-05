@@ -86,3 +86,21 @@ grava numa delas:
 - **Esperado:** propagar o SKU do `detail` para a mensagem, algo como "SKU 214 está
   inativo e não pode ser vendido — remova-o do carrinho". Vale para os outros códigos que
   também carregam `detail` (`sales_item_unknown_sku`, por exemplo).
+
+## 2026-08-05 — Gráfico de performance de vendedor (`src/components/SellersPage.tsx`)
+
+### BUG-10 — "Performance por período" mostra dados fabricados
+
+> Numeração: o PR #66 (aberto) reserva BUG-6..9; este entra como BUG-10 para não colidir.
+
+- **Atual:** `buildMultiSellerPerformance` (`src/utils/helpers.ts`) gera a série diária dos
+  últimos 30 dias com `Math.random()` + um "trend", distribuindo `seller.bruto / 30` por dia.
+  Não são vendas reais por dia — o tooltip exibe números inventados (ex.: "Bruno Sales: 1" em
+  10/jul sem nenhuma venda real naquele dia; a venda real do Bruno é 1 pedido de $20).
+- **Consequência:** dado fabricado na tela, contra o princípio "nada fabricado" firmado no
+  PR #65. Enganoso para o dono do negócio, que lê o gráfico como atividade real.
+- **Esperado:** plotar vendas reais agregadas por período (a partir de `salesOrders`/
+  `salesItems` reais, no espírito do rollup já existente), ou remover o gráfico se não houver
+  série real barata de montar.
+- **Origem:** descoberto no e2e do CRUD de clientes/vendedores (2026-08-05). Pré-existente,
+  não introduzido por essa obra.
