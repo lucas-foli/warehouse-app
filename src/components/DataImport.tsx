@@ -15,6 +15,7 @@ import {
 } from '../utils/csv';
 import { validateSalesItemSkus } from '../utils/salesIntegrity';
 import { buildClearWarning } from '../utils/importClearWarning';
+import { dedupeByEmail } from '../utils/importEmailDedup';
 
 type Props = {
 	onBack: () => void;
@@ -171,6 +172,7 @@ const DataImport = ({ onBack }: Props) => {
 	const [unlinkCount, setUnlinkCount] = useState(0);
 	const [confirmClear, setConfirmClear] = useState(false);
 	const [clearCountPending, setClearCountPending] = useState(false);
+	const [skippedEmailCount, setSkippedEmailCount] = useState(0);
 
 	const config = IMPORT_CONFIG[kind];
 	const csvGuide = CSV_GUIDE[kind];
@@ -190,6 +192,7 @@ const DataImport = ({ onBack }: Props) => {
 		setUnlinkCount(0);
 		setConfirmClear(false);
 		setClearCountPending(false);
+		setSkippedEmailCount(0);
 	};
 
 	const parseResult = (text: string): CsvImportResult<unknown> => {
@@ -224,6 +227,7 @@ const DataImport = ({ onBack }: Props) => {
 		setCsvError('');
 		setImportError('');
 		setImportedRows(null);
+		setSkippedEmailCount(0);
 		setCsvWarnings([]);
 		setCsvStats(null);
 
@@ -418,8 +422,38 @@ const DataImport = ({ onBack }: Props) => {
 						name: String(row.name ?? '').trim(),
 					};
 				});
-				const uploaded = await upsertRows(sanitized);
+
+				const hasCsvEmails = sanitized.some(
+					(row) => String((row as Record<string, unknown>).email ?? '').trim() !== '',
+				);
+				const existingByEmail = new Map<string, string>();
+				if (hasCsvEmails) {
+					const PAGE = 1000;
+					for (let from = 0; ; from += PAGE) {
+						const { data, error } = await supabase
+							.from(config.table)
+							.select('external_id, email')
+							.eq('tenant_id', tenantId)
+							.not('email', 'is', null)
+							.range(from, from + PAGE - 1);
+						if (error) throw error;
+						const page = (data ?? []) as Array<{ external_id: string | null; email: string | null }>;
+						page.forEach((row) => {
+							const em = String(row.email ?? '').trim().toLowerCase();
+							const ext = String(row.external_id ?? '').trim();
+							if (em && ext) existingByEmail.set(em, ext);
+						});
+						if (page.length < PAGE) break;
+					}
+				}
+
+				const { toImport, skippedEmails } = dedupeByEmail(
+					sanitized as Array<{ external_id: string; email?: string }>,
+					existingByEmail,
+				);
+				const uploaded = await upsertRows(toImport as Array<Record<string, unknown>>);
 				setImportedRows(uploaded);
+				setSkippedEmailCount(skippedEmails);
 				setLoading(false);
 				return;
 			}
@@ -707,6 +741,11 @@ const DataImport = ({ onBack }: Props) => {
 						{importedRows !== null && (
 							<div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-800">
 								Importacao concluida: {importedRows} registros enviados.
+								{skippedEmailCount > 0 && (
+									<span className="mt-1 block">
+										{skippedEmailCount} linha(s) ignorada(s): e-mail já cadastrado.
+									</span>
+								)}
 							</div>
 						)}
 
