@@ -48,7 +48,7 @@ const OverviewPage = ({
 
 	const latestMonth = history[history.length - 1];
 	const previousMonth = history[history.length - 2];
-	const monthlyRevenue = latestMonth?.value ?? 574661;
+	const monthlyRevenue = latestMonth?.value ?? 0;
 	const dailyRevenue = monthlyRevenue / 30;
 	const monthlyChange =
 		latestMonth && previousMonth && previousMonth.value

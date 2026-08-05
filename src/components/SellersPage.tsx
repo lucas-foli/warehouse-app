@@ -101,9 +101,6 @@ const SellersPage = ({
 				<Card>
 					<Metric value={sellersSortedByRevenue[0]?.nome ?? '—'} label="Maior faturamento" />
 				</Card>
-				<Card>
-					<Metric value="—" label="Abaixo da meta" />
-				</Card>
 			</Section>
 
 			<div className="hidden md:block">
