@@ -24,3 +24,33 @@ honesta ("nada fabricado na tela"); esta entrada registra o caminho de volta.
 
 **Fora do escopo original da obra US-first** — feature própria, com brainstorming/spec
 quando for priorizada.
+
+## 2026-08-05 — Opções de ordenação (sort) escolhíveis pelo usuário nas listas
+
+**Origem:** descoberto no e2e do CRUD individual de clientes/vendedores (PR #67).
+Hoje as listas carregam ordenadas por `id` (uuid) em `dashboardService.ts:18` —
+nem alfabética, nem por atividade. Efeitos:
+- `ClientsPage` desktop (`:240-251`) mostra **todos** os clientes com rolagem
+  (`overflow-auto`); o botão "Ver mais" existe **só** no mobile (`:200-235`, corta em 5).
+- `SellersPage` ordena por receita (`bruto` desc) com cap de 15 na exibição.
+- Um registro recém-criado cai numa posição "aleatória" (ordem de uuid), difícil de
+  localizar numa lista grande.
+
+**Decisão de produto:** a ordenação deve ser **escolhível pelo usuário** (seletor de
+sort na tela), não fixa no código.
+
+**Default proposto (Lucas):** clientes por **última venda (`last_purchase_at`) desc**,
+com **ordem alfabética (nome A→Z)** como segundo critério de desempate. Prioriza a
+visão do Business Owner (quem tem atividade comercial recente).
+
+**A resolver no brainstorming/spec:**
+- Onde entram os registros **sem compra** (incluindo recém-cadastrados): com "última
+  venda desc", eles caem no fim. Isso é coerente com "priorizar atividade", mas o
+  feedback de "acabei de cadastrar" passa a vir só do modal, não da posição na lista.
+  Decidir se nulos vão ao fim, ou se há um modo/seletor "recém-adicionados".
+- Aplicar o mesmo mecanismo de sort escolhível a vendedores (hoje fixo em receita).
+- Opções de critério a expor: última venda, alfabético, data de cadastro, receita
+  (vendedores). Persistir a preferência? (por usuário/tenant, ou só na sessão).
+
+**Escopo:** afeta o display (fetch em `dashboardService` + render das páginas), **não**
+o CRUD entregue no PR #67. Feature própria, com spec quando priorizada.
