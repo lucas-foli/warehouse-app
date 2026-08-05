@@ -12,7 +12,7 @@ describe('countNewClientsThisMonth', () => {
     expect(countNewClientsThisMonth([client('2026-07-31T23:00:00Z')], ref)).toBe(0);
   });
   it('conta clientes criados no mês/ano de referência', () => {
-    const clients = [client('2026-08-01T00:00:00Z'), client('2026-08-20T00:00:00Z'), client('2026-07-01T00:00:00Z')];
+    const clients = [client('2026-08-01T00:00:00Z'), client('2026-08-20T00:00:00Z'), client('2026-07-01T00:00:00Z'), client('2025-08-15T00:00:00Z')];
     expect(countNewClientsThisMonth(clients, ref)).toBe(2);
   });
   it('ignora clientes sem created_at', () => {
