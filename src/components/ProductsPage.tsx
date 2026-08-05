@@ -4,6 +4,7 @@ import { fetchProducts, rowToProduct } from '../services/dashboardService';
 import { listProductOptions } from '../services/productOptions';
 import type { Client, Product, Seller } from '../types';
 import { aggregateBulkResults, chunked, type BulkResult } from '../utils/bulk';
+import { formatCurrency } from '../utils/currency';
 import { getProductRisk } from '../utils/productRisk';
 import { BulkActionBar } from './products/BulkActionBar';
 import { BulkEditFieldPopover, type BulkEditableField } from './products/BulkEditFieldPopover';
@@ -611,7 +612,7 @@ const ProductsPage = ({
 													<div className="flex min-w-0 justify-between gap-2">
 														<dt className="text-muted-foreground">Preço</dt>
 														<dd className="text-foreground">
-															{product.price ? `R$ ${product.price.toLocaleString('pt-BR')}` : '—'}
+															{product.price ? formatCurrency(product.price) : '—'}
 														</dd>
 													</div>
 													<div className="flex min-w-0 justify-between gap-2">
@@ -714,7 +715,7 @@ const ProductsPage = ({
 													<td className="px-4 py-3 text-foreground">{product.qty}</td>
 													<td className="px-4 py-3 text-foreground">{product.min ?? '—'}</td>
 													<td className="px-4 py-3 text-foreground">
-														{product.price ? `R$ ${product.price.toLocaleString('pt-BR')}` : '—'}
+														{product.price ? formatCurrency(product.price) : '—'}
 													</td>
 													<td className="px-4 py-3 text-foreground">
 														{product.totalSold ? product.totalSold.toLocaleString('pt-BR') : '—'}

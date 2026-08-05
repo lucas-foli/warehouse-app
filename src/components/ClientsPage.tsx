@@ -13,6 +13,7 @@ import {
 	buildClientEvolutionFromClients,
 	buildClientPurchasesTimelineFromClients,
 } from '../utils/helpers';
+import { countNewClientsThisMonth } from '../utils/newClientsThisMonth';
 import { Card, Metric, Section } from './ui/Primitives';
 
 const ClientsPage = ({
@@ -77,7 +78,7 @@ const ClientsPage = ({
 					<Metric value={lastPurchaseLabel} label="Última compra registrada" />
 				</Card>
 				<Card>
-					<Metric value={0} label="Novos no mês" />
+					<Metric value={countNewClientsThisMonth(clientes, new Date())} label="Novos no mês" />
 				</Card>
 			</Section>
 

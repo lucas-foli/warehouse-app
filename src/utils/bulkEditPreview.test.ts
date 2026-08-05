@@ -113,7 +113,7 @@ describe('computeBulkEditPreview', () => {
 describe('formatBulkFieldValue', () => {
   it('price', () => {
     expect(formatBulkFieldValue('price', null)).toBe('—');
-    expect(formatBulkFieldValue('price', 30)).toBe('R$ 30');
+    expect(formatBulkFieldValue('price', 30)).toBe('$30.00');
   });
   it('min', () => {
     expect(formatBulkFieldValue('min', null)).toBe('—');

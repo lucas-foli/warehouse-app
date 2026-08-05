@@ -36,6 +36,7 @@ export interface Client {
 	cidade: string;
 	telefone?: string;
 	ultimaCompra: string;
+	created_at?: string;
 }
 
 export interface Seller {
