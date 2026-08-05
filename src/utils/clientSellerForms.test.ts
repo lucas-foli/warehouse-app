@@ -8,6 +8,7 @@ import {
 	buildClientUpdate,
 	buildSellerInsert,
 	deleteBlockMessage,
+	nameDuplicateWarning,
 } from './clientSellerForms';
 
 const TENANT = '00000000-0000-0000-0000-000000000000';
@@ -75,5 +76,14 @@ describe('deleteBlockMessage', () => {
 	});
 	it('plural', () => {
 		expect(deleteBlockMessage('cliente', 3)).toContain('3 vendas vinculadas');
+	});
+});
+
+describe('nameDuplicateWarning', () => {
+	it('monta o aviso com o tipo e o nome', () => {
+		expect(nameDuplicateWarning('cliente', 'Jacksons')).toBe(
+			'Já existe um cliente chamado "Jacksons". Criar mesmo assim?',
+		);
+		expect(nameDuplicateWarning('vendedor', 'Bruno')).toContain('um vendedor chamado "Bruno"');
 	});
 });

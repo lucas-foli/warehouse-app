@@ -110,3 +110,6 @@ export const buildSellerUpdate = (d: SellerDraft): SellerUpdate => ({
 export const deleteBlockMessage = (kind: 'cliente' | 'vendedor', count: number): string =>
 	`Este ${kind} tem ${count} ${count === 1 ? 'venda vinculada' : 'vendas vinculadas'}. ` +
 	`Desvincule ou remova ${count === 1 ? 'essa venda' : 'essas vendas'} antes de excluir.`;
+
+export const nameDuplicateWarning = (kind: 'cliente' | 'vendedor', nome: string): string =>
+	`Já existe um ${kind} chamado "${nome}". Criar mesmo assim?`;
