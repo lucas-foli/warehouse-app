@@ -3,6 +3,11 @@
 > Bugs capturados durante uso/teste manual, com o comportamento atual já confirmado no
 > código. Não implementados ainda. Ordem = ordem de registro.
 
+> **Revisão 2026-08-05:** BUG-1 a BUG-5 reconferidos contra o `main` pós-PR #65 —
+> **todos seguem abertos** (nenhum foi resolvido pelos PRs #62/#64/#65). As referências de
+> `arquivo:linha` podem ter deslocado desde o registro original. BUG-4 teve o trecho do
+> importador atualizado abaixo. BUG-6..9 são os achados do e2e manual desta revisão.
+
 ## 2026-07-24 — Fluxo "Novo Produto" (`src/components/ProductsPage.tsx`)
 
 Todos os três se referem ao mesmo painel: o drawer aberto por **Novo Produto**
@@ -53,11 +58,13 @@ atacava.
 Duas colunas guardam imagem (`image` e `image_url`, ambas em `products`), e cada caminho
 grava numa delas:
 
-- **Atual:** o drawer de produto (create e edit) grava a coluna **legada** `image`
-  (`ProductsPage.tsx:231`, no `payload`). O importador de CSV normaliza `image`/`imagem`/
-  `foto`/`photo` para **`image_url`** (`src/utils/csv.ts:239-243`) e grava lá
-  (`DataImport.tsx:369`). O normalizador de leitura prefere `image_url`
+- **Atual:** o drawer de produto (create e edit) grava só a coluna **legada** `image`
+  (`ProductsPage.tsx:232`, no `payload`). O importador de CSV normaliza `image`/`imagem`/
+  `foto`/`photo` e hoje grava em **ambas** as colunas — `image_url` e `image`
+  (`DataImport.tsx:369-370`). O normalizador de leitura prefere `image_url`
   (`dashboardService.ts:116`: `str(row, 'image_url', 'image')`).
+  _(2026-08-05: o import passou a gravar as duas colunas, mas o drawer continua só em `image`,
+  então o bug persiste — ver Consequência.)_
 - **Consequência:** para um produto que veio do importador (que tem `image_url`
   preenchido), editar a foto pelo drawer grava em `image` e deixa `image_url` intacto.
   Enquanto o estado local vive, a foto nova aparece; no próximo refetch o normalizador lê
