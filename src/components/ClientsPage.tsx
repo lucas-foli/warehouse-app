@@ -34,9 +34,6 @@ const ClientsPage = ({
 	isAdmin?: boolean;
 	onReload?: () => void;
 }) => {
-	const [clientsExpanded, setClientsExpanded] = useState(false);
-	const CLIENTS_INITIAL = 5;
-
 	const [modalOpen, setModalOpen] = useState(false);
 	const [editingClient, setEditingClient] = useState<Client | null>(null);
 
@@ -197,11 +194,11 @@ const ClientsPage = ({
 				<Section>
 					<Card interactive={false} className="border border-border/30 bg-muted">
 						{/* Mobile: stacked cards */}
-						<div className="grid grid-cols-1 gap-3 p-3 md:hidden">
+						<div className="grid grid-cols-1 gap-3 p-3 md:hidden max-h-[70vh] overflow-auto">
 							{clientes.length === 0 && (
 								<p className="py-6 text-center text-sm text-muted-foreground">Nenhum cliente encontrado.</p>
 							)}
-							{(clientsExpanded ? clientes : clientes.slice(0, CLIENTS_INITIAL)).map((c) => (
+							{clientes.map((c) => (
 								<div
 									key={c.id}
 									onClick={() => openEdit(c)}
@@ -229,16 +226,6 @@ const ClientsPage = ({
 									</dl>
 								</div>
 							))}
-							{clientes.length > CLIENTS_INITIAL && (
-								<button
-									type="button"
-									onClick={() => setClientsExpanded((v) => !v)}
-									className="mt-1 w-full rounded-2xl border border-border/30 py-3 text-sm font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground">
-									{clientsExpanded
-										? 'Ver menos'
-										: `Ver mais ${clientes.length - CLIENTS_INITIAL} clientes`}
-								</button>
-							)}
 						</div>
 						{/* Desktop: table */}
 						<div className="hidden md:block md:max-h-[640px] md:overflow-auto">

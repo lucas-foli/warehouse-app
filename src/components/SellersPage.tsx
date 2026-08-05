@@ -44,9 +44,6 @@ const SellersPage = ({
 	);
 	const isSellerListCapped = sellersSortedByRevenue.length > 15;
 
-	const [sellersExpanded, setSellersExpanded] = useState(false);
-	const SELLERS_INITIAL = 5;
-
 	const [modalOpen, setModalOpen] = useState(false);
 	const [editingSeller, setEditingSeller] = useState<Seller | null>(null);
 
@@ -254,11 +251,11 @@ const SellersPage = ({
 									</p>
 								)}
 								{/* Mobile: stacked cards */}
-								<div className="grid grid-cols-1 gap-3 p-3 md:hidden">
+								<div className="grid grid-cols-1 gap-3 p-3 md:hidden max-h-[70vh] overflow-auto">
 									{sellersForDisplay.length === 0 && (
 										<p className="py-6 text-center text-sm text-muted-foreground">Nenhum vendedor encontrado.</p>
 									)}
-									{(sellersExpanded ? sellersForDisplay : sellersForDisplay.slice(0, SELLERS_INITIAL)).map((v) => {
+									{sellersForDisplay.map((v) => {
 										const topBruto = sellersForDisplay[0]?.bruto || 1;
 										const barWidth = Math.round((v.bruto / topBruto) * 100);
 										return (
@@ -300,16 +297,6 @@ const SellersPage = ({
 										</div>
 										);
 									})}
-									{sellersForDisplay.length > SELLERS_INITIAL && (
-										<button
-											type="button"
-											onClick={() => setSellersExpanded((v) => !v)}
-											className="mt-1 w-full rounded-2xl border border-border/30 py-3 text-sm font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground">
-											{sellersExpanded
-												? 'Ver menos'
-												: `Ver mais ${sellersForDisplay.length - SELLERS_INITIAL} vendedores`}
-										</button>
-									)}
 								</div>
 								{/* Desktop: table */}
 								<div className="hidden md:block md:max-h-[640px] md:overflow-auto">
