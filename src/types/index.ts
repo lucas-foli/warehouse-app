@@ -35,6 +35,7 @@ export interface Client {
 	nome: string;
 	cidade: string;
 	telefone?: string;
+	email?: string;
 	ultimaCompra: string;
 	created_at?: string;
 }
@@ -43,6 +44,7 @@ export interface Seller {
 	id: string;
 	externalId?: string;
 	nome: string;
+	email?: string;
 	itens: number;
 	bruto: number;
 	liquido: number;
