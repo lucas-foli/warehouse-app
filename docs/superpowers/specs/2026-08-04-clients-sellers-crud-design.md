@@ -27,7 +27,6 @@ por botões/modais no UI. O import CSV permanece intacto, reservado para bulk.
 - Qualquer mudança no fluxo de import CSV.
 - Edição de campos derivados de vendas (última compra, bruto, líquido, itens, boletos).
 - Exposição do `external_id` no formulário (ver seção própria).
-- Gating de botões por papel/role (o app não tem essa infra; ver Permissões).
 
 ## Entidades e schema (referência)
 
@@ -56,7 +55,7 @@ Types no front (`src/types/index.ts`), campos em português:
 `reload()`, hoje usado após registrar venda (`onSaleRegistered={reload}`).
 
 Padrão adotado (o mesmo do CRUD de produto em `ProductsPage`):
-1. As páginas passam a receber também `tenantId` e `onReload` (o `reload` do hook).
+1. As páginas passam a receber também `tenantId`, `isAdmin` e `onReload` (o `reload` do hook).
 2. Cada mutação escreve direto no Supabase (`supabase.from('clients'|'sellers')`)
    e, no sucesso, chama `onReload()` para o Dashboard refazer o fetch.
 3. Nenhum estado global novo; o modal detém apenas o rascunho do formulário.
@@ -124,11 +123,17 @@ porque o `on delete set null` não gera erro.)
 
 ## Permissões / RLS
 
-As policies de escrita de `clients` e `sellers` usam `is_tenant_admin` — igual às
-de `products`. O botão "Novo produto" hoje **não** é gated por papel; a RLS
-simplesmente barra não-admins e o erro é tratado. O app não tem infra de role no
-front. Seguimos o mesmo padrão: botões visíveis a todos, erro de RLS tratado
-(mensagem amigável) quando um não-admin tenta escrever. Nenhum gating novo.
+As policies de escrita de `clients` e `sellers` usam `is_tenant_admin`. O front já
+tem `isAdmin = membership.role === 'admin'` (App.tsx) e já **restringe a criação em
+bulk de clientes/vendedores a admins** via `canImport={isAdmin}`; o `OrdersPage`
+também esconde ações de escrita de não-admins (`isAdmin && ...`). A criação
+individual é o mesmo tipo de ação, então segue esse padrão dominante: os botões
+"Novo cliente"/"Novo vendedor" e as ações de editar/excluir só aparecem quando
+`isAdmin`. Passamos `isAdmin` (já disponível no `Dashboard`) às páginas. Isso evita
+mostrar um botão que a RLS barraria.
+
+(Observação: o botão "Novo produto" hoje não é gated — é a exceção inconsistente do
+app; seguimos o padrão majoritário `isAdmin`, que é o análogo direto do import.)
 
 ## Testes
 
@@ -158,4 +163,3 @@ funções puras, que são o alvo dos testes. Baseline atual: 122 testes, 0 falha
 - Mesclar registros duplicados existentes.
 - Exposição ou edição de `external_id`.
 - Mutação otimista / cache local.
-- Gating de UI por papel.
