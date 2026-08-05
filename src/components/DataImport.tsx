@@ -14,6 +14,7 @@ import {
 	type SalesOrderUpsertRow,
 } from '../utils/csv';
 import { validateSalesItemSkus } from '../utils/salesIntegrity';
+import { buildClearWarning } from '../utils/importClearWarning';
 
 type Props = {
 	onBack: () => void;
@@ -167,6 +168,8 @@ const DataImport = ({ onBack }: Props) => {
 	const [loading, setLoading] = useState(false);
 	const [isDragging, setIsDragging] = useState(false);
 	const [clearBeforeImport, setClearBeforeImport] = useState(false);
+	const [unlinkCount, setUnlinkCount] = useState(0);
+	const [confirmClear, setConfirmClear] = useState(false);
 
 	const config = IMPORT_CONFIG[kind];
 	const csvGuide = CSV_GUIDE[kind];
@@ -183,6 +186,8 @@ const DataImport = ({ onBack }: Props) => {
 		setImportError('');
 		setImportedRows(null);
 		setClearBeforeImport(false);
+		setUnlinkCount(0);
+		setConfirmClear(false);
 	};
 
 	const parseResult = (text: string): CsvImportResult<unknown> => {
@@ -341,8 +346,31 @@ const DataImport = ({ onBack }: Props) => {
 		return uploaded;
 	};
 
+	const updateClearState = async (nextChecked: boolean) => {
+		setClearBeforeImport(nextChecked);
+		setConfirmClear(false);
+		if (!nextChecked || !tenantId || (kind !== 'clients' && kind !== 'sellers')) {
+			setUnlinkCount(0);
+			return;
+		}
+		const fk = kind === 'clients' ? 'client_id' : 'seller_id';
+		const { count, error } = await supabase
+			.from('sales_orders')
+			.select('*', { count: 'exact', head: true })
+			.eq('tenant_id', tenantId)
+			.not(fk, 'is', null);
+		setUnlinkCount(error ? 0 : count ?? 0);
+	};
+
 	const handleImport = async () => {
 		if (!tenantId || csvRows.length === 0) return;
+		const riskyClear =
+			clearBeforeImport && (kind === 'clients' || kind === 'sellers') && unlinkCount > 0;
+		if (riskyClear && !confirmClear) {
+			setConfirmClear(true);
+			return;
+		}
+		setConfirmClear(false);
 		setLoading(true);
 		setImportError('');
 
@@ -609,7 +637,7 @@ const DataImport = ({ onBack }: Props) => {
 									type="checkbox"
 									className="mt-1 h-4 w-4 rounded border-border text-primary focus:ring-2 focus:ring-ring/25"
 									checked={clearBeforeImport}
-									onChange={(event) => setClearBeforeImport(event.target.checked)}
+									onChange={(event) => void updateClearState(event.target.checked)}
 								/>
 								<span>
 									<span className="font-medium">Limpar dados antes de importar</span>
@@ -618,6 +646,11 @@ const DataImport = ({ onBack }: Props) => {
 									</span>
 								</span>
 							</label>
+							{clearBeforeImport && (kind === 'clients' || kind === 'sellers') && unlinkCount > 0 && (
+								<p className="mt-2 text-xs font-medium text-amber-700">
+									{buildClearWarning(kind, unlinkCount)}
+								</p>
+							)}
 						</div>
 
 						{csvError && (
@@ -686,14 +719,36 @@ const DataImport = ({ onBack }: Props) => {
 							>
 								Voltar
 							</button>
-							<button
-								type="button"
-								onClick={handleImport}
-								disabled={isImportDisabled}
-								className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary text-base font-medium text-primary-foreground hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-ring/25 sm:text-sm disabled:opacity-50"
-							>
-								{loading ? 'Importando...' : 'Importar CSV'}
-							</button>
+							{confirmClear ? (
+								<>
+									<button
+										type="button"
+										onClick={() => setConfirmClear(false)}
+										className="w-full inline-flex justify-center rounded-md border border-border/40 shadow-sm px-4 py-2 bg-card text-base font-medium text-foreground hover:bg-muted focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-ring/25 sm:text-sm"
+									>
+										Cancelar
+									</button>
+									<button
+										type="button"
+										onClick={handleImport}
+										disabled={isImportDisabled}
+										className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary text-base font-medium text-primary-foreground hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-ring/25 sm:text-sm disabled:opacity-50"
+									>
+										{loading
+											? 'Importando...'
+											: `Confirmar (${unlinkCount} ${unlinkCount === 1 ? 'venda ficará' : 'vendas ficarão'} sem vínculo)`}
+									</button>
+								</>
+							) : (
+								<button
+									type="button"
+									onClick={handleImport}
+									disabled={isImportDisabled}
+									className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary text-base font-medium text-primary-foreground hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-ring/25 sm:text-sm disabled:opacity-50"
+								>
+									{loading ? 'Importando...' : 'Importar CSV'}
+								</button>
+							)}
 						</div>
 					</div>
 				</div>
