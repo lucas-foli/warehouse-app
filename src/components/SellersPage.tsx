@@ -17,15 +17,22 @@ import type { Seller } from '../types';
 import { formatCurrency } from '../utils/currency';
 import { buildMultiSellerPerformance } from '../utils/helpers';
 import { Card, Metric, Section } from './ui/Primitives';
+import { SellerFormModal } from './sellers/SellerFormModal';
 
 const SellersPage = ({
 	vendedores,
 	primaryColor,
 	secondaryColor,
+	tenantId,
+	isAdmin = false,
+	onReload,
 }: {
 	vendedores: Seller[];
 	primaryColor: string;
 	secondaryColor: string;
+	tenantId?: string;
+	isAdmin?: boolean;
+	onReload?: () => void;
 }) => {
 	const sellersSortedByRevenue = useMemo(
 		() => [...vendedores].sort((a, b) => (b.bruto || 0) - (a.bruto || 0)),
@@ -37,8 +44,18 @@ const SellersPage = ({
 	);
 	const isSellerListCapped = sellersSortedByRevenue.length > 15;
 
-	const [sellersExpanded, setSellersExpanded] = useState(false);
-	const SELLERS_INITIAL = 5;
+	const [modalOpen, setModalOpen] = useState(false);
+	const [editingSeller, setEditingSeller] = useState<Seller | null>(null);
+
+	const openCreate = () => {
+		setEditingSeller(null);
+		setModalOpen(true);
+	};
+	const openEdit = (s: Seller) => {
+		if (!isAdmin) return;
+		setEditingSeller(s);
+		setModalOpen(true);
+	};
 
 	const sellerPerformanceSeries = buildMultiSellerPerformance(sellersForDisplay);
 	const sellerPerformance = sellerPerformanceSeries.length ? sellerPerformanceSeries : [];
@@ -82,7 +99,17 @@ const SellersPage = ({
 
 	return (
 		<>
-			<Section className="mt-8 grid items-stretch gap-8 md:grid-cols-2 xl:grid-cols-4">
+			{isAdmin && (
+				<Section className="mt-8 flex justify-end">
+					<button
+						type="button"
+						onClick={openCreate}
+						className="rounded-full border border-border/40 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-foreground transition hover:bg-primary hover:text-primary-foreground">
+						Novo vendedor
+					</button>
+				</Section>
+			)}
+			<Section className="mt-6 grid items-stretch gap-8 md:grid-cols-2 xl:grid-cols-4">
 				<Card>
 					<Metric value={vendedores.length.toString()} label="Vendedores ativos" />
 				</Card>
@@ -224,15 +251,18 @@ const SellersPage = ({
 									</p>
 								)}
 								{/* Mobile: stacked cards */}
-								<div className="grid grid-cols-1 gap-3 p-3 md:hidden">
+								<div className="grid grid-cols-1 gap-3 p-3 md:hidden max-h-[70vh] overflow-auto">
 									{sellersForDisplay.length === 0 && (
 										<p className="py-6 text-center text-sm text-muted-foreground">Nenhum vendedor encontrado.</p>
 									)}
-									{(sellersExpanded ? sellersForDisplay : sellersForDisplay.slice(0, SELLERS_INITIAL)).map((v) => {
+									{sellersForDisplay.map((v) => {
 										const topBruto = sellersForDisplay[0]?.bruto || 1;
 										const barWidth = Math.round((v.bruto / topBruto) * 100);
 										return (
-										<div key={v.id} className="rounded-2xl border border-border/40 bg-card p-4">
+										<div
+											key={v.id}
+											onClick={() => openEdit(v)}
+											className={`rounded-2xl border border-border/40 bg-card p-4${isAdmin ? ' cursor-pointer transition hover:border-border' : ''}`}>
 											<p className="mb-1 text-base font-semibold text-foreground">{v.nome}</p>
 											{/* Relative revenue bar — width proportional to top seller */}
 											<div className="my-3 flex items-center gap-2">
@@ -247,6 +277,10 @@ const SellersPage = ({
 												</span>
 											</div>
 											<dl className="divide-y divide-border/20 text-sm">
+												<div className="flex items-center justify-between py-2">
+													<dt className="text-muted-foreground">E-mail</dt>
+													<dd className="text-foreground">{v.email ?? '—'}</dd>
+												</div>
 												<div className="flex items-center justify-between py-2">
 													<dt className="text-muted-foreground">Valor bruto</dt>
 													<dd className="tabular-nums font-medium text-foreground">{formatCurrency(v.bruto)}</dd>
@@ -263,23 +297,14 @@ const SellersPage = ({
 										</div>
 										);
 									})}
-									{sellersForDisplay.length > SELLERS_INITIAL && (
-										<button
-											type="button"
-											onClick={() => setSellersExpanded((v) => !v)}
-											className="mt-1 w-full rounded-2xl border border-border/30 py-3 text-sm font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground">
-											{sellersExpanded
-												? 'Ver menos'
-												: `Ver mais ${sellersForDisplay.length - SELLERS_INITIAL} vendedores`}
-										</button>
-									)}
 								</div>
 								{/* Desktop: table */}
-								<div className="hidden overflow-auto md:block">
+								<div className="hidden md:block md:max-h-[640px] md:overflow-auto">
 									<table className="min-w-full divide-y divide-black/5 text-sm">
-										<thead className="bg-muted text-left text-[11px] uppercase tracking-[0.25em] text-muted-foreground">
+										<thead className="sticky top-0 z-10 bg-muted text-left text-[11px] uppercase tracking-[0.25em] text-muted-foreground">
 											<tr>
 												<th className="px-4 py-3">Vendedor(a)</th>
+												<th className="px-4 py-3">E-mail</th>
 												<th className="px-4 py-3">Itens</th>
 												<th className="px-4 py-3">Valor bruto</th>
 												<th className="px-4 py-3">Valor líquido</th>
@@ -288,8 +313,12 @@ const SellersPage = ({
 										</thead>
 										<tbody className="divide-y divide-border/30 bg-card">
 											{sellersForDisplay.map((v) => (
-												<tr key={v.id} className="hover:bg-muted/60">
+												<tr
+													key={v.id}
+													onClick={() => openEdit(v)}
+													className={`hover:bg-muted/60${isAdmin ? ' cursor-pointer' : ''}`}>
 													<td className="px-4 py-3 font-semibold text-foreground">{v.nome}</td>
+													<td className="px-4 py-3 text-foreground">{v.email ?? '—'}</td>
 													<td className="px-4 py-3 text-foreground">{v.itens}</td>
 													<td className="px-4 py-3 text-foreground">{formatCurrency(v.bruto)}</td>
 													<td className="px-4 py-3 text-foreground">{formatCurrency(v.liquido)}</td>
@@ -301,6 +330,13 @@ const SellersPage = ({
 								</div>
 							</Card>
 						</Section>
+			<SellerFormModal
+				open={modalOpen}
+				tenantId={tenantId}
+				seller={editingSeller}
+				onClose={() => setModalOpen(false)}
+				onSaved={() => onReload?.()}
+			/>
 		</>
 	);
 };

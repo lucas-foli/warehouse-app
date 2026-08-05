@@ -15,20 +15,37 @@ import {
 } from '../utils/helpers';
 import { countNewClientsThisMonth } from '../utils/newClientsThisMonth';
 import { Card, Metric, Section } from './ui/Primitives';
+import { ClientFormModal } from './clients/ClientFormModal';
 
 const ClientsPage = ({
 	clientes,
 	clientEvolution: clientEvolutionProp,
 	primaryColor,
 	secondaryColor,
+	tenantId,
+	isAdmin = false,
+	onReload,
 }: {
 	clientes: Client[];
 	clientEvolution?: HistoryItem[];
 	primaryColor: string;
 	secondaryColor: string;
+	tenantId?: string;
+	isAdmin?: boolean;
+	onReload?: () => void;
 }) => {
-	const [clientsExpanded, setClientsExpanded] = useState(false);
-	const CLIENTS_INITIAL = 5;
+	const [modalOpen, setModalOpen] = useState(false);
+	const [editingClient, setEditingClient] = useState<Client | null>(null);
+
+	const openCreate = () => {
+		setEditingClient(null);
+		setModalOpen(true);
+	};
+	const openEdit = (c: Client) => {
+		if (!isAdmin) return;
+		setEditingClient(c);
+		setModalOpen(true);
+	};
 
 	const formatMonthYear = (value?: string) => {
 		if (!value) return '—';
@@ -61,7 +78,17 @@ const ClientsPage = ({
 
 	return (
 		<>
-			<Section className="mt-8 grid items-stretch gap-8 md:grid-cols-2 xl:grid-cols-4">
+			{isAdmin && (
+				<Section className="mt-8 flex justify-end">
+					<button
+						type="button"
+						onClick={openCreate}
+						className="rounded-full border border-border/40 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-foreground transition hover:bg-primary hover:text-primary-foreground">
+						Novo cliente
+					</button>
+				</Section>
+			)}
+			<Section className="mt-6 grid items-stretch gap-8 md:grid-cols-2 xl:grid-cols-4">
 				<Card>
 					<Metric
 						value={clientes.length ? clientes.length.toLocaleString('pt-BR') : 0}
@@ -167,12 +194,15 @@ const ClientsPage = ({
 				<Section>
 					<Card interactive={false} className="border border-border/30 bg-muted">
 						{/* Mobile: stacked cards */}
-						<div className="grid grid-cols-1 gap-3 p-3 md:hidden">
+						<div className="grid grid-cols-1 gap-3 p-3 md:hidden max-h-[70vh] overflow-auto">
 							{clientes.length === 0 && (
 								<p className="py-6 text-center text-sm text-muted-foreground">Nenhum cliente encontrado.</p>
 							)}
-							{(clientsExpanded ? clientes : clientes.slice(0, CLIENTS_INITIAL)).map((c) => (
-								<div key={c.id} className="rounded-2xl border border-border/40 bg-card p-4">
+							{clientes.map((c) => (
+								<div
+									key={c.id}
+									onClick={() => openEdit(c)}
+									className={`rounded-2xl border border-border/40 bg-card p-4${isAdmin ? ' cursor-pointer transition hover:border-border' : ''}`}>
 									<p className="text-base font-semibold text-foreground">{c.nome}</p>
 									<dl className="mt-2 divide-y divide-border/20 text-sm">
 										{c.cidade ? (
@@ -186,40 +216,39 @@ const ClientsPage = ({
 											<dd className="text-foreground">{c.telefone ?? '—'}</dd>
 										</div>
 										<div className="flex items-center justify-between py-2">
+											<dt className="text-muted-foreground">E-mail</dt>
+											<dd className="text-foreground">{c.email ?? '—'}</dd>
+										</div>
+										<div className="flex items-center justify-between py-2">
 											<dt className="text-muted-foreground">Última compra</dt>
 											<dd className="tabular-nums text-foreground">{formatMonthYear(c.ultimaCompra)}</dd>
 										</div>
 									</dl>
 								</div>
 							))}
-							{clientes.length > CLIENTS_INITIAL && (
-								<button
-									type="button"
-									onClick={() => setClientsExpanded((v) => !v)}
-									className="mt-1 w-full rounded-2xl border border-border/30 py-3 text-sm font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground">
-									{clientsExpanded
-										? 'Ver menos'
-										: `Ver mais ${clientes.length - CLIENTS_INITIAL} clientes`}
-								</button>
-							)}
 						</div>
 						{/* Desktop: table */}
-						<div className="hidden overflow-auto md:block">
+						<div className="hidden md:block md:max-h-[640px] md:overflow-auto">
 							<table className="min-w-full divide-y divide-black/5 text-sm">
-								<thead className="bg-muted text-left text-[11px] uppercase tracking-[0.25em] text-muted-foreground">
+								<thead className="sticky top-0 z-10 bg-muted text-left text-[11px] uppercase tracking-[0.25em] text-muted-foreground">
 									<tr>
 										<th className="px-4 py-3">Nome</th>
 										<th className="px-4 py-3">Cidade</th>
 										<th className="px-4 py-3">Telefone</th>
+										<th className="px-4 py-3">E-mail</th>
 										<th className="px-4 py-3">Última compra</th>
 									</tr>
 								</thead>
 								<tbody className="divide-y divide-border/30 bg-card">
 									{clientes.map((c) => (
-										<tr key={c.id} className="hover:bg-muted/60">
+										<tr
+											key={c.id}
+											onClick={() => openEdit(c)}
+											className={`hover:bg-muted/60${isAdmin ? ' cursor-pointer' : ''}`}>
 											<td className="px-4 py-3 font-semibold text-foreground">{c.nome}</td>
 											<td className="px-4 py-3 text-foreground">{c.cidade}</td>
 											<td className="px-4 py-3 text-foreground">{c.telefone ?? '—'}</td>
+											<td className="px-4 py-3 text-foreground">{c.email ?? '—'}</td>
 											<td className="px-4 py-3 text-foreground">{formatMonthYear(c.ultimaCompra)}</td>
 										</tr>
 									))}
@@ -228,6 +257,14 @@ const ClientsPage = ({
 						</div>
 					</Card>
 				</Section>
+
+			<ClientFormModal
+				open={modalOpen}
+				tenantId={tenantId}
+				client={editingClient}
+				onClose={() => setModalOpen(false)}
+				onSaved={() => onReload?.()}
+			/>
 		</>
 	);
 };

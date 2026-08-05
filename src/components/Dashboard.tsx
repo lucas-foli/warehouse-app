@@ -409,6 +409,9 @@ const Dashboard = ({
 							clientEvolution={visibleClientEvolution}
 							primaryColor={primaryColor}
 							secondaryColor={secondaryColor}
+							tenantId={tenantId}
+							isAdmin={isAdmin}
+							onReload={reload}
 						/>
 					)}
 
@@ -417,6 +420,9 @@ const Dashboard = ({
 							vendedores={visibleVendedores}
 							primaryColor={primaryColor}
 							secondaryColor={secondaryColor}
+							tenantId={tenantId}
+							isAdmin={isAdmin}
+							onReload={reload}
 						/>
 					)}
 
