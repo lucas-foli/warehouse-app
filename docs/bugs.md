@@ -86,3 +86,61 @@ grava numa delas:
 - **Esperado:** propagar o SKU do `detail` para a mensagem, algo como "SKU 214 está
   inativo e não pode ser vendido — remova-o do carrinho". Vale para os outros códigos que
   também carregam `detail` (`sales_item_unknown_sku`, por exemplo).
+
+## 2026-08-04 — Achados do e2e manual (criar loja → produtos → convite → venda → dashboard)
+
+E2e ponta a ponta numa loja nova (`loja-teste-e2e`) via `/demo` → aprovação admin →
+convite → onboarding → 1 produto → 1 venda. O fallback de faturamento fantasma
+(`monthlyRevenue ?? 574661`) já está sendo corrigido pelo PR #65 (`?? 0`) e por isso não
+entra aqui. Os quatro abaixo **não** são cobertos pelo #65 (ele não toca `helpers.ts` nem
+`SetPassword.tsx`).
+
+### BUG-6 — "Faturamento do dia" mostra a média diária do mês, não o dia
+
+- **Atual:** `src/components/OverviewPage.tsx:52` → `const dailyRevenue = monthlyRevenue / 30;`.
+  O card "Faturamento do dia" (`OverviewPage.tsx:86-93`) exibe o faturamento do mês
+  corrente dividido por 30. `monthlyRevenue` = `latestMonth?.value` (history do mês).
+- **Consequência:** registrei uma única venda de R$ 399,80 hoje e o card "Faturamento do
+  dia" mostrou **R$ 13** (399,80 / 30), não R$ 399,80. O rótulo "do dia" comunica algo que
+  o número não é.
+- **Esperado:** somar as vendas cujo `sold_at` é hoje para o card do dia — ou renomear o
+  card para deixar explícito que é média diária do mês.
+- **Nota:** o PR #65 troca o fallback `?? 574661` por `?? 0` mas mantém a divisão por 30,
+  então o problema persiste em qualquer loja com vendas.
+
+### BUG-7 — Custo/margem do dashboard são fabricados (sempre 40% da venda)
+
+- **Atual:** `src/utils/helpers.ts:94` (`buildCategorySalesFromProducts`) e
+  `helpers.ts:133` (`buildCategorySalesFromItems`) → `custo = venda * 0.4`. O card
+  "Categorias — vendas e custos" (`OverviewPage.tsx`) exibe esse custo e o share.
+- **Consequência:** cadastrei um produto **sem informar custo** e vendi; o dashboard
+  mostrou "Custo R$ 159,92" = exatos 40% da venda de R$ 399,80. Não há campo de custo real
+  no produto — a margem de 60% é sempre presumida e apresentada como se fosse real.
+- **Esperado:** usar custo real (adicionar custo ao produto e somar por item vendido), ou
+  rotular o card como estimativa/remover até existir custo real.
+
+### BUG-8 — Histórico/tendência mensal é sintético quando não há vendas
+
+- **Atual:** `src/hooks/useDashboardData.ts:90-92` usa `buildHistoryFromOrders` quando há
+  pedidos reais; senão cai em `buildHistoryFromProducts` (`helpers.ts:166-170`), que
+  distribui o total dos produtos em proporções fixas (0.18/0.22/0.20/0.19/0.21) em meses
+  **hardcoded Jul–Nov/25**.
+- **Consequência:** uma loja com produtos mas sem vendas mostra faturamento mensal e
+  gráfico de tendência inventados, ancorados em meses do passado, independente da data
+  atual.
+- **Esperado:** sem vendas, histórico/tendência deve ser empty state honesto — não números
+  fabricados. Mesmo espírito do "empty states honestos" do PR #65, mas `helpers.ts` não é
+  tocado por ele.
+- **Nota:** confirmado no código; não reproduzido na UI nesta sessão (a loja de teste
+  passou direto de "sem produto" para "com venda").
+
+### BUG-9 — Copy do set-password fala em "recuperação" também no fluxo de convite
+
+- **Atual:** `src/components/SetPassword.tsx:57` → "Escolha uma nova senha para concluir a
+  **recuperação**." O mesmo componente atende o link de **convite** (`type=invite`,
+  `approve_signup_request` → `inviteUserByEmail`) e o de recuperação de senha.
+- **Consequência:** um dono de loja recém-aprovado clica em "Accept the invite" e a tela
+  de definir senha fala em "concluir a recuperação" — termo errado para quem nunca teve
+  senha.
+- **Esperado:** texto neutro ("Defina sua senha para acessar sua conta") ou condicional ao
+  tipo (invite vs recovery).
