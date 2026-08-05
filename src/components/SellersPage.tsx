@@ -14,6 +14,7 @@ import {
 import type { TooltipContentProps } from 'recharts';
 import type { NameType, ValueType } from 'recharts/types/component/DefaultTooltipContent';
 import type { Seller } from '../types';
+import { formatCurrency } from '../utils/currency';
 import { buildMultiSellerPerformance } from '../utils/helpers';
 import { Card, Metric, Section } from './ui/Primitives';
 
@@ -26,9 +27,6 @@ const SellersPage = ({
 	primaryColor: string;
 	secondaryColor: string;
 }) => {
-	const formatCurrency = (value: number) =>
-		`R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
 	const sellersSortedByRevenue = useMemo(
 		() => [...vendedores].sort((a, b) => (b.bruto || 0) - (a.bruto || 0)),
 		[vendedores],
@@ -92,7 +90,7 @@ const SellersPage = ({
 					<Metric
 						value={
 							vendedores.length
-								? `R$ ${vendedores.reduce((sum, v) => sum + (v.bruto || 0), 0).toLocaleString('pt-BR')}`
+								? formatCurrency(vendedores.reduce((sum, v) => sum + (v.bruto || 0), 0))
 								: '—'
 						}
 						label="Faturamento combinado"
@@ -100,9 +98,6 @@ const SellersPage = ({
 				</Card>
 				<Card>
 					<Metric value={sellersSortedByRevenue[0]?.nome ?? '—'} label="Maior faturamento" />
-				</Card>
-				<Card>
-					<Metric value="—" label="Abaixo da meta" />
 				</Card>
 			</Section>
 
@@ -254,11 +249,11 @@ const SellersPage = ({
 											<dl className="divide-y divide-border/20 text-sm">
 												<div className="flex items-center justify-between py-2">
 													<dt className="text-muted-foreground">Valor bruto</dt>
-													<dd className="tabular-nums font-medium text-foreground">R$ {v.bruto.toLocaleString('pt-BR')}</dd>
+													<dd className="tabular-nums font-medium text-foreground">{formatCurrency(v.bruto)}</dd>
 												</div>
 												<div className="flex items-center justify-between py-2">
 													<dt className="text-muted-foreground">Valor líquido</dt>
-													<dd className="tabular-nums font-medium text-foreground">R$ {v.liquido.toLocaleString('pt-BR')}</dd>
+													<dd className="tabular-nums font-medium text-foreground">{formatCurrency(v.liquido)}</dd>
 												</div>
 												<div className="flex items-center justify-between py-2">
 													<dt className="text-muted-foreground">Itens</dt>
@@ -296,8 +291,8 @@ const SellersPage = ({
 												<tr key={v.id} className="hover:bg-muted/60">
 													<td className="px-4 py-3 font-semibold text-foreground">{v.nome}</td>
 													<td className="px-4 py-3 text-foreground">{v.itens}</td>
-													<td className="px-4 py-3 text-foreground">R$ {v.bruto.toLocaleString('pt-BR')}</td>
-													<td className="px-4 py-3 text-foreground">R$ {v.liquido.toLocaleString('pt-BR')}</td>
+													<td className="px-4 py-3 text-foreground">{formatCurrency(v.bruto)}</td>
+													<td className="px-4 py-3 text-foreground">{formatCurrency(v.liquido)}</td>
 													<td className="px-4 py-3 text-foreground">{v.boletos}</td>
 												</tr>
 											))}

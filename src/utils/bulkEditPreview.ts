@@ -1,5 +1,6 @@
 // src/utils/bulkEditPreview.ts
 import type { Product } from '../types';
+import { formatCurrency } from './currency';
 
 export type BulkEditableField = 'status' | 'is_active' | 'location' | 'price' | 'min';
 
@@ -72,7 +73,7 @@ export function computeBulkEditPreview(
 }
 
 export function formatBulkFieldValue(field: BulkEditableField, value: unknown): string {
-  if (field === 'price') return value == null ? '—' : `R$ ${(value as number).toLocaleString('pt-BR')}`;
+  if (field === 'price') return value == null ? '—' : formatCurrency(value as number);
   if (field === 'min') return value == null ? '—' : String(value);
   if (field === 'is_active') return value == null ? '—' : value ? 'Ativo' : 'Inativo';
   return value == null || value === '' ? '—' : String(value);

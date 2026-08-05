@@ -137,6 +137,7 @@ export async function fetchClients(tenantId: string): Promise<Client[]> {
 		cidade: toText(row.city) || toText(row.cidade) || '—',
 		telefone: toText(row.phone) || toText(row.telefone) || undefined,
 		ultimaCompra: toText(row.last_purchase_at) || '',
+		created_at: toText(row.created_at) || undefined,
 	}));
 }
 

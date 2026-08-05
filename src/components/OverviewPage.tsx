@@ -7,6 +7,7 @@ import {
 	XAxis,
 } from 'recharts';
 import type { CategorySale, HistoryItem, Product } from '../types';
+import { formatCurrency } from '../utils/currency';
 import { getProductRisk } from '../utils/productRisk';
 import { Card, ListItem, Metric, Section } from './ui/Primitives';
 
@@ -48,7 +49,7 @@ const OverviewPage = ({
 
 	const latestMonth = history[history.length - 1];
 	const previousMonth = history[history.length - 2];
-	const monthlyRevenue = latestMonth?.value ?? 574661;
+	const monthlyRevenue = latestMonth?.value ?? 0;
 	const dailyRevenue = monthlyRevenue / 30;
 	const monthlyChange =
 		latestMonth && previousMonth && previousMonth.value
@@ -84,19 +85,15 @@ const OverviewPage = ({
 			<Section className="mt-8 grid items-stretch gap-8 md:grid-cols-2 xl:grid-cols-4">
 				<Card className="text-white shadow-lg" style={{ background: `linear-gradient(to bottom right, ${primaryColor}, ${secondaryColor})` }}>
 					<Metric
-						value={Math.max(0, dailyRevenue || 0).toLocaleString('pt-BR', {
-							maximumFractionDigits: 0,
-						})}
+						value={formatCurrency(Math.max(0, dailyRevenue || 0))}
 						label="Faturamento do dia"
-						prefix="R$ "
 						detail={monthlyChange >= 0 ? '⬆︎ Tendência positiva' : '⬇︎ Tendência em atenção'}
 					/>
 				</Card>
 				<Card>
 					<Metric
-						value={Math.max(0, monthlyRevenue || 0).toLocaleString('pt-BR')}
+						value={formatCurrency(Math.max(0, monthlyRevenue || 0))}
 						label="Faturamento Total"
-						prefix="R$ "
 						detail="Visão consolidada do mês atual"
 					/>
 				</Card>
@@ -156,13 +153,13 @@ const OverviewPage = ({
 								<div key={cat.name} className="space-y-1.5">
 										<div className="flex items-center justify-between text-sm" style={{ color: primaryColor }}>
 											<span>{cat.name}</span>
-											<span className="text-xs text-muted-foreground/80">R$ {cat.venda.toLocaleString('pt-BR')}</span>
+											<span className="text-xs text-muted-foreground/80">{formatCurrency(cat.venda)}</span>
 										</div>
 										<div className="flex h-2 overflow-hidden rounded-full bg-card">
 											<div style={{ width: `${share}%`, backgroundColor: primaryColor }} />
 										</div>
 										<div className="flex justify-between text-[10px] uppercase tracking-[0.18em] text-muted-foreground/80">
-											<span>Custo: R$ {cat.custo.toLocaleString('pt-BR')}</span>
+											<span>Custo: {formatCurrency(cat.custo)}</span>
 											<span>Share: {share.toFixed(1)}%</span>
 										</div>
 								</div>
@@ -204,7 +201,7 @@ const OverviewPage = ({
 									}}
 									itemStyle={{ fontSize: '12px', fontWeight: 600 }}
 									labelStyle={{ fontSize: '12px', color: 'hsl(var(--muted-foreground))', marginBottom: '8px' }}
-									formatter={(value: number) => [`R$ ${value.toLocaleString('pt-BR')}`, 'Faturamento']}
+									formatter={(value: number) => [formatCurrency(value), 'Faturamento']}
 								/>
 								<Area
 									type="monotone"
