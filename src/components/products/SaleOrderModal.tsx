@@ -4,6 +4,7 @@ import { registerSaleOrder } from '../../services/salesService';
 import { listProductOptions } from '../../services/productOptions';
 import { mergeCartLines, skusMissingPrice, type CartLine } from '../../utils/cart';
 import { findProductByCode } from '../../utils/barcode';
+import { formatCurrency } from '../../utils/currency';
 
 type Props = {
 	open: boolean;
@@ -18,9 +19,6 @@ type Props = {
 };
 
 const todayISODate = () => new Date().toISOString().slice(0, 10);
-
-const formatBRL = (value: number) =>
-	`R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export const SaleOrderModal = ({
 	open,
@@ -304,7 +302,7 @@ export const SaleOrderModal = ({
 													{product ? ` — ${product.name}` : ''}
 												</p>
 												<p className="text-[11px] text-muted-foreground">
-													{l.qty} × {l.unitPrice !== null ? formatBRL(l.unitPrice) : '—'}
+													{l.qty} × {l.unitPrice !== null ? formatCurrency(l.unitPrice) : '—'}
 													{overStock && (
 														<span className="ml-2 text-amber-600">
 															Atenção: maior que o estoque ({product!.qty}).
@@ -313,7 +311,7 @@ export const SaleOrderModal = ({
 												</p>
 											</div>
 											<span className="text-sm font-semibold text-foreground">
-												{total !== null ? formatBRL(total) : '—'}
+												{total !== null ? formatCurrency(total) : '—'}
 											</span>
 											<button
 												type="button"
@@ -387,7 +385,7 @@ export const SaleOrderModal = ({
 							Total da venda
 						</span>
 						<span className="text-base font-semibold text-foreground">
-							{orderTotal !== null ? formatBRL(orderTotal) : '—'}
+							{orderTotal !== null ? formatCurrency(orderTotal) : '—'}
 						</span>
 					</div>
 

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import type { Client, Seller } from '../types';
 import type { SalesOrder } from '../services/dashboardService';
 import { voidSaleOrder } from '../services/salesService';
+import { formatCurrency } from '../utils/currency';
 import { Card, Section } from './ui/Primitives';
 import { ConfirmDialog } from './products/ConfirmDialog';
 
@@ -22,10 +23,8 @@ const formatDate = (value?: string) => {
 	return parsed.toLocaleDateString('pt-BR', { dateStyle: 'short' });
 };
 
-const formatBRL = (value?: number) =>
-	typeof value === 'number' && Number.isFinite(value)
-		? value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-		: '—';
+const formatMoney = (value?: number) =>
+	typeof value === 'number' && Number.isFinite(value) ? formatCurrency(value) : '—';
 
 const OrdersPage = ({ salesOrders, clientes, vendedores, tenantId, isAdmin, onVoided }: OrdersPageProps) => {
 	const [confirmOrder, setConfirmOrder] = useState<SalesOrder | null>(null);
@@ -126,7 +125,7 @@ const OrdersPage = ({ salesOrders, clientes, vendedores, tenantId, isAdmin, onVo
 												</div>
 												<div className="flex items-center justify-between py-2">
 													<dt className="shrink-0 text-muted-foreground">Total</dt>
-													<dd className="tabular-nums font-semibold text-foreground">{formatBRL(order.total_amount)}</dd>
+													<dd className="tabular-nums font-semibold text-foreground">{formatMoney(order.total_amount)}</dd>
 												</div>
 											</dl>
 											{isAdmin && !isVoided && (
@@ -175,7 +174,7 @@ const OrdersPage = ({ salesOrders, clientes, vendedores, tenantId, isAdmin, onVo
 													<td className="px-4 py-3 text-foreground">{formatDate(order.sold_at)}</td>
 													<td className="px-4 py-3 text-foreground">{clientName(order)}</td>
 													<td className="px-4 py-3 text-foreground">{sellerName(order)}</td>
-													<td className="px-4 py-3 text-right text-foreground">{formatBRL(order.total_amount)}</td>
+													<td className="px-4 py-3 text-right text-foreground">{formatMoney(order.total_amount)}</td>
 													<td className="px-4 py-3">
 														<span
 															className={
