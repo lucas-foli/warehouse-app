@@ -112,4 +112,4 @@ export const deleteBlockMessage = (kind: 'cliente' | 'vendedor', count: number):
 	`Desvincule ou remova ${count === 1 ? 'essa venda' : 'essas vendas'} antes de excluir.`;
 
 export const nameDuplicateWarning = (kind: 'cliente' | 'vendedor', nome: string): string =>
-	`Já existe um ${kind} chamado "${nome}". Criar mesmo assim?`;
+	`Já existe um ${kind} chamado "${nome}". Deseja salvar mesmo assim?`;

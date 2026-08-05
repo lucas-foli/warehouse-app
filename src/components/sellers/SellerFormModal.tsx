@@ -61,7 +61,7 @@ export const SellerFormModal = ({ open, tenantId, seller, onClose, onSaved }: Pr
 					.from('sellers')
 					.select('id', { count: 'exact', head: true })
 					.eq('tenant_id', tenantId)
-					.ilike('name', draft.nome.trim());
+					.ilike('name', draft.nome.trim().replace(/([%_\\])/g, '\\$1'));
 				if (isEdit && seller) dupQuery = dupQuery.neq('id', seller.id);
 				const { count, error: dupErr } = await dupQuery;
 				if (dupErr) throw dupErr;
@@ -224,7 +224,7 @@ export const SellerFormModal = ({ open, tenantId, seller, onClose, onSaved }: Pr
 									onClick={() => save(Boolean(nameWarning))}
 									disabled={saving || !tenantId}
 									className="rounded-full bg-primary px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50">
-									{saving ? 'Salvando…' : nameWarning ? 'Criar mesmo assim' : isEdit ? 'Salvar' : 'Criar vendedor'}
+									{saving ? 'Salvando…' : nameWarning ? 'Salvar mesmo assim' : isEdit ? 'Salvar' : 'Criar vendedor'}
 								</button>
 							</div>
 						</>

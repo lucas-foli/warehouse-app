@@ -82,7 +82,7 @@ describe('deleteBlockMessage', () => {
 describe('nameDuplicateWarning', () => {
 	it('monta o aviso com o tipo e o nome', () => {
 		expect(nameDuplicateWarning('cliente', 'Jacksons')).toBe(
-			'Já existe um cliente chamado "Jacksons". Criar mesmo assim?',
+			'Já existe um cliente chamado "Jacksons". Deseja salvar mesmo assim?',
 		);
 		expect(nameDuplicateWarning('vendedor', 'Bruno')).toContain('um vendedor chamado "Bruno"');
 	});
