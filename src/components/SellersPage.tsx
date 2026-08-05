@@ -17,15 +17,22 @@ import type { Seller } from '../types';
 import { formatCurrency } from '../utils/currency';
 import { buildMultiSellerPerformance } from '../utils/helpers';
 import { Card, Metric, Section } from './ui/Primitives';
+import { SellerFormModal } from './sellers/SellerFormModal';
 
 const SellersPage = ({
 	vendedores,
 	primaryColor,
 	secondaryColor,
+	tenantId,
+	isAdmin = false,
+	onReload,
 }: {
 	vendedores: Seller[];
 	primaryColor: string;
 	secondaryColor: string;
+	tenantId?: string;
+	isAdmin?: boolean;
+	onReload?: () => void;
 }) => {
 	const sellersSortedByRevenue = useMemo(
 		() => [...vendedores].sort((a, b) => (b.bruto || 0) - (a.bruto || 0)),
@@ -39,6 +46,19 @@ const SellersPage = ({
 
 	const [sellersExpanded, setSellersExpanded] = useState(false);
 	const SELLERS_INITIAL = 5;
+
+	const [modalOpen, setModalOpen] = useState(false);
+	const [editingSeller, setEditingSeller] = useState<Seller | null>(null);
+
+	const openCreate = () => {
+		setEditingSeller(null);
+		setModalOpen(true);
+	};
+	const openEdit = (s: Seller) => {
+		if (!isAdmin) return;
+		setEditingSeller(s);
+		setModalOpen(true);
+	};
 
 	const sellerPerformanceSeries = buildMultiSellerPerformance(sellersForDisplay);
 	const sellerPerformance = sellerPerformanceSeries.length ? sellerPerformanceSeries : [];
@@ -82,7 +102,17 @@ const SellersPage = ({
 
 	return (
 		<>
-			<Section className="mt-8 grid items-stretch gap-8 md:grid-cols-2 xl:grid-cols-4">
+			{isAdmin && (
+				<Section className="mt-8 flex justify-end">
+					<button
+						type="button"
+						onClick={openCreate}
+						className="rounded-full border border-border/40 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-foreground transition hover:bg-primary hover:text-primary-foreground">
+						Novo vendedor
+					</button>
+				</Section>
+			)}
+			<Section className="mt-6 grid items-stretch gap-8 md:grid-cols-2 xl:grid-cols-4">
 				<Card>
 					<Metric value={vendedores.length.toString()} label="Vendedores ativos" />
 				</Card>
@@ -232,7 +262,10 @@ const SellersPage = ({
 										const topBruto = sellersForDisplay[0]?.bruto || 1;
 										const barWidth = Math.round((v.bruto / topBruto) * 100);
 										return (
-										<div key={v.id} className="rounded-2xl border border-border/40 bg-card p-4">
+										<div
+											key={v.id}
+											onClick={() => openEdit(v)}
+											className={`rounded-2xl border border-border/40 bg-card p-4${isAdmin ? ' cursor-pointer transition hover:border-border' : ''}`}>
 											<p className="mb-1 text-base font-semibold text-foreground">{v.nome}</p>
 											{/* Relative revenue bar — width proportional to top seller */}
 											<div className="my-3 flex items-center gap-2">
@@ -288,7 +321,10 @@ const SellersPage = ({
 										</thead>
 										<tbody className="divide-y divide-border/30 bg-card">
 											{sellersForDisplay.map((v) => (
-												<tr key={v.id} className="hover:bg-muted/60">
+												<tr
+													key={v.id}
+													onClick={() => openEdit(v)}
+													className={`hover:bg-muted/60${isAdmin ? ' cursor-pointer' : ''}`}>
 													<td className="px-4 py-3 font-semibold text-foreground">{v.nome}</td>
 													<td className="px-4 py-3 text-foreground">{v.itens}</td>
 													<td className="px-4 py-3 text-foreground">{formatCurrency(v.bruto)}</td>
@@ -301,6 +337,13 @@ const SellersPage = ({
 								</div>
 							</Card>
 						</Section>
+			<SellerFormModal
+				open={modalOpen}
+				tenantId={tenantId}
+				seller={editingSeller}
+				onClose={() => setModalOpen(false)}
+				onSaved={() => onReload?.()}
+			/>
 		</>
 	);
 };
