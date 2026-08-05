@@ -7,6 +7,7 @@ import {
 	clientToDraft,
 	deleteBlockMessage,
 	emptyClientDraft,
+	nameDuplicateWarning,
 	validateClientDraft,
 	type ClientDraft,
 } from '../../utils/clientSellerForms';
@@ -29,6 +30,7 @@ export const ClientFormModal = ({ open, tenantId, client, onClose, onSaved }: Pr
 	const [saving, setSaving] = useState(false);
 	const [error, setError] = useState('');
 	const [confirmDelete, setConfirmDelete] = useState(false);
+	const [nameWarning, setNameWarning] = useState('');
 
 	useEffect(() => {
 		if (!open) return;
@@ -36,13 +38,14 @@ export const ClientFormModal = ({ open, tenantId, client, onClose, onSaved }: Pr
 		setError('');
 		setConfirmDelete(false);
 		setSaving(false);
+		setNameWarning('');
 	}, [open, client]);
 
 	if (!open) return null;
 
 	const update = (partial: Partial<ClientDraft>) => setDraft((c) => ({ ...c, ...partial }));
 
-	const save = async () => {
+	const save = async (force = false) => {
 		if (!tenantId) return;
 		const validationError = validateClientDraft(draft);
 		if (validationError) {
@@ -52,6 +55,22 @@ export const ClientFormModal = ({ open, tenantId, client, onClose, onSaved }: Pr
 		setSaving(true);
 		setError('');
 		try {
+			// Aviso soft: nome igual (case-insensitive) já existe? Não bloqueia — confirma.
+			if (!force) {
+				let dupQuery = supabase
+					.from('clients')
+					.select('id', { count: 'exact', head: true })
+					.eq('tenant_id', tenantId)
+					.ilike('name', draft.nome.trim());
+				if (isEdit && client) dupQuery = dupQuery.neq('id', client.id);
+				const { count, error: dupErr } = await dupQuery;
+				if (dupErr) throw dupErr;
+				if (count && count > 0) {
+					setNameWarning(nameDuplicateWarning('cliente', draft.nome.trim()));
+					setSaving(false);
+					return;
+				}
+			}
 			if (isEdit && client) {
 				const { error: err } = await supabase
 					.from('clients')
@@ -140,7 +159,15 @@ export const ClientFormModal = ({ open, tenantId, client, onClose, onSaved }: Pr
 					<div className="mt-6 grid gap-4">
 						<div>
 							<label className={labelClass}>Nome *</label>
-							<input value={draft.nome} onChange={(e) => update({ nome: e.target.value })} autoFocus className={fieldClass} />
+							<input
+								value={draft.nome}
+								onChange={(e) => {
+									update({ nome: e.target.value });
+									setNameWarning('');
+								}}
+								autoFocus
+								className={fieldClass}
+							/>
 						</div>
 						<div>
 							<label className={labelClass}>Cidade</label>
@@ -154,56 +181,64 @@ export const ClientFormModal = ({ open, tenantId, client, onClose, onSaved }: Pr
 							<label className={labelClass}>E-mail</label>
 							<input type="email" value={draft.email} onChange={(e) => update({ email: e.target.value })} className={fieldClass} />
 						</div>
+						{nameWarning && <p className="text-xs text-amber-600">{nameWarning}</p>}
 						{error && <p className="text-xs text-rose-500">{error}</p>}
 					</div>
 				</div>
 
 				<div className="flex flex-shrink-0 items-center justify-between gap-3 border-t border-border/20 px-6 py-4">
-					<div>
-						{isEdit &&
-							(confirmDelete ? (
-								<div className="flex items-center gap-2">
-									<button
-										type="button"
-										onClick={remove}
-										disabled={saving}
-										className="rounded-full bg-rose-500 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-white transition hover:opacity-90 disabled:opacity-50">
-										Confirmar exclusão
-									</button>
-									<button
-										type="button"
-										onClick={() => setConfirmDelete(false)}
-										className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-										Cancelar
-									</button>
-								</div>
-							) : (
+					{confirmDelete ? (
+						<div className="flex w-full items-center justify-between gap-3">
+							<span className="text-xs text-muted-foreground">Excluir este cliente?</span>
+							<div className="flex gap-2">
 								<button
 									type="button"
-									onClick={() => {
-										setError('');
-										setConfirmDelete(true);
-									}}
-									className="rounded-full border border-rose-500/60 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-rose-500 transition hover:bg-rose-500/10">
-									Excluir
+									onClick={() => setConfirmDelete(false)}
+									className="rounded-full border border-border/60 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground transition hover:bg-muted">
+									Cancelar
 								</button>
-							))}
-					</div>
-					<div className="flex gap-3">
-						<button
-							type="button"
-							onClick={onClose}
-							className="rounded-full border border-border/60 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground transition hover:bg-muted">
-							Cancelar
-						</button>
-						<button
-							type="button"
-							onClick={save}
-							disabled={saving || !tenantId}
-							className="rounded-full bg-primary px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50">
-							{saving ? 'Salvando…' : isEdit ? 'Salvar' : 'Criar cliente'}
-						</button>
-					</div>
+								<button
+									type="button"
+									onClick={remove}
+									disabled={saving}
+									className="rounded-full bg-rose-500 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-white transition hover:opacity-90 disabled:opacity-50">
+									Confirmar exclusão
+								</button>
+							</div>
+						</div>
+					) : (
+						<>
+							<div>
+								{isEdit && (
+									<button
+										type="button"
+										onClick={() => {
+											setError('');
+											setNameWarning('');
+											setConfirmDelete(true);
+										}}
+										className="rounded-full border border-rose-500/60 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-rose-500 transition hover:bg-rose-500/10">
+										Excluir
+									</button>
+								)}
+							</div>
+							<div className="flex gap-3">
+								<button
+									type="button"
+									onClick={onClose}
+									className="rounded-full border border-border/60 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground transition hover:bg-muted">
+									Cancelar
+								</button>
+								<button
+									type="button"
+									onClick={() => save(Boolean(nameWarning))}
+									disabled={saving || !tenantId}
+									className="rounded-full bg-primary px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50">
+									{saving ? 'Salvando…' : nameWarning ? 'Criar mesmo assim' : isEdit ? 'Salvar' : 'Criar cliente'}
+								</button>
+							</div>
+						</>
+					)}
 				</div>
 			</div>
 		</div>
