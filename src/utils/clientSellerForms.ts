@@ -65,9 +65,10 @@ export const validateSellerDraft = (d: SellerDraft): string | null =>
 // external_id espelha a regra do import CSV (src/utils/csv.ts): mantém o registro
 // criado à mão deduplicável e cruzável com importações futuras.
 export const clientExternalId = (d: ClientDraft): string =>
-	d.email.trim() || d.telefone.trim() || d.nome.trim();
+	(d.email.trim() || d.telefone.trim() || d.nome.trim()).toUpperCase();
 
-export const sellerExternalId = (d: SellerDraft): string => d.email.trim() || d.nome.trim();
+export const sellerExternalId = (d: SellerDraft): string =>
+	(d.email.trim() || d.nome.trim()).toUpperCase();
 
 export const buildClientInsert = (d: ClientDraft, tenantId: string): ClientInsert => {
 	const city = d.cidade.trim();
@@ -113,3 +114,6 @@ export const deleteBlockMessage = (kind: 'cliente' | 'vendedor', count: number):
 
 export const nameDuplicateWarning = (kind: 'cliente' | 'vendedor', nome: string): string =>
 	`Já existe um ${kind} chamado "${nome}". Deseja salvar mesmo assim?`;
+
+export const emailDuplicateError = (kind: 'cliente' | 'vendedor'): string =>
+	`Já existe um ${kind} com esse e-mail.`;

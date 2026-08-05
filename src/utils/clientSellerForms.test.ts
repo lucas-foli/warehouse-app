@@ -9,6 +9,7 @@ import {
 	buildSellerInsert,
 	deleteBlockMessage,
 	nameDuplicateWarning,
+	emailDuplicateError,
 } from './clientSellerForms';
 
 const TENANT = '00000000-0000-0000-0000-000000000000';
@@ -24,24 +25,24 @@ describe('validateClientDraft', () => {
 
 describe('clientExternalId (espelha o import: email || telefone || nome)', () => {
 	it('prefere email', () => {
-		expect(clientExternalId({ nome: 'Ana', cidade: '', telefone: '9', email: 'a@x.com' })).toBe('a@x.com');
+		expect(clientExternalId({ nome: 'Ana', cidade: '', telefone: '9', email: 'a@x.com' })).toBe('A@X.COM');
 	});
 	it('cai para telefone', () => {
 		expect(clientExternalId({ nome: 'Ana', cidade: '', telefone: '99', email: '' })).toBe('99');
 	});
 	it('cai para nome', () => {
-		expect(clientExternalId({ nome: 'Ana', cidade: '', telefone: '', email: '' })).toBe('Ana');
+		expect(clientExternalId({ nome: 'Ana', cidade: '', telefone: '', email: '' })).toBe('ANA');
 	});
 });
 
 describe('buildClientInsert', () => {
 	it('define tenant + external_id e omite opcionais vazios', () => {
 		const row = buildClientInsert({ nome: ' Ana ', cidade: '', telefone: '', email: '' }, TENANT);
-		expect(row).toEqual({ tenant_id: TENANT, external_id: 'Ana', name: 'Ana' });
+		expect(row).toEqual({ tenant_id: TENANT, external_id: 'ANA', name: 'Ana' });
 	});
 	it('inclui opcionais trimados quando presentes', () => {
 		const row = buildClientInsert({ nome: 'Ana', cidade: ' SP ', telefone: ' 9 ', email: ' a@x.com ' }, TENANT);
-		expect(row).toMatchObject({ name: 'Ana', city: 'SP', phone: '9', email: 'a@x.com', external_id: 'a@x.com' });
+		expect(row).toMatchObject({ name: 'Ana', city: 'SP', phone: '9', email: 'a@x.com', external_id: 'A@X.COM' });
 	});
 });
 
@@ -58,13 +59,13 @@ describe('vendedor', () => {
 		expect(validateSellerDraft({ nome: '', email: '' })).toMatch(/nome/i);
 	});
 	it('external_id = email || nome', () => {
-		expect(sellerExternalId({ nome: 'Bea', email: '' })).toBe('Bea');
-		expect(sellerExternalId({ nome: 'Bea', email: 'b@x.com' })).toBe('b@x.com');
+		expect(sellerExternalId({ nome: 'Bea', email: '' })).toBe('BEA');
+		expect(sellerExternalId({ nome: 'Bea', email: 'b@x.com' })).toBe('B@X.COM');
 	});
 	it('insert omite email vazio', () => {
 		expect(buildSellerInsert({ nome: 'Bea', email: '' }, TENANT)).toEqual({
 			tenant_id: TENANT,
-			external_id: 'Bea',
+			external_id: 'BEA',
 			name: 'Bea',
 		});
 	});
@@ -85,5 +86,12 @@ describe('nameDuplicateWarning', () => {
 			'Já existe um cliente chamado "Jacksons". Deseja salvar mesmo assim?',
 		);
 		expect(nameDuplicateWarning('vendedor', 'Bruno')).toContain('um vendedor chamado "Bruno"');
+	});
+});
+
+describe('emailDuplicateError', () => {
+	it('monta a mensagem com o tipo', () => {
+		expect(emailDuplicateError('cliente')).toBe('Já existe um cliente com esse e-mail.');
+		expect(emailDuplicateError('vendedor')).toContain('um vendedor com esse e-mail');
 	});
 });
