@@ -6,6 +6,7 @@ import {
 	buildClientUpdate,
 	clientToDraft,
 	deleteBlockMessage,
+	emailDuplicateError,
 	emptyClientDraft,
 	nameDuplicateWarning,
 	validateClientDraft,
@@ -55,6 +56,23 @@ export const ClientFormModal = ({ open, tenantId, client, onClose, onSaved }: Pr
 		setSaving(true);
 		setError('');
 		try {
+			// E-mail único (hard): bloqueia sempre — no criar e no editar. Roda mesmo com force,
+			// porque forçar vale só para o aviso de nome, não para o e-mail.
+			if (draft.email.trim()) {
+				let emailQuery = supabase
+					.from('clients')
+					.select('id', { count: 'exact', head: true })
+					.eq('tenant_id', tenantId)
+					.ilike('email', draft.email.trim().replace(/([%_\\])/g, '\\$1'));
+				if (isEdit && client) emailQuery = emailQuery.neq('id', client.id);
+				const { count: emailCount, error: emailErr } = await emailQuery;
+				if (emailErr) throw emailErr;
+				if (emailCount && emailCount > 0) {
+					setError(emailDuplicateError('cliente'));
+					setSaving(false);
+					return;
+				}
+			}
 			// Aviso soft: nome igual (case-insensitive) já existe? Não bloqueia — confirma.
 			if (!force) {
 				let dupQuery = supabase

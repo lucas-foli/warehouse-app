@@ -5,6 +5,7 @@ import {
 	buildSellerInsert,
 	buildSellerUpdate,
 	deleteBlockMessage,
+	emailDuplicateError,
 	emptySellerDraft,
 	nameDuplicateWarning,
 	sellerToDraft,
@@ -55,6 +56,23 @@ export const SellerFormModal = ({ open, tenantId, seller, onClose, onSaved }: Pr
 		setSaving(true);
 		setError('');
 		try {
+			// E-mail único (hard): bloqueia sempre — no criar e no editar. Roda mesmo com force,
+			// porque forçar vale só para o aviso de nome, não para o e-mail.
+			if (draft.email.trim()) {
+				let emailQuery = supabase
+					.from('sellers')
+					.select('id', { count: 'exact', head: true })
+					.eq('tenant_id', tenantId)
+					.ilike('email', draft.email.trim().replace(/([%_\\])/g, '\\$1'));
+				if (isEdit && seller) emailQuery = emailQuery.neq('id', seller.id);
+				const { count: emailCount, error: emailErr } = await emailQuery;
+				if (emailErr) throw emailErr;
+				if (emailCount && emailCount > 0) {
+					setError(emailDuplicateError('vendedor'));
+					setSaving(false);
+					return;
+				}
+			}
 			// Aviso soft: nome igual (case-insensitive) já existe? Não bloqueia — confirma.
 			if (!force) {
 				let dupQuery = supabase
