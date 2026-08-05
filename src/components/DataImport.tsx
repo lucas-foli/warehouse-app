@@ -170,11 +170,12 @@ const DataImport = ({ onBack }: Props) => {
 	const [clearBeforeImport, setClearBeforeImport] = useState(false);
 	const [unlinkCount, setUnlinkCount] = useState(0);
 	const [confirmClear, setConfirmClear] = useState(false);
+	const [clearCountPending, setClearCountPending] = useState(false);
 
 	const config = IMPORT_CONFIG[kind];
 	const csvGuide = CSV_GUIDE[kind];
 	const isCsvInvalid = Boolean(csvFile && csvRows.length === 0);
-	const isImportDisabled = loading || Boolean(csvError) || Boolean(importError) || !csvFile || isCsvInvalid;
+	const isImportDisabled = loading || Boolean(csvError) || Boolean(importError) || !csvFile || isCsvInvalid || clearCountPending;
 
 	const resetCsv = () => {
 		setCsvFile(null);
@@ -188,6 +189,7 @@ const DataImport = ({ onBack }: Props) => {
 		setClearBeforeImport(false);
 		setUnlinkCount(0);
 		setConfirmClear(false);
+		setClearCountPending(false);
 	};
 
 	const parseResult = (text: string): CsvImportResult<unknown> => {
@@ -351,8 +353,10 @@ const DataImport = ({ onBack }: Props) => {
 		setConfirmClear(false);
 		if (!nextChecked || !tenantId || (kind !== 'clients' && kind !== 'sellers')) {
 			setUnlinkCount(0);
+			setClearCountPending(false);
 			return;
 		}
+		setClearCountPending(true);
 		const fk = kind === 'clients' ? 'client_id' : 'seller_id';
 		const { count, error } = await supabase
 			.from('sales_orders')
@@ -360,6 +364,7 @@ const DataImport = ({ onBack }: Props) => {
 			.eq('tenant_id', tenantId)
 			.not(fk, 'is', null);
 		setUnlinkCount(error ? 0 : count ?? 0);
+		setClearCountPending(false);
 	};
 
 	const handleImport = async () => {
