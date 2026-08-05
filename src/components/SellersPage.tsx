@@ -281,6 +281,10 @@ const SellersPage = ({
 											</div>
 											<dl className="divide-y divide-border/20 text-sm">
 												<div className="flex items-center justify-between py-2">
+													<dt className="text-muted-foreground">E-mail</dt>
+													<dd className="text-foreground">{v.email ?? '—'}</dd>
+												</div>
+												<div className="flex items-center justify-between py-2">
 													<dt className="text-muted-foreground">Valor bruto</dt>
 													<dd className="tabular-nums font-medium text-foreground">{formatCurrency(v.bruto)}</dd>
 												</div>
@@ -308,11 +312,12 @@ const SellersPage = ({
 									)}
 								</div>
 								{/* Desktop: table */}
-								<div className="hidden overflow-auto md:block">
+								<div className="hidden md:block md:max-h-[640px] md:overflow-auto">
 									<table className="min-w-full divide-y divide-black/5 text-sm">
-										<thead className="bg-muted text-left text-[11px] uppercase tracking-[0.25em] text-muted-foreground">
+										<thead className="sticky top-0 z-10 bg-muted text-left text-[11px] uppercase tracking-[0.25em] text-muted-foreground">
 											<tr>
 												<th className="px-4 py-3">Vendedor(a)</th>
+												<th className="px-4 py-3">E-mail</th>
 												<th className="px-4 py-3">Itens</th>
 												<th className="px-4 py-3">Valor bruto</th>
 												<th className="px-4 py-3">Valor líquido</th>
@@ -326,6 +331,7 @@ const SellersPage = ({
 													onClick={() => openEdit(v)}
 													className={`hover:bg-muted/60${isAdmin ? ' cursor-pointer' : ''}`}>
 													<td className="px-4 py-3 font-semibold text-foreground">{v.nome}</td>
+													<td className="px-4 py-3 text-foreground">{v.email ?? '—'}</td>
 													<td className="px-4 py-3 text-foreground">{v.itens}</td>
 													<td className="px-4 py-3 text-foreground">{formatCurrency(v.bruto)}</td>
 													<td className="px-4 py-3 text-foreground">{formatCurrency(v.liquido)}</td>

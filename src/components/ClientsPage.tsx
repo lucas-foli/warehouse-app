@@ -219,6 +219,10 @@ const ClientsPage = ({
 											<dd className="text-foreground">{c.telefone ?? '—'}</dd>
 										</div>
 										<div className="flex items-center justify-between py-2">
+											<dt className="text-muted-foreground">E-mail</dt>
+											<dd className="text-foreground">{c.email ?? '—'}</dd>
+										</div>
+										<div className="flex items-center justify-between py-2">
 											<dt className="text-muted-foreground">Última compra</dt>
 											<dd className="tabular-nums text-foreground">{formatMonthYear(c.ultimaCompra)}</dd>
 										</div>
@@ -237,13 +241,14 @@ const ClientsPage = ({
 							)}
 						</div>
 						{/* Desktop: table */}
-						<div className="hidden overflow-auto md:block">
+						<div className="hidden md:block md:max-h-[640px] md:overflow-auto">
 							<table className="min-w-full divide-y divide-black/5 text-sm">
-								<thead className="bg-muted text-left text-[11px] uppercase tracking-[0.25em] text-muted-foreground">
+								<thead className="sticky top-0 z-10 bg-muted text-left text-[11px] uppercase tracking-[0.25em] text-muted-foreground">
 									<tr>
 										<th className="px-4 py-3">Nome</th>
 										<th className="px-4 py-3">Cidade</th>
 										<th className="px-4 py-3">Telefone</th>
+										<th className="px-4 py-3">E-mail</th>
 										<th className="px-4 py-3">Última compra</th>
 									</tr>
 								</thead>
@@ -256,6 +261,7 @@ const ClientsPage = ({
 											<td className="px-4 py-3 font-semibold text-foreground">{c.nome}</td>
 											<td className="px-4 py-3 text-foreground">{c.cidade}</td>
 											<td className="px-4 py-3 text-foreground">{c.telefone ?? '—'}</td>
+											<td className="px-4 py-3 text-foreground">{c.email ?? '—'}</td>
 											<td className="px-4 py-3 text-foreground">{formatMonthYear(c.ultimaCompra)}</td>
 										</tr>
 									))}
