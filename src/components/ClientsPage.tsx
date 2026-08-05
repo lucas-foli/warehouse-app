@@ -15,20 +15,40 @@ import {
 } from '../utils/helpers';
 import { countNewClientsThisMonth } from '../utils/newClientsThisMonth';
 import { Card, Metric, Section } from './ui/Primitives';
+import { ClientFormModal } from './clients/ClientFormModal';
 
 const ClientsPage = ({
 	clientes,
 	clientEvolution: clientEvolutionProp,
 	primaryColor,
 	secondaryColor,
+	tenantId,
+	isAdmin = false,
+	onReload,
 }: {
 	clientes: Client[];
 	clientEvolution?: HistoryItem[];
 	primaryColor: string;
 	secondaryColor: string;
+	tenantId?: string;
+	isAdmin?: boolean;
+	onReload?: () => void;
 }) => {
 	const [clientsExpanded, setClientsExpanded] = useState(false);
 	const CLIENTS_INITIAL = 5;
+
+	const [modalOpen, setModalOpen] = useState(false);
+	const [editingClient, setEditingClient] = useState<Client | null>(null);
+
+	const openCreate = () => {
+		setEditingClient(null);
+		setModalOpen(true);
+	};
+	const openEdit = (c: Client) => {
+		if (!isAdmin) return;
+		setEditingClient(c);
+		setModalOpen(true);
+	};
 
 	const formatMonthYear = (value?: string) => {
 		if (!value) return '—';
@@ -61,7 +81,17 @@ const ClientsPage = ({
 
 	return (
 		<>
-			<Section className="mt-8 grid items-stretch gap-8 md:grid-cols-2 xl:grid-cols-4">
+			{isAdmin && (
+				<Section className="mt-8 flex justify-end">
+					<button
+						type="button"
+						onClick={openCreate}
+						className="rounded-full border border-border/40 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-foreground transition hover:bg-primary hover:text-primary-foreground">
+						Novo cliente
+					</button>
+				</Section>
+			)}
+			<Section className="mt-6 grid items-stretch gap-8 md:grid-cols-2 xl:grid-cols-4">
 				<Card>
 					<Metric
 						value={clientes.length ? clientes.length.toLocaleString('pt-BR') : 0}
@@ -172,7 +202,10 @@ const ClientsPage = ({
 								<p className="py-6 text-center text-sm text-muted-foreground">Nenhum cliente encontrado.</p>
 							)}
 							{(clientsExpanded ? clientes : clientes.slice(0, CLIENTS_INITIAL)).map((c) => (
-								<div key={c.id} className="rounded-2xl border border-border/40 bg-card p-4">
+								<div
+									key={c.id}
+									onClick={() => openEdit(c)}
+									className={`rounded-2xl border border-border/40 bg-card p-4${isAdmin ? ' cursor-pointer transition hover:border-border' : ''}`}>
 									<p className="text-base font-semibold text-foreground">{c.nome}</p>
 									<dl className="mt-2 divide-y divide-border/20 text-sm">
 										{c.cidade ? (
@@ -216,7 +249,10 @@ const ClientsPage = ({
 								</thead>
 								<tbody className="divide-y divide-border/30 bg-card">
 									{clientes.map((c) => (
-										<tr key={c.id} className="hover:bg-muted/60">
+										<tr
+											key={c.id}
+											onClick={() => openEdit(c)}
+											className={`hover:bg-muted/60${isAdmin ? ' cursor-pointer' : ''}`}>
 											<td className="px-4 py-3 font-semibold text-foreground">{c.nome}</td>
 											<td className="px-4 py-3 text-foreground">{c.cidade}</td>
 											<td className="px-4 py-3 text-foreground">{c.telefone ?? '—'}</td>
@@ -228,6 +264,14 @@ const ClientsPage = ({
 						</div>
 					</Card>
 				</Section>
+
+			<ClientFormModal
+				open={modalOpen}
+				tenantId={tenantId}
+				client={editingClient}
+				onClose={() => setModalOpen(false)}
+				onSaved={() => onReload?.()}
+			/>
 		</>
 	);
 };
