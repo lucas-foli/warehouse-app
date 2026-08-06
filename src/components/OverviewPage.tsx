@@ -8,6 +8,7 @@ import {
 } from 'recharts';
 import type { CategorySale, HistoryItem, Product } from '../types';
 import { formatCurrency } from '../utils/currency';
+import { latestDailyRevenue } from '../utils/dailyRevenue';
 import { getProductRisk } from '../utils/productRisk';
 import { Card, ListItem, Metric, Section } from './ui/Primitives';
 
@@ -50,7 +51,7 @@ const OverviewPage = ({
 	const latestMonth = history[history.length - 1];
 	const previousMonth = history[history.length - 2];
 	const monthlyRevenue = latestMonth?.value ?? 0;
-	const dailyRevenue = monthlyRevenue / 30;
+	const dailyRevenue = latestDailyRevenue(salesTrend);
 	const monthlyChange =
 		latestMonth && previousMonth && previousMonth.value
 			? (latestMonth.value - previousMonth.value) / previousMonth.value
