@@ -111,7 +111,11 @@ Tema comum: o import trata identidade (external_id/e-mail) diferente do CRUD da 
 achados no e2e; o primeiro está confirmado no código, os outros dois precisam de reprodução
 controlada antes de fechar a causa.
 
-### BUG-11 — "Limpar dados antes de importar" desvincula as vendas existentes (CONFIRMADO)
+### BUG-11 — "Limpar dados antes de importar" desvincula as vendas existentes (RESOLVIDO — PR #68)
+
+> **Resolvido** em PR #68 (`feat/import-csv-integrity`), e2e validado 2026-08-05: ao marcar
+> "Limpar dados" para clientes/vendedores, conta as vendas em risco, mostra aviso e exige
+> confirmação inline (2º clique) antes de limpar. Foi a "Mitigação escolhida" abaixo.
 
 - **Atual:** o checkbox faz `DELETE FROM sellers/clients WHERE tenant_id` (`DataImport.tsx:355`).
   O FK é `on delete set null`, então toda venda vinculada perde `seller_id`/`client_id`. O
@@ -127,7 +131,13 @@ controlada antes de fechar a causa.
 - **Fix de fundo (fatia maior):** a venda registrada na tela gravar também `seller_external_id`/
   `client_external_id` (mexe no RPC de venda) — aí qualquer reimport re-vincula por external_id.
 
-### BUG-12 — Import não valida e-mail único (A INVESTIGAR)
+### BUG-12 — Import não valida e-mail único (RESOLVIDO — PR #68)
+
+> **Resolvido** em PR #68, e2e validado 2026-08-05: o import pula e reporta linhas com e-mail
+> duplicado (duplicata interna do CSV ou e-mail já no banco sob external_id diferente; mesmo
+> external_id = update legítimo). Comparação case-insensitive na leitura (busca `email is not null`
+> + compare lowercase em memória, sem `.in`); a gravação do e-mail não muda. A hipótese abaixo
+> (dedup só por external_id) estava certa.
 
 - **Sintoma relatado:** a UI bloqueia e-mail duplicado (fix-pack 2), mas o import aceita e-mails
   iguais no upload. Hipótese: o import só deduplica por `external_id` (upsert `onConflict`); se os
@@ -136,7 +146,12 @@ controlada antes de fechar a causa.
 - **Esperado:** decidir a regra (o import deve rejeitar/deduplicar por e-mail também?) e alinhar
   import e UI.
 
-### BUG-13 — Reimport sem "limpar" cria duplicatas de mesmo external_id (A INVESTIGAR)
+### BUG-13 — Reimport sem "limpar" cria duplicatas de mesmo external_id (RESOLVIDO para frente — PR #67)
+
+> **Resolvido para frente** pelo PR #67: todos os caminhos de gravação normalizam external_id em
+> maiúsculas (`normalizeKey`), então novos registros casam no `onConflict`. A hipótese de case
+> mismatch se confirmou. Sem código pendente nesta obra (fora do escopo do #68); registros antigos
+> criados em minúsculas antes de 2026-08-05 seguem poluídos — backfill não foi feito.
 
 - **Sintoma relatado:** reimportar "os mesmos ids com infos diferentes" sem marcar limpar criou
   vendedores novos em vez de atualizar — dois registros com o "mesmo id". Hipótese: case
