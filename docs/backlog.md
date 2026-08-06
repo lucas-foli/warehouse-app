@@ -89,3 +89,25 @@ de verdade.
   `buildCategorySalesFromItems`/`FromProducts`).
 
 **Fora do escopo da obra Dashboard honesto** — feature própria, com spec quando priorizada.
+
+## 2026-08-05 — Alinhar janelas das duas visões de vendedor
+
+**Origem:** revisão final da obra "Dashboard honesto" (BUG-10). No `SellersPage`, os
+dois gráficos lado a lado medem janelas temporais diferentes, ambos rotulados como
+faturamento do mesmo vendedor:
+- "Performance por período" (`buildSellerDailyPerformance`) soma só os **últimos 30
+  dias** terminando hoje.
+- "Faturamento por vendedor" (barras) usa `v.bruto` de `aggregateSellers`, que é
+  **all-time** (sem janela).
+
+**Efeito:** com histórico > 30 dias (ex.: import de CSV de 6 meses), a soma da série
+não bate com a barra do mesmo vendedor. Não é dado fabricado — ambos são reais, só
+medem períodos distintos; cada gráfico carrega seu próprio rótulo. O comportamento
+antigo (série via `Math.random` distribuindo `bruto/30`) também não conciliava, então
+não há regressão.
+
+**A resolver no brainstorming/spec:** decidir se as duas visões devem compartilhar a
+mesma janela (ambas 30d? ambas all-time? seletor de período?) ou se o rótulo deve
+deixar a diferença de janela explícita ao usuário.
+
+**Fora do escopo da obra Dashboard honesto** — decisão de produto, com spec quando priorizada.
