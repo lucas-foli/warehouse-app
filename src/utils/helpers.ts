@@ -145,32 +145,6 @@ export const buildCategorySalesFromItems = (
 	}));
 };
 
-export const buildHistoryFromProducts = (
-	items: Array<{
-		price?: number;
-		totalSold?: number;
-	}>,
-) => {
-	if (!items.length) return [];
-	const totalVenda = items.reduce((sum, p) => {
-		if (!p.price || !p.totalSold) return sum;
-		return sum + p.price * p.totalSold;
-	}, 0);
-
-	const totalQty = items.reduce((sum, p) => sum + (p.totalSold || 0), 0);
-
-	if (!totalVenda) return [];
-
-	// distribui o faturamento em 5 meses fictícios
-	return [
-		{ month: 'Jul/25', value: totalVenda * 0.18, quantity: Math.round(totalQty * 0.18) },
-		{ month: 'Ago/25', value: totalVenda * 0.22, quantity: Math.round(totalQty * 0.22) },
-		{ month: 'Set/25', value: totalVenda * 0.20, quantity: Math.round(totalQty * 0.20) },
-		{ month: 'Out/25', value: totalVenda * 0.19, quantity: Math.round(totalQty * 0.19) },
-		{ month: 'Nov/25', value: totalVenda * 0.21, quantity: Math.round(totalQty * 0.21) },
-	];
-};
-
 export const buildHistoryFromOrders = (
 	orders: Array<{
 		sold_at?: string;
@@ -389,20 +363,6 @@ export const buildClientPurchasesTimelineFromClients = (clients: Client[]): Hist
 	items.sort((a, b) => a.date.getTime() - b.date.getTime());
 
 	return items.map((i) => ({ month: i.label, value: i.value }));
-};
-
-export const buildSellerPerformanceFromSellers = (sellers: Seller[]): HistoryItem[] => {
-	if (!sellers.length) return [];
-
-	const totalBruto = sellers.reduce((sum, s) => sum + (s.bruto || 0), 0);
-	if (!totalBruto) return [];
-
-	return [
-		{ month: 'Ago/25', value: totalBruto * 0.23 },
-		{ month: 'Set/25', value: totalBruto * 0.24 },
-		{ month: 'Out/25', value: totalBruto * 0.26 },
-		{ month: 'Nov/25', value: totalBruto * 0.27 },
-	];
 };
 
 export const buildMultiSellerPerformance = (sellers: Seller[]) => {
