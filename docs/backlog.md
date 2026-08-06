@@ -72,3 +72,20 @@ formatação.
 **Fora do escopo do MVP/apresentação** — deferido conscientemente no e2e. Feature de
 polimento dos modais, com spec quando priorizada. Pesar a complexidade do seletor de DDI
 antes de adotá-lo.
+
+## 2026-08-05 — Margem real (custo por produto)
+
+**Origem:** obra "Dashboard honesto" (BUG-7). A seção "Categorias" exibia um
+custo/margem fabricado (`custo = venda × 0.4`), removido por não existir custo real
+no modelo (`Product` só tem `price`). Esta entrada registra o caminho para a margem
+de verdade.
+
+**O que implementar:**
+- Custo por produto no modelo `Product` (`src/types/index.ts`) + persistência
+  (coluna na tabela de produtos no Supabase + migration).
+- UI para o gestor informar/editar o custo de cada produto.
+- Recolocar custo e **margem real** por categoria na seção "Categorias" do
+  `OverviewPage`, derivando de vendas − custo real (reaproveitar
+  `buildCategorySalesFromItems`/`FromProducts`).
+
+**Fora do escopo da obra Dashboard honesto** — feature própria, com spec quando priorizada.

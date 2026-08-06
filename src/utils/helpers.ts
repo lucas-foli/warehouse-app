@@ -86,26 +86,23 @@ export const buildCategorySalesFromProducts = (
 		totalSold?: number;
 	}>,
 ) => {
-	const byStatus = new Map<string, { venda: number; custo: number }>();
+	const byStatus = new Map<string, { venda: number }>();
 
 	for (const p of items) {
 		if (!p.price || !p.totalSold) continue;
 		const venda = p.price * p.totalSold;
-		const custo = venda * 0.4;
 		const key = p.status || 'Outros';
-		const acc = byStatus.get(key) ?? { venda: 0, custo: 0 };
+		const acc = byStatus.get(key) ?? { venda: 0 };
 		acc.venda += venda;
-		acc.custo += custo;
 		byStatus.set(key, acc);
 	}
 
 	const totalVenda = Array.from(byStatus.values()).reduce((sum, c) => sum + c.venda, 0);
 	if (!totalVenda) return [];
 
-	return Array.from(byStatus.entries()).map(([name, { venda, custo }]) => ({
+	return Array.from(byStatus.entries()).map(([name, { venda }]) => ({
 		name,
 		venda,
-		custo,
 		share: (venda / totalVenda) * 100,
 	}));
 };
@@ -119,7 +116,7 @@ export const buildCategorySalesFromItems = (
 	}>,
 	statusBySku: Map<string, string>,
 ) => {
-	const byStatus = new Map<string, { venda: number; custo: number }>();
+	const byStatus = new Map<string, { venda: number }>();
 
 	for (const item of items) {
 		const qty = item.qty ?? 0;
@@ -128,19 +125,17 @@ export const buildCategorySalesFromItems = (
 		if (!amount) continue;
 		const sku = item.sku ?? '';
 		const key = statusBySku.get(sku) || 'Outros';
-		const acc = byStatus.get(key) ?? { venda: 0, custo: 0 };
+		const acc = byStatus.get(key) ?? { venda: 0 };
 		acc.venda += amount;
-		acc.custo += amount * 0.4;
 		byStatus.set(key, acc);
 	}
 
 	const totalVenda = Array.from(byStatus.values()).reduce((sum, c) => sum + c.venda, 0);
 	if (!totalVenda) return [];
 
-	return Array.from(byStatus.entries()).map(([name, { venda, custo }]) => ({
+	return Array.from(byStatus.entries()).map(([name, { venda }]) => ({
 		name,
 		venda,
-		custo,
 		share: (venda / totalVenda) * 100,
 	}));
 };

@@ -19,7 +19,6 @@ export interface Product {
 export interface CategorySale {
 	name: string;
 	venda: number;
-	custo: number;
 	share: number;
 }
 
