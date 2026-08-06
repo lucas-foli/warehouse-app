@@ -1,4 +1,4 @@
-import type { Client, HistoryItem, Product, Seller } from '../types';
+import type { Client, HistoryItem, Product } from '../types';
 
 export const isLocalhost = () => {
 	if (typeof window === 'undefined') return false;
@@ -358,33 +358,6 @@ export const buildClientPurchasesTimelineFromClients = (clients: Client[]): Hist
 	items.sort((a, b) => a.date.getTime() - b.date.getTime());
 
 	return items.map((i) => ({ month: i.label, value: i.value }));
-};
-
-export const buildMultiSellerPerformance = (sellers: Seller[]) => {
-	if (!sellers.length) return [];
-
-	// Generate daily data for the last 30 days
-	const days = 30;
-	const today = new Date();
-	const result = [];
-
-	for (let i = days - 1; i >= 0; i--) {
-		const date = new Date(today);
-		date.setDate(date.getDate() - i);
-		const dayLabel = date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
-
-			const data: Record<string, number | string> = { month: dayLabel };
-		sellers.forEach((seller) => {
-			// Generate varying daily performance with some randomness
-			const baseValue = (seller.bruto || 0) / 30; // Average daily value
-			const variance = 0.5 + Math.random() * 1.0; // 0.5 to 1.5 multiplier
-			const trend = 1 + (i / days) * 0.3; // Slight upward trend over time
-			data[seller.nome] = Math.round(baseValue * variance * trend);
-		});
-		result.push(data);
-	}
-
-	return result;
 };
 
 export const parseCsv = (csv: string): Product[] => {

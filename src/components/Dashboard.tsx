@@ -418,6 +418,7 @@ const Dashboard = ({
 					{page === 'vendedores' && (
 						<SellersPage
 							vendedores={visibleVendedores}
+							salesOrders={visibleActiveOrders}
 							primaryColor={primaryColor}
 							secondaryColor={secondaryColor}
 							tenantId={tenantId}
