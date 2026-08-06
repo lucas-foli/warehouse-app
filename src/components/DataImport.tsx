@@ -756,13 +756,15 @@ const DataImport = ({ onBack }: Props) => {
 						)}
 
 						<div className="flex flex-col gap-4 sm:flex-row sm:justify-between">
-							<button
-								type="button"
-								onClick={onBack}
-								className="w-full inline-flex justify-center rounded-md border border-border/40 shadow-sm px-4 py-2 bg-card text-base font-medium text-foreground hover:bg-muted focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-ring/25 sm:text-sm"
-							>
-								Voltar
-							</button>
+							{!confirmClear && (
+								<button
+									type="button"
+									onClick={onBack}
+									className="w-full inline-flex justify-center rounded-md border border-border/40 shadow-sm px-4 py-2 bg-card text-base font-medium text-foreground hover:bg-muted focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-ring/25 sm:text-sm"
+								>
+									Voltar
+								</button>
+							)}
 							{confirmClear ? (
 								<>
 									<button
