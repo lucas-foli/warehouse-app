@@ -72,3 +72,15 @@ formatação.
 **Fora do escopo do MVP/apresentação** — deferido conscientemente no e2e. Feature de
 polimento dos modais, com spec quando priorizada. Pesar a complexidade do seletor de DDI
 antes de adotá-lo.
+
+## 2026-08-05 — Navegação: repensar "Dashboard" na barra de tabs
+
+**Origem:** observação de uso (2026-08-05). Só registrar para avaliar — nada a fazer agora.
+
+Hoje a barra de tabs inclui "Dashboard". A avaliar se faz mais sentido a barra trazer
+"Produtos" como entrada principal e mover o acesso ao Dashboard para um gesto de shell —
+clicar na logo/marca, por exemplo. Sem decisão: pesar o que fica mais natural no uso
+diário (a tela mais visitada é que merece a tab; o Dashboard viraria a "home" pela logo).
+
+**Escopo:** navegação/shell (barra de tabs + header). Nenhuma decisão tomada; abrir spec
+quando priorizada.
