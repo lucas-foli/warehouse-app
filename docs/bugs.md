@@ -173,7 +173,13 @@ controlada antes de fechar a causa.
 
 ## 2026-08-05 — Backdrop de modal deslocado pelo espaçamento do shell (`src/components/Dashboard.tsx`)
 
-### BUG-14 — O backdrop escurecido da modal não cobre o topo da tela (CONFIRMADO)
+### BUG-14 — O backdrop escurecido da modal não cobre o topo da tela (RESOLVIDO — PR #72)
+
+> **Resolvido** em PR #72 (`worktree-modal-base`): criado um `<Modal>` base
+> (`src/components/ui/Modal.tsx`) que renderiza via `createPortal(document.body)` — tira o
+> overlay do container com `space-y-10`, então o backdrop cobre 100% da viewport. As 11 modais
+> foram migradas para ele (grep de sanidade: só o popover `BulkEditFieldPopover` mantém overlay
+> próprio). Foi o "fix sugerido" abaixo (createPortal, correção única para todas).
 
 - **Atual:** o overlay de toda modal é `fixed inset-0 z-50 bg-black/60`
   (`sellers/SellerFormModal.tsx:134`, e idêntico em `products/SaleOrderModal.tsx:193`,
@@ -199,3 +205,21 @@ controlada antes de fechar a causa.
   resolver a raiz (modais viverem dentro do container de espaçamento).
 - **Origem:** reportado no uso manual (2026-08-05, modal "Novo vendedor"); causa raiz confirmada no
   DOM renderizado, não só no código.
+
+## 2026-08-26 — Esc fecha modais empilhadas de uma vez (`src/components/ui/Modal.tsx`)
+
+### BUG-15 — Apertar Esc numa modal empilhada fecha também a de baixo (CONFIRMADO)
+
+- **Atual:** cada instância de `<Modal>` registra seu próprio listener de `keydown` no `document`
+  e chama `onClose` no Esc, sem noção de "topo da pilha". Quando duas modais estão montadas ao
+  mesmo tempo — ex.: no `ProductFormModal` em modo edit, clicar "Excluir" abre o `ConfirmDialog`
+  enquanto o painel de edição segue montado (`ProductsPage`: `onRequestDelete` não fecha o form) —
+  apertar Esc dispara os dois `onClose`: fecha o `ConfirmDialog` **e** o painel de edição por baixo.
+- **Consequência:** o Esc no diálogo de confirmação também descarta o formulário atrás dele. Blast
+  radius pequeno (o fluxo era de exclusão), mas é lacuna do componente-base que reaparece em
+  qualquer empilhamento futuro. Backdrop e foco-preso (Tab) não sofrem — o trap é escopado por
+  painel; só o Esc vaza.
+- **Esperado:** só a modal no topo da pilha responde ao Esc. Padrão: um contador/stack de modais
+  abertas no `<Modal>` (ou um contexto), de modo que apenas a última montada trate o `keydown`.
+- **Origem:** descoberto na revisão final da obra do `<Modal>` base (PR #72). Não introduzido por
+  ela — é inerente a listeners de Esc por-instância; aflorou porque agora há um base único.
