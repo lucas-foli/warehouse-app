@@ -89,7 +89,15 @@ grava numa delas:
 
 ## 2026-08-05 — Gráfico de performance de vendedor (`src/components/SellersPage.tsx`)
 
-### BUG-10 — "Performance por período" mostra dados fabricados
+### BUG-10 — "Performance por período" mostra dados fabricados (RESOLVIDO — PR #71)
+
+> **Resolvido** em PR #71 (`worktree-dashboard-honesto`), e2e validado no app real
+> (tenant ACME): `buildMultiSellerPerformance` (Math.random) trocada por
+> `buildSellerDailyPerformance` (`src/utils/sellerDailyPerformance.ts`) — série diária
+> real agregada de `salesOrders` por vendedor, casamento dual-key idêntico a
+> `aggregateSellers`, janela de 30 dias, empty state `[]`. Conciliação (soma da série ==
+> `bruto`) coberta por teste unitário e conferida na tela (série soma 40 == combinado $40;
+> dias sem venda = 0, sem ruído aleatório). Foi o "Esperado" abaixo (plotar vendas reais).
 
 > Numeração: o PR #66 (aberto) reserva BUG-6..9; este entra como BUG-10 para não colidir.
 

@@ -13,14 +13,16 @@ import {
 } from 'recharts';
 import type { TooltipContentProps } from 'recharts';
 import type { NameType, ValueType } from 'recharts/types/component/DefaultTooltipContent';
+import type { SalesOrder } from '../services/dashboardService';
 import type { Seller } from '../types';
 import { formatCurrency } from '../utils/currency';
-import { buildMultiSellerPerformance } from '../utils/helpers';
+import { buildSellerDailyPerformance } from '../utils/sellerDailyPerformance';
 import { Card, Metric, Section } from './ui/Primitives';
 import { SellerFormModal } from './sellers/SellerFormModal';
 
 const SellersPage = ({
 	vendedores,
+	salesOrders,
 	primaryColor,
 	secondaryColor,
 	tenantId,
@@ -28,6 +30,7 @@ const SellersPage = ({
 	onReload,
 }: {
 	vendedores: Seller[];
+	salesOrders: SalesOrder[];
 	primaryColor: string;
 	secondaryColor: string;
 	tenantId?: string;
@@ -57,8 +60,7 @@ const SellersPage = ({
 		setModalOpen(true);
 	};
 
-	const sellerPerformanceSeries = buildMultiSellerPerformance(sellersForDisplay);
-	const sellerPerformance = sellerPerformanceSeries.length ? sellerPerformanceSeries : [];
+	const sellerPerformance = buildSellerDailyPerformance(sellersForDisplay, salesOrders);
 
 	const sellerBarData = useMemo(
 		() =>
