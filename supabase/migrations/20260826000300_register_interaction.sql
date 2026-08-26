@@ -65,6 +65,16 @@ begin
 		raise exception using message = 'interaction_sample_qty_invalid';
 	end if;
 
+	if exists (
+		select 1 from jsonb_array_elements(p_samples) as elem
+		where jsonb_typeof(elem) <> 'object'
+			or jsonb_typeof(elem->'qty') <> 'number'
+			or (elem->>'qty') !~ '^[0-9]+$'
+			or (elem->>'qty')::int <= 0
+	) then
+		raise exception using message = 'interaction_sample_qty_invalid';
+	end if;
+
 	insert into public.interactions (
 		tenant_id, client_id, supplier_id, kind, outcome, note,
 		occurred_at, recorded_by, next_step, next_step_due_at
