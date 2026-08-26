@@ -267,15 +267,17 @@ begin
 		raise exception using message = 'interaction_sample_qty_invalid';
 	end if;
 
-	-- Valida cada elemento ANTES da agregação: qty não-numérico/decimal/<=0
-	-- vira exceção nomeada (não erro cru 22P02), e o sum não mascara item
-	-- inválido em SKU duplicado (fix do review da task 3).
+	-- Valida cada elemento ANTES da agregação, sem cast (NULL-seguro): qty
+	-- ausente/não-numérico/decimal/zero/overflow vira exceção nomeada, e o
+	-- sum não mascara item inválido em SKU duplicado.
 	if exists (
 		select 1 from jsonb_array_elements(p_samples) as elem
 		where jsonb_typeof(elem) <> 'object'
+			or not (elem ? 'qty')
 			or jsonb_typeof(elem->'qty') <> 'number'
 			or (elem->>'qty') !~ '^[0-9]+$'
-			or (elem->>'qty')::int <= 0
+			or length(elem->>'qty') > 9
+			or (elem->>'qty') = '0'
 	) then
 		raise exception using message = 'interaction_sample_qty_invalid';
 	end if;
