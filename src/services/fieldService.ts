@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabaseClient';
-import type { InteractionKind, InteractionOutcome } from '../types';
+import type { ContactStage, ContactType, FieldContact, Interaction, InteractionKind, InteractionOutcome } from '../types';
+import { clientExternalId } from '../utils/clientSellerForms';
 
 export type SampleInput = { sku: string; qty: number };
 
@@ -75,4 +76,169 @@ export async function registerInteraction(
 
 	const payload = data as { interaction_id: string; negative_skus: string[] };
 	return { interactionId: payload.interaction_id, negativeSkus: payload.negative_skus ?? [] };
+}
+
+type FieldContactRow = {
+	contact_type: ContactType;
+	id: string;
+	tenant_id: string;
+	name: string;
+	city: string | null;
+	phone: string | null;
+	email: string | null;
+	manual_stage: ContactStage | null;
+	stage_overridden_at: string | null;
+	last_interaction_at: string | null;
+	has_transaction: boolean;
+	last_outcome: FieldContact['lastOutcome'];
+	has_samples: boolean;
+	has_interaction: boolean;
+	last_fact_at: string | null;
+};
+
+const rowToFieldContact = (r: FieldContactRow): FieldContact => ({
+	contactType: r.contact_type,
+	id: r.id,
+	tenantId: r.tenant_id,
+	name: r.name,
+	city: r.city ?? undefined,
+	phone: r.phone ?? undefined,
+	email: r.email ?? undefined,
+	manualStage: r.manual_stage,
+	stageOverriddenAt: r.stage_overridden_at,
+	lastInteractionAt: r.last_interaction_at,
+	hasTransaction: r.has_transaction,
+	lastOutcome: r.last_outcome,
+	hasSamples: r.has_samples,
+	hasInteraction: r.has_interaction,
+	lastFactAt: r.last_fact_at,
+});
+
+type InteractionRow = {
+	id: string;
+	tenant_id: string;
+	client_id: string | null;
+	supplier_id: string | null;
+	kind: Interaction['kind'];
+	outcome: Interaction['outcome'];
+	note: string | null;
+	occurred_at: string;
+	next_step: string | null;
+	next_step_due_at: string | null;
+	next_step_done_at: string | null;
+	interaction_samples?: { sku: string; qty: number }[];
+};
+
+const rowToInteraction = (r: InteractionRow): Interaction => ({
+	id: r.id,
+	tenantId: r.tenant_id,
+	clientId: r.client_id,
+	supplierId: r.supplier_id,
+	kind: r.kind,
+	outcome: r.outcome,
+	note: r.note,
+	occurredAt: r.occurred_at,
+	nextStep: r.next_step,
+	nextStepDueAt: r.next_step_due_at,
+	nextStepDoneAt: r.next_step_done_at,
+	samples: r.interaction_samples ?? [],
+});
+
+export async function fetchFieldContacts(tenantId: string): Promise<FieldContact[]> {
+	const { data, error } = await supabase
+		.from('field_contacts')
+		.select('*')
+		.eq('tenant_id', tenantId)
+		.order('last_interaction_at', { ascending: false, nullsFirst: false });
+	if (error) throw error;
+	return ((data ?? []) as FieldContactRow[]).map(rowToFieldContact);
+}
+
+// Agenda = interações com próximo passo em aberto (não existe tabela própria).
+export async function fetchOpenAgenda(tenantId: string): Promise<Interaction[]> {
+	const { data, error } = await supabase
+		.from('interactions')
+		.select('*, interaction_samples(sku, qty)')
+		.eq('tenant_id', tenantId)
+		.not('next_step_due_at', 'is', null)
+		.is('next_step_done_at', null)
+		.order('next_step_due_at', { ascending: true });
+	if (error) throw error;
+	return ((data ?? []) as InteractionRow[]).map(rowToInteraction);
+}
+
+export async function fetchContactInteractions(
+	tenantId: string,
+	contactType: ContactType,
+	contactId: string,
+): Promise<Interaction[]> {
+	const column = contactType === 'client' ? 'client_id' : 'supplier_id';
+	const { data, error } = await supabase
+		.from('interactions')
+		.select('*, interaction_samples(sku, qty)')
+		.eq('tenant_id', tenantId)
+		.eq(column, contactId)
+		.order('occurred_at', { ascending: false });
+	if (error) throw error;
+	return ((data ?? []) as InteractionRow[]).map(rowToInteraction);
+}
+
+export async function markNextStepDone(interactionId: string): Promise<void> {
+	const { error } = await supabase
+		.from('interactions')
+		.update({ next_step_done_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+		.eq('id', interactionId);
+	if (error) throw error;
+}
+
+export async function rescheduleNextStep(interactionId: string, dueAt: string): Promise<void> {
+	const { error } = await supabase
+		.from('interactions')
+		.update({ next_step_due_at: dueAt, updated_at: new Date().toISOString() })
+		.eq('id', interactionId);
+	if (error) throw error;
+}
+
+// stage = null limpa o override (volta a derivar dos fatos).
+export async function setManualStage(
+	contactType: ContactType,
+	contactId: string,
+	stage: ContactStage | null,
+): Promise<void> {
+	const table = contactType === 'client' ? 'clients' : 'suppliers';
+	const { data: userData } = await supabase.auth.getUser();
+	const { error } = await supabase
+		.from(table)
+		.update({
+			stage,
+			stage_overridden_at: stage ? new Date().toISOString() : null,
+			stage_overridden_by: stage ? (userData?.user?.id ?? null) : null,
+			updated_at: new Date().toISOString(),
+		})
+		.eq('id', contactId);
+	if (error) throw error;
+}
+
+// Criação mínima na rua: só nome + cidade. external_id segue a regra do CRUD
+// de clientes (clientSellerForms) para manter dedupe com importações futuras.
+export async function quickCreateContact(
+	tenantId: string,
+	contactType: ContactType,
+	nome: string,
+	cidade: string,
+): Promise<{ id: string }> {
+	const table = contactType === 'client' ? 'clients' : 'suppliers';
+	const external = clientExternalId({ nome, cidade, telefone: '', email: '' });
+	const { data, error } = await supabase
+		.from(table)
+		.insert({
+			tenant_id: tenantId,
+			external_id: external,
+			name: nome.trim(),
+			city: cidade.trim() || undefined,
+		})
+		.select('id')
+		.single();
+	if (error) throw error;
+	return { id: (data as { id: string }).id };
 }
