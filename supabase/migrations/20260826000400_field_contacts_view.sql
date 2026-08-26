@@ -84,5 +84,5 @@ grant select on public.field_contacts to authenticated;
 -- seq scan por contato (mesmo formato do incidente documentado em
 -- 20260602000100_fix_read_policies_use_is_tenant_member.sql).
 create index if not exists sales_orders_client_sold_idx on public.sales_orders (client_id, sold_at);
-create index if not exists interactions_client_occurred_idx on public.interactions (client_id, occurred_at desc);
-create index if not exists interactions_supplier_occurred_idx on public.interactions (supplier_id, occurred_at desc);
+create index if not exists interactions_client_occurred_idx on public.interactions (tenant_id, client_id, occurred_at desc, created_at desc, id desc);
+create index if not exists interactions_supplier_occurred_idx on public.interactions (tenant_id, supplier_id, occurred_at desc, created_at desc, id desc);
