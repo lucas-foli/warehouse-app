@@ -9,15 +9,16 @@ export type AgendaGroups<T> = {
 };
 
 const startOfDay = (d: Date): number => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 export const groupAgenda = <T extends { nextStepDueAt: string | null }>(
 	items: T[],
 	now: Date,
 ): AgendaGroups<T> => {
-	const todayStart = startOfDay(now);
-	const tomorrowStart = todayStart + DAY_MS;
-	const weekEnd = todayStart + 8 * DAY_MS; // amanhã + 7 dias corridos (exclusivo)
+	const dayStart = (n: number): number =>
+		new Date(now.getFullYear(), now.getMonth(), now.getDate() + n).getTime();
+	const todayStart = dayStart(0);
+	const tomorrowStart = dayStart(1);
+	const weekEnd = dayStart(8); // amanhã + 7 dias corridos (exclusivo)
 
 	const groups: AgendaGroups<T> = { overdue: [], today: [], week: [], later: [] };
 	for (const item of items) {
@@ -28,7 +29,7 @@ export const groupAgenda = <T extends { nextStepDueAt: string | null }>(
 		else if (due < weekEnd) groups.week.push(item);
 		else groups.later.push(item);
 	}
-	const byDue = (a: T, b: T) => (a.nextStepDueAt ?? '').localeCompare(b.nextStepDueAt ?? '');
+	const byDue = (a: T, b: T) => new Date(a.nextStepDueAt ?? 0).getTime() - new Date(b.nextStepDueAt ?? 0).getTime();
 	groups.overdue.sort(byDue);
 	groups.today.sort(byDue);
 	groups.week.sort(byDue);
