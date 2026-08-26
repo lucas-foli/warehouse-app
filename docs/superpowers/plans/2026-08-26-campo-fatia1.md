@@ -1053,6 +1053,13 @@ git commit -m "feat(campo): fieldService.registerInteraction com merge de amostr
 
 ### Task 8: fieldService — fetches, agenda ops, quick-create e override
 
+> **Nota pós-review (2026-08-26):** emendas na execução — as 3 funções de
+> update detectam o no-op da RLS (`.select('id')` + erro claro; decisão:
+> override segue admin-gated na fatia 1), 23505 do quick-create traduzido
+> ("Já existe um contato com esse nome"), e `getSession()` no lugar de
+> `getUser()` (local, sem round-trip; preserva o "quem" offline). Fonte:
+> `src/services/fieldService.ts` (commit 659c53f).
+
 **Files:**
 - Modify: `src/services/fieldService.ts` (append após registerInteraction)
 
