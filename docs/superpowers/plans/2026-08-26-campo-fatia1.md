@@ -337,7 +337,7 @@ grant execute on function public.register_interaction(uuid, uuid, uuid, text, te
 
 - [ ] **Step 2: Verificar**
 
-Run: `grep -c "raise exception" supabase/migrations/20260826000300_register_interaction.sql` → `8`.
+Run: `grep -c "raise exception" supabase/migrations/20260826000300_register_interaction.sql` → `10` (7 códigos; contact_invalid 3x, sample_qty_invalid 2x).
 Run: checagem python de control chars (mesma da Task 1, trocando o caminho) → `clean`.
 
 - [ ] **Step 3: Commit**
