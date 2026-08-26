@@ -28,7 +28,7 @@ const InviteMemberModal = ({ tenantId, onClose, onInvited }: Props) => {
   };
 
   return (
-    <Modal open={true} onClose={onClose} size="sm" mobileSheet labelledById="invite-member-title">
+    <Modal open={true} onClose={onClose} size="sm" labelledById="invite-member-title">
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-6 pt-2 sm:pt-6">
         <form onSubmit={handleSubmit} className="space-y-4">
           <h2 id="invite-member-title" className="text-lg font-semibold">Invite teammate</h2>

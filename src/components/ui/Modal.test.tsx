@@ -151,4 +151,20 @@ describe('Modal', () => {
 		expect(event.defaultPrevented).toBe(true);
 		expect(document.activeElement).toBe(dialog);
 	});
+
+	it('não-sheet: overlay centrado (não coladas embaixo no mobile)', () => {
+		open();
+		const backdrop = screen.getByTestId('modal-backdrop');
+		// mata: voltar o overlay para items-end nas não-sheet
+		expect(backdrop.className).toContain('items-center');
+		expect(backdrop.className).not.toContain('items-end');
+	});
+
+	it('mobileSheet: overlay fica no fundo no mobile e centraliza a partir de sm:', () => {
+		open({ mobileSheet: true });
+		const backdrop = screen.getByTestId('modal-backdrop');
+		// mata: remover o bottom-sheet das mobileSheet
+		expect(backdrop.className).toContain('items-end');
+		expect(backdrop.className).toContain('sm:items-center');
+	});
 });

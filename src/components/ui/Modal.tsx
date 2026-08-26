@@ -86,10 +86,14 @@ export const Modal = ({
 		? `absolute inset-x-0 bottom-0 flex max-h-[92dvh] w-full flex-col rounded-t-2xl bg-card shadow-xl sm:static sm:w-full ${sizeClass[size]} sm:max-h-[90vh] sm:rounded-[var(--radius-card)]`
 		: `w-full ${sizeClass[size]} max-h-[90vh] overflow-y-auto rounded-[var(--radius-card)] bg-card shadow-xl`;
 
+	const overlayClass = mobileSheet
+		? 'fixed inset-0 z-50 flex items-end justify-center bg-black/60 sm:items-center sm:p-4'
+		: 'fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4';
+
 	return createPortal(
 		<div
 			data-testid="modal-backdrop"
-			className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 sm:items-center sm:p-4"
+			className={overlayClass}
 			onClick={onClose}>
 			<div
 				ref={panelRef}
