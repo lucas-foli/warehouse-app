@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { Modal } from './Modal';
@@ -94,6 +95,42 @@ describe('Modal', () => {
 		fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
 		// mata: remover o bloco Tab / inverter first↔last
 		expect(document.activeElement).toBe(last);
+	});
+
+	it('não rouba o foco do input quando o pai re-renderiza com onClose inline (não-memoizado)', () => {
+		// Reproduz o wiring real do ProductFormModal: o estado do campo vive no pai,
+		// que re-renderiza a cada tecla e passa um onClose inline (nova identidade a
+		// cada render). Se o efeito do Modal depender de onClose, ele re-roda a cada
+		// tecla, restaura o foco ao trigger e refoca o primeiro focável do painel —
+		// roubando o foco do input e impedindo digitar mais de 1 caractere.
+		// mata: voltar onClose para as deps do efeito principal ([open, onClose]).
+		const Harness = () => {
+			const [value, setValue] = useState('');
+			return (
+				<Modal open onClose={() => {}}>
+					{/* Primeiro focável = botão "Fechar", como no ProductFormModal:
+					    é para ele que o foco salta quando o efeito re-roda. */}
+					<button type="button">Fechar</button>
+					<input
+						aria-label="nome"
+						value={value}
+						onChange={(e) => setValue(e.target.value)}
+					/>
+				</Modal>
+			);
+		};
+		render(<Harness />);
+		const input = screen.getByLabelText('nome') as HTMLInputElement;
+
+		input.focus();
+		expect(document.activeElement).toBe(input);
+
+		fireEvent.change(input, { target: { value: 'a' } });
+		fireEvent.change(input, { target: { value: 'ab' } });
+		fireEvent.change(input, { target: { value: 'abc' } });
+
+		expect(document.activeElement).toBe(input);
+		expect(input.value).toBe('abc');
 	});
 
 	it('sem focáveis internos, Tab mantém o foco no painel e previne o comportamento padrão', () => {
