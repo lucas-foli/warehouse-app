@@ -11,6 +11,7 @@ import { BulkActionBar } from './products/BulkActionBar';
 import { BulkEditFieldPopover, type BulkEditableField } from './products/BulkEditFieldPopover';
 import { BulkResultDialog } from './products/BulkResultDialog';
 import { ConfirmDialog } from './products/ConfirmDialog';
+import ProductFormModal from './products/ProductFormModal';
 import { SaleOrderModal } from './products/SaleOrderModal';
 import { Card, Section } from './ui/Primitives';
 
@@ -507,7 +508,7 @@ const ProductsPage = ({
 					</select>
 				)}
 			</div>
-				<div className={`grid grid-cols-1 gap-6 ${isEditPanelOpen ? 'lg:grid-cols-[minmax(0,1fr)_340px]' : ''}`}>
+				<div className="grid grid-cols-1 gap-6">
 					<Card interactive={false} className="border border-border/30 bg-muted">
 						<div className="md:max-h-[640px] md:overflow-auto">
 							<BulkActionBar
@@ -723,230 +724,22 @@ const ProductsPage = ({
 						</table>
 					</div>
 				</Card>
-				{isEditPanelOpen && (
-					<>
-						{/* Mobile backdrop */}
-						<div className="fixed inset-0 z-40 bg-black/40 md:hidden" onClick={closeEditPanel} />
-						{/* Bottom sheet on mobile, inline sidebar on desktop */}
-						<div className="fixed inset-x-0 bottom-0 z-50 max-h-[90dvh] overflow-y-auto md:contents">
-						<Card interactive={false} className="rounded-b-none rounded-t-2xl border-0 bg-card md:rounded-[var(--radius-card)] md:border md:border-border/30 md:bg-muted">
-						{/* Drag handle – mobile only */}
-						<div className="flex justify-center py-2 md:hidden">
-							<div className="h-1 w-10 rounded-full bg-border" />
-						</div>
-						<div className="space-y-6">
-							<div className="flex items-start justify-between gap-4">
-								<div>
-									<p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-muted-foreground">
-										{drawerMode === 'create' ? 'New product' : 'Edit product'}
-									</p>
-									<p className="mt-2 text-sm text-muted-foreground">
-										Atualize estoque, status e preço sem depender de CSV.
-									</p>
-								</div>
-								<button
-									type="button"
-									onClick={closeEditPanel}
-									className="rounded-full border border-border/60 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-foreground transition hover:bg-card">
-									Fechar
-								</button>
-							</div>
-
-							{editDraft ? (
-								<>
-									{drawerMode === 'edit' && (
-										<div className="flex items-center gap-3 rounded-2xl bg-card px-4 py-3">
-											<div className="h-12 w-12 overflow-hidden rounded-xl bg-black/5">
-												{editDraft.image ? (
-													<img
-														src={editDraft.image}
-														alt={editDraft.name}
-														className="h-full w-full object-cover"
-														loading="lazy"
-													/>
-												) : (
-													<div className="flex h-full w-full items-center justify-center text-[10px] uppercase tracking-[0.2em] text-muted-foreground/70">
-														—
-													</div>
-												)}
-											</div>
-											<div>
-												<p className="text-sm font-semibold text-foreground">{editDraft.name}</p>
-												<p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-													SKU {editDraft.sku}
-												</p>
-											</div>
-										</div>
-									)}
-
-									<div className="grid gap-4">
-										{drawerMode === 'create' && (
-											<>
-												<div>
-													<label className="block text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-														SKU
-													</label>
-													<input
-														value={editDraft.sku}
-														onChange={(event) => updateDraft({ sku: event.target.value })}
-														placeholder="e.g. STN-001"
-														className="mt-2 block w-full rounded-xl border border-input bg-card px-3 py-2 text-sm text-foreground outline-none transition focus:border-ring/60 focus:ring-2 focus:ring-ring/25"
-													/>
-												</div>
-												<div>
-													<label className="block text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-														Name
-													</label>
-													<input
-														value={editDraft.name}
-														onChange={(event) => updateDraft({ name: event.target.value })}
-														placeholder="Product name"
-														className="mt-2 block w-full rounded-xl border border-input bg-card px-3 py-2 text-sm text-foreground outline-none transition focus:border-ring/60 focus:ring-2 focus:ring-ring/25"
-													/>
-												</div>
-											</>
-										)}
-										<div>
-											<label className="block text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-												Onde
-											</label>
-											<select
-												value={editDraft.status}
-												onChange={(event) => updateDraft({ status: event.target.value })}
-												className="mt-2 block w-full rounded-xl border border-input bg-card px-3 py-2 text-sm text-foreground outline-none transition focus:border-ring/60 focus:ring-2 focus:ring-ring/25">
-												{!ondeOptions.includes(editDraft.status) && (
-													<option value={editDraft.status}>{editDraft.status || 'Selecione…'}</option>
-												)}
-												{ondeOptions.map((opt) => (
-													<option key={opt} value={opt}>{opt}</option>
-												))}
-											</select>
-										</div>
-										<div>
-											<label className="block text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-												Local
-											</label>
-											<select
-												value={editDraft.location}
-												onChange={(event) => updateDraft({ location: event.target.value })}
-												className="mt-2 block w-full rounded-xl border border-input bg-card px-3 py-2 text-sm text-foreground outline-none transition focus:border-ring/60 focus:ring-2 focus:ring-ring/25">
-												{!localOptions.includes(editDraft.location) && (
-													<option value={editDraft.location}>{editDraft.location || 'Selecione…'}</option>
-												)}
-												{localOptions.map((opt) => (
-													<option key={opt} value={opt}>{opt}</option>
-												))}
-											</select>
-										</div>
-										<div className="grid grid-cols-2 gap-3">
-											<div>
-												<label className="block text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-													Qtd
-												</label>
-												<input
-													type="number"
-													value={editDraft.qty}
-													onChange={(event) => updateDraft({ qty: event.target.value })}
-													className="mt-2 block w-full rounded-xl border border-input bg-card px-3 py-2 text-sm text-foreground outline-none transition focus:border-ring/60 focus:ring-2 focus:ring-ring/25"
-												/>
-											</div>
-											<div>
-												<label className="block text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-													Mínimo
-												</label>
-												<input
-													type="number"
-													value={editDraft.min}
-													onChange={(event) => updateDraft({ min: event.target.value })}
-													className="mt-2 block w-full rounded-xl border border-input bg-card px-3 py-2 text-sm text-foreground outline-none transition focus:border-ring/60 focus:ring-2 focus:ring-ring/25"
-												/>
-											</div>
-										</div>
-										<div className="grid grid-cols-2 gap-3">
-											<div>
-												<label className="block text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-													Preço
-												</label>
-												<input
-													type="number"
-													step="0.01"
-													value={editDraft.price}
-													onChange={(event) => updateDraft({ price: event.target.value })}
-													className="mt-2 block w-full rounded-xl border border-input bg-card px-3 py-2 text-sm text-foreground outline-none transition focus:border-ring/60 focus:ring-2 focus:ring-ring/25"
-												/>
-											</div>
-											<div>
-												<label className="block text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-													Código de barras
-												</label>
-												<input
-													value={editDraft.barcode}
-													onChange={(event) => updateDraft({ barcode: event.target.value })}
-													className="mt-2 block w-full rounded-xl border border-input bg-card px-3 py-2 text-sm text-foreground outline-none transition focus:border-ring/60 focus:ring-2 focus:ring-ring/25"
-												/>
-											</div>
-										</div>
-										<div>
-											<label className="block text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-												URL da imagem
-											</label>
-											<input
-												value={editDraft.image}
-												onChange={(event) => updateDraft({ image: event.target.value })}
-												className="mt-2 block w-full rounded-xl border border-input bg-card px-3 py-2 text-sm text-foreground outline-none transition focus:border-ring/60 focus:ring-2 focus:ring-ring/25"
-											/>
-										</div>
-									</div>
-
-									{drawerMode === 'edit' && (
-										<div className="mt-8 rounded border border-red-500/30 bg-red-500/10 p-4">
-											<h4 className="text-sm font-semibold text-red-500">Danger zone</h4>
-											<p className="mt-1 text-xs text-red-500/80">
-												Deleting a product is permanent. Products referenced by sales records can't be deleted.
-											</p>
-											<button
-												type="button"
-												onClick={() => setDeleteConfirmOpen(true)}
-												className="mt-3 rounded border border-red-500/40 bg-transparent px-3 py-1.5 text-sm font-medium text-red-500 hover:bg-red-500/10 disabled:opacity-50"
-												disabled={editSaving}
-											>
-												Delete product
-											</button>
-										</div>
-									)}
-
-									<div className="flex flex-wrap items-center gap-2">
-										<button
-											type="button"
-											onClick={handleSaveDraft}
-											disabled={!editDirty || editSaving || !tenantId}
-											className="rounded-full bg-primary px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50">
-											{editSaving ? 'Salvando…' : 'Salvar ajustes'}
-										</button>
-										<button
-											type="button"
-											onClick={resetDraft}
-											disabled={!editDirty || editSaving}
-											className="rounded-full border border-border/60 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50">
-											Descartar
-										</button>
-										{editDirty && !editSaving && (
-											<span className="text-xs text-muted-foreground">Alterações pendentes</span>
-										)}
-									</div>
-
-									{editError && <p className="text-xs text-rose-500">{editError}</p>}
-								</>
-							) : (
-								<div className="rounded-2xl border border-dashed border-border/60 bg-card px-4 py-6 text-sm text-muted-foreground">
-									Selecione um produto na lista para ajustar.
-								</div>
-							)}
-						</div>
-					</Card>
-					</div>{/* end bottom-sheet wrapper */}
-				</>
-				)}
+				<ProductFormModal
+					open={isEditPanelOpen}
+					mode={drawerMode ?? 'edit'}
+					draft={editDraft}
+					saving={editSaving}
+					error={editError}
+					dirty={editDirty}
+					hasTenant={Boolean(tenantId)}
+					ondeOptions={ondeOptions}
+					localOptions={localOptions}
+					onChange={updateDraft}
+					onSave={handleSaveDraft}
+					onReset={resetDraft}
+					onClose={closeEditPanel}
+					onRequestDelete={() => setDeleteConfirmOpen(true)}
+				/>
 			</div>
 		<ConfirmDialog
 			open={deleteConfirmOpen}
