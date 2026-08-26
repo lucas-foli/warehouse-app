@@ -111,3 +111,23 @@ mesma janela (ambas 30d? ambas all-time? seletor de período?) ou se o rótulo d
 deixar a diferença de janela explícita ao usuário.
 
 **Fora do escopo da obra Dashboard honesto** — decisão de produto, com spec quando priorizada.
+
+## 2026-08-05 — Expor `external_id` do vendedor (e cliente) na UI
+
+**Origem:** e2e da obra "Dashboard honesto". O `external_id` (identificador de origem
+usado para casar pedidos importados por CSV via dual-key) **não aparece em nenhum lugar
+da UI**: a tabela de vendedores mostra só nome/e-mail/itens/bruto/líquido/boletos, e o
+`SellerFormModal` só tem os campos Nome e E-mail (`src/components/sellers/SellerFormModal.tsx:177-190`).
+Hoje só dá para descobrir o `external_id` pelo CSV importado ou consultando o Supabase
+(`sellers.external_id`). Exceção acidental: um vendedor importado **sem nome** aparece com
+o `external_id` no lugar do nome (fallback em `dashboardService.ts:152`).
+
+**Dor:** dificulta conciliação e suporte — quando uma venda registrada na tela e uma
+importada deveriam cair no mesmo vendedor, não há como o gestor verificar o vínculo pela
+interface.
+
+**O que implementar:** exibir o `external_id` (read-only) nos detalhes do vendedor — no
+modal e/ou como coluna/tooltip na tabela. Estender ao cliente (`external_id` de cliente
+tem o mesmo papel). Decidir se é sempre visível ou só quando presente.
+
+**Fora do escopo da obra Dashboard honesto** — melhoria de UI/suporte, com spec quando priorizada.
