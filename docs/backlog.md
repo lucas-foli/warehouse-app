@@ -148,5 +148,5 @@ misto. Referência viva: a aba Campo (fatia 1 da obra) e o mockup
 **Escopo:** obra própria com brainstorming/spec — mudança app-wide de UI, não
 fix por componente (regra de escopo já estabelecida para mudanças transversais).
 
-**Nota:** sem projeto Jira para o warehouse-app no Jira acessível (go-fly só
-tem SAN/Sanai) — registrado aqui até existir board próprio.
+**Jira:** WAR-8 (board Warehouse criado em 2026-08-26 no go-fly.atlassian.net;
+epic da obra Campo = WAR-1).
