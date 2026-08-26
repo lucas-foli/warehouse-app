@@ -16,7 +16,8 @@ const item = (dueAt: string | null) => ({ nextStepDueAt: dueAt });
 
 describe('groupAgenda', () => {
 	it('ontem → overdue; hoje (mesmo mais tarde) → today', () => {
-		// mata: comparação por timestamp bruto em vez de dia local
+		// mata: fronteiras de ontem/hoje deslocadas (o floor do due virou
+		// equivalente após o fix DST; o que este teste mata é a fronteira)
 		const groups = groupAgenda([item(at(2026, 7, 25)), item(at(2026, 7, 26, 23))], now);
 		expect(groups.overdue).toHaveLength(1);
 		expect(groups.today).toHaveLength(1);
