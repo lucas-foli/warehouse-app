@@ -868,6 +868,13 @@ git commit -m "feat(campo): groupAgenda por dia local (atrasados/hoje/semana/mai
 
 ### Task 7: fieldService — registerInteraction (merge de amostras + erros amigáveis)
 
+> **Nota pós-review (2026-08-26):** emendas na execução — describe
+> 'registerInteraction' com `vi.mock` do supabaseClient (2 testes: tradução
+> de erro e passthrough de negativeSkus + p_samples mergeado) e
+> `Number.isInteger` no lugar de `Number.isFinite` no mergeSamples (RPC
+> rejeita decimal). Suíte da task: 5 testes. Fonte: `src/services/
+> fieldService.ts` e seu `.test.ts`.
+
 **Files:**
 - Create: `src/services/fieldService.ts`
 - Test: `src/services/fieldService.test.ts`
@@ -1031,7 +1038,7 @@ export async function registerInteraction(
 - [ ] **Step 4: Rodar e ver passar**
 
 Run: `npx vitest run src/services/fieldService.test.ts`
-Expected: PASS (3 testes).
+Expected: PASS (5 testes).
 
 - [ ] **Step 5: Typecheck e commit**
 
@@ -1239,7 +1246,7 @@ Nota: o client Supabase da casa é NÃO-tipado (`createClient` sem `<Database>` 
 - [ ] **Step 2: Typecheck + suíte**
 
 Run: `npx tsc -b && npm test`
-Expected: 0 erros; 178 testes passando.
+Expected: 0 erros; 180 testes passando.
 
 - [ ] **Step 3: Commit**
 
@@ -1416,7 +1423,7 @@ export default FieldPage;
 - [ ] **Step 6: Rodar testes e typecheck**
 
 Run: `npx vitest run src/utils/dashboardView.test.ts` → PASS.
-Run: `npx tsc -b && npm test` → 0 erros; 179 testes.
+Run: `npx tsc -b && npm test` → 0 erros; 181 testes.
 
 - [ ] **Step 7: Commit**
 
