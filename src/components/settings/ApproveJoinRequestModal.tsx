@@ -1,6 +1,7 @@
 // src/components/settings/ApproveJoinRequestModal.tsx
 import { useState } from "react";
 import { approveJoinRequest, type TenantJoinRequest } from "../../services/joinRequests";
+import { Modal } from "../ui/Modal";
 
 interface Props {
   request: TenantJoinRequest;
@@ -26,14 +27,10 @@ const ApproveJoinRequestModal = ({ request, onClose, onApproved }: Props) => {
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-      onClick={onClose}>
-      <div
-        className="w-full max-w-lg rounded-[var(--radius-card)] border border-border/40 bg-card p-6 shadow-[var(--shadow-card)]"
-        onClick={(e) => e.stopPropagation()}>
+    <Modal open onClose={onClose} size="md" labelledById="approve-join-request-title">
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-6 pt-2 sm:pt-6">
         <form onSubmit={handleSubmit} className="space-y-4">
-          <h2 className="text-lg font-semibold">Approve join request</h2>
+          <h2 id="approve-join-request-title" className="text-lg font-semibold">Approve join request</h2>
           <p className="text-sm text-muted-foreground">
             Approve <strong>{request.email}</strong> and send them an invitation to join this
             workspace?
@@ -60,7 +57,7 @@ const ApproveJoinRequestModal = ({ request, onClose, onApproved }: Props) => {
           </div>
         </form>
       </div>
-    </div>
+    </Modal>
   );
 };
 
