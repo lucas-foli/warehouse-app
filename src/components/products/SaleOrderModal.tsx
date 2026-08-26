@@ -100,8 +100,6 @@ export const SaleOrderModal = ({
 		if (selectedProduct) setUnitPrice(selectedProduct.price !== undefined ? String(selectedProduct.price) : '');
 	}, [selectedProduct]);
 
-	if (!open) return null;
-
 	const labelClass = 'block text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground';
 	const fieldClass =
 		'mt-2 block w-full rounded-xl border border-input bg-card px-3 py-2 text-sm text-foreground outline-none transition focus:border-ring/60 focus:ring-2 focus:ring-ring/25';
@@ -191,7 +189,7 @@ export const SaleOrderModal = ({
 	};
 
 	return (
-		<Modal open={open} onClose={onClose} size="xl" mobileSheet labelledById="sale-order-title">
+		<Modal open={open} onClose={onClose} size="lg" mobileSheet labelledById="sale-order-title">
 				<div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-6 pt-2 sm:pt-6">
 				<div className="flex items-start justify-between gap-4">
 					<div>
