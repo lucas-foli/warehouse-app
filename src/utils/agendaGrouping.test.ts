@@ -1,0 +1,44 @@
+import { describe, expect, it } from 'vitest';
+import { groupAgenda } from './agendaGrouping';
+
+// "now" fixo: qua 2026-08-26 15:00 no fuso LOCAL do runner — o agrupamento é
+// por dia local (o Elcy pensa em "hoje", não em UTC).
+const now = new Date(2026, 7, 26, 15, 0, 0);
+const at = (y: number, m: number, d: number, h = 12) => new Date(y, m, d, h).toISOString();
+
+const item = (dueAt: string | null) => ({ nextStepDueAt: dueAt });
+
+describe('groupAgenda', () => {
+	it('ontem → overdue; hoje (mesmo mais tarde) → today', () => {
+		// mata: comparação por timestamp bruto em vez de dia local
+		const groups = groupAgenda([item(at(2026, 7, 25)), item(at(2026, 7, 26, 23))], now);
+		expect(groups.overdue).toHaveLength(1);
+		expect(groups.today).toHaveLength(1);
+	});
+
+	it('amanhã até +7 dias → week; além → later', () => {
+		// mata: off-by-one no limite de 7 dias
+		const groups = groupAgenda([item(at(2026, 8, 2)), item(at(2026, 8, 3))], now);
+		expect(groups.week).toHaveLength(1);
+		expect(groups.later).toHaveLength(1);
+	});
+
+	it('hoje de manhã (antes de now) ainda é today, não overdue', () => {
+		// mata: comparação due < now em vez de due < startOfToday
+		const groups = groupAgenda([item(at(2026, 7, 26, 8))], now);
+		expect(groups.today).toHaveLength(1);
+		expect(groups.overdue).toHaveLength(0);
+	});
+
+	it('sem data → fora de todos os grupos', () => {
+		// mata: null cair em overdue por coerção
+		const groups = groupAgenda([item(null)], now);
+		expect(groups.overdue.length + groups.today.length + groups.week.length + groups.later.length).toBe(0);
+	});
+
+	it('ordena cada grupo por vencimento ascendente', () => {
+		// mata: mutação que remove o sort
+		const groups = groupAgenda([item(at(2026, 7, 24)), item(at(2026, 7, 23))], now);
+		expect(groups.overdue.map((i) => i.nextStepDueAt)).toEqual([at(2026, 7, 23), at(2026, 7, 24)]);
+	});
+});
