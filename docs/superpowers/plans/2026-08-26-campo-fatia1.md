@@ -366,6 +366,13 @@ git commit -m "feat(campo): RPC register_interaction (interação + amostras + d
 
 ### Task 4: Migration — view field_contacts (fatos crus)
 
+> **Nota pós-review (2026-08-26):** o SQL abaixo foi emendado na execução
+> (rounds 1-2 do review): correlação de tenant nas 8 subqueries, desempate
+> `created_at desc, id desc` nos dois `last_outcome`, e 3 índices de apoio
+> (`sales_orders_client_sold_idx`; `interactions_*_occurred_idx` com prefixo
+> `tenant_id` — 1482ms→53ms medidos). A migration commitada é a fonte:
+> `supabase/migrations/20260826000400_field_contacts_view.sql`.
+
 **Files:**
 - Create: `supabase/migrations/20260826000400_field_contacts_view.sql`
 
