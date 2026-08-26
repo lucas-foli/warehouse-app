@@ -267,6 +267,19 @@ begin
 		raise exception using message = 'interaction_sample_qty_invalid';
 	end if;
 
+	-- Valida cada elemento ANTES da agregação: qty não-numérico/decimal/<=0
+	-- vira exceção nomeada (não erro cru 22P02), e o sum não mascara item
+	-- inválido em SKU duplicado (fix do review da task 3).
+	if exists (
+		select 1 from jsonb_array_elements(p_samples) as elem
+		where jsonb_typeof(elem) <> 'object'
+			or jsonb_typeof(elem->'qty') <> 'number'
+			or (elem->>'qty') !~ '^[0-9]+$'
+			or (elem->>'qty')::int <= 0
+	) then
+		raise exception using message = 'interaction_sample_qty_invalid';
+	end if;
+
 	insert into public.interactions (
 		tenant_id, client_id, supplier_id, kind, outcome, note,
 		occurred_at, recorded_by, next_step, next_step_due_at
@@ -337,7 +350,7 @@ grant execute on function public.register_interaction(uuid, uuid, uuid, text, te
 
 - [ ] **Step 2: Verificar**
 
-Run: `grep -c "raise exception" supabase/migrations/20260826000300_register_interaction.sql` → `10` (7 códigos; contact_invalid 3x, sample_qty_invalid 2x).
+Run: `grep -c "raise exception" supabase/migrations/20260826000300_register_interaction.sql` → `11` (7 códigos; contact_invalid 3x, sample_qty_invalid 3x).
 Run: checagem python de control chars (mesma da Task 1, trocando o caminho) → `clean`.
 
 - [ ] **Step 3: Commit**
