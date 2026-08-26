@@ -131,3 +131,22 @@ modal e/ou como coluna/tooltip na tabela. Estender ao cliente (`external_id` de 
 tem o mesmo papel). Decidir se é sempre visível ou só quando presente.
 
 **Fora do escopo da obra Dashboard honesto** — melhoria de UI/suporte, com spec quando priorizada.
+
+## 2026-08-26 — Estender a direção visual "app nativo" ao app inteiro
+
+**Origem:** brainstorm da obra Campo (spec `2026-08-26-campo-fatia1-design.md`).
+O mockup da aba Campo (cards arredondados, pills, segmented control, botão de
+ação fixo, agrupamentos com hierarquia mobile-first) foi aprovado pelo Lucas
+com decisão explícita de **adotar essa linguagem** — "tá caminhando pra se
+tornar um app nativo".
+
+**O que implementar:** aplicar a mesma linguagem visual às telas existentes
+(Overview, Produtos, Pedidos, Clientes, Vendedores, Ajustes), hoje em padrão
+misto. Referência viva: a aba Campo (fatia 1 da obra) e o mockup
+`docs/superpowers/specs/2026-08-26-campo-fatia1-preview.html`.
+
+**Escopo:** obra própria com brainstorming/spec — mudança app-wide de UI, não
+fix por componente (regra de escopo já estabelecida para mudanças transversais).
+
+**Nota:** sem projeto Jira para o warehouse-app no Jira acessível (go-fly só
+tem SAN/Sanai) — registrado aqui até existir board próprio.
