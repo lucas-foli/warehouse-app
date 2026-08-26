@@ -717,7 +717,7 @@ export const STAGE_LABELS: Record<ContactStage, string> = {
 };
 ```
 
-Nota: a comparação `stageOverriddenAt > c.lastFactAt` é lexicográfica sobre ISO-8601 UTC — os timestamps vêm do Postgres como ISO UTC; comparação de string equivale a comparação temporal.
+Nota: a comparação `stageOverriddenAt >= c.lastFactAt` é lexicográfica sobre ISO-8601 UTC — os timestamps vêm do Postgres como ISO UTC; comparação de string equivale a comparação temporal.
 
 - [ ] **Step 5: Rodar e ver passar**
 
