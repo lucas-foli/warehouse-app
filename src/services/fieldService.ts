@@ -184,21 +184,29 @@ export async function fetchContactInteractions(
 }
 
 export async function markNextStepDone(interactionId: string): Promise<void> {
-	const { error } = await supabase
+	const { data, error } = await supabase
 		.from('interactions')
 		.update({ next_step_done_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-		.eq('id', interactionId);
+		.eq('id', interactionId)
+		.select('id');
 	if (error) throw error;
+	if (!data || data.length === 0) throw new Error('Não foi possível atualizar o follow-up.');
 }
 
 export async function rescheduleNextStep(interactionId: string, dueAt: string): Promise<void> {
-	const { error } = await supabase
+	const { data, error } = await supabase
 		.from('interactions')
 		.update({ next_step_due_at: dueAt, updated_at: new Date().toISOString() })
-		.eq('id', interactionId);
+		.eq('id', interactionId)
+		.select('id');
 	if (error) throw error;
+	if (!data || data.length === 0) throw new Error('Não foi possível atualizar o follow-up.');
 }
 
+// Escrita direta em clients/suppliers é admin-gated (policies existentes).
+// Decisão da fatia 1: override é ato de admin; policy de membro por coluna
+// fica para fatia futura. O .select('id') detecta o no-op da RLS — sem ele
+// o update filtrado "sucede" em silêncio.
 // stage = null limpa o override (volta a derivar dos fatos).
 export async function setManualStage(
 	contactType: ContactType,
@@ -206,17 +214,19 @@ export async function setManualStage(
 	stage: ContactStage | null,
 ): Promise<void> {
 	const table = contactType === 'client' ? 'clients' : 'suppliers';
-	const { data: userData } = await supabase.auth.getUser();
-	const { error } = await supabase
+	const { data: sessionData } = await supabase.auth.getSession();
+	const { data, error } = await supabase
 		.from(table)
 		.update({
 			stage,
 			stage_overridden_at: stage ? new Date().toISOString() : null,
-			stage_overridden_by: stage ? (userData?.user?.id ?? null) : null,
+			stage_overridden_by: stage ? (sessionData?.session?.user?.id ?? null) : null,
 			updated_at: new Date().toISOString(),
 		})
-		.eq('id', contactId);
+		.eq('id', contactId)
+		.select('id');
 	if (error) throw error;
+	if (!data || data.length === 0) throw new Error('Apenas administradores podem alterar o estágio.');
 }
 
 // Criação mínima na rua: só nome + cidade. external_id segue a regra do CRUD
@@ -239,6 +249,11 @@ export async function quickCreateContact(
 		})
 		.select('id')
 		.single();
-	if (error) throw error;
+	if (error) {
+		if ((error as { code?: string }).code === '23505') {
+			throw new Error('Já existe um contato com esse nome. Busque-o na lista.');
+		}
+		throw error;
+	}
 	return { id: (data as { id: string }).id };
 }
