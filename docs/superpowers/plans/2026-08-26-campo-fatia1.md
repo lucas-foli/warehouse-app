@@ -740,6 +740,13 @@ git commit -m "feat(campo): tipos de domínio + deriveStage com as 7 regras test
 
 ### Task 6: agendaGrouping com testes (timezone do navegador)
 
+> **Nota pós-review (2026-08-26):** emendas na execução — fronteiras por soma
+> de dia de calendário (aritmética de ms quebrava 8 dias/ano em fuso com DST;
+> produto é US-first), 2 testes de fronteira DST com `process.env.TZ =
+> 'America/New_York'` fixado no topo do arquivo, e sort por `getTime` em vez
+> de `localeCompare`. Suíte da task: 7 testes. Fonte:
+> `src/utils/agendaGrouping.ts` e seu `.test.ts`.
+
 **Files:**
 - Create: `src/utils/agendaGrouping.ts`
 - Test: `src/utils/agendaGrouping.test.ts`
@@ -848,7 +855,7 @@ export const groupAgenda = <T extends { nextStepDueAt: string | null }>(
 - [ ] **Step 4: Rodar e ver passar**
 
 Run: `npx vitest run src/utils/agendaGrouping.test.ts`
-Expected: PASS (5 testes).
+Expected: PASS (7 testes).
 
 - [ ] **Step 5: Commit**
 
@@ -1232,7 +1239,7 @@ Nota: o client Supabase da casa é NÃO-tipado (`createClient` sem `<Database>` 
 - [ ] **Step 2: Typecheck + suíte**
 
 Run: `npx tsc -b && npm test`
-Expected: 0 erros; 176 testes passando.
+Expected: 0 erros; 178 testes passando.
 
 - [ ] **Step 3: Commit**
 
@@ -1409,7 +1416,7 @@ export default FieldPage;
 - [ ] **Step 6: Rodar testes e typecheck**
 
 Run: `npx vitest run src/utils/dashboardView.test.ts` → PASS.
-Run: `npx tsc -b && npm test` → 0 erros; 177 testes.
+Run: `npx tsc -b && npm test` → 0 erros; 179 testes.
 
 - [ ] **Step 7: Commit**
 
