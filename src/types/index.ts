@@ -56,3 +56,46 @@ export interface KPIs {
 	quantidadeTotal: number;
 	produtosDistintos: number;
 }
+
+export type ContactType = 'client' | 'supplier';
+export type InteractionKind = 'visit' | 'call' | 'whatsapp' | 'email';
+export type InteractionOutcome =
+	| 'interested'
+	| 'proposal_requested'
+	| 'undecided'
+	| 'not_interested'
+	| 'buyer_absent';
+export type ContactStage = 'new' | 'contacted' | 'sample_delivered' | 'negotiating' | 'active' | 'lost';
+
+export interface FieldContact {
+	contactType: ContactType;
+	id: string;
+	tenantId: string;
+	name: string;
+	city?: string;
+	phone?: string;
+	email?: string;
+	manualStage: ContactStage | null;
+	stageOverriddenAt: string | null;
+	lastInteractionAt: string | null;
+	hasTransaction: boolean;
+	lastOutcome: InteractionOutcome | null;
+	hasSamples: boolean;
+	hasInteraction: boolean;
+	lastFactAt: string | null;
+}
+
+export interface Interaction {
+	id: string;
+	tenantId: string;
+	clientId: string | null;
+	supplierId: string | null;
+	kind: InteractionKind;
+	outcome: InteractionOutcome | null;
+	note: string | null;
+	occurredAt: string;
+	nextStep: string | null;
+	nextStepDueAt: string | null;
+	nextStepDoneAt: string | null;
+	samples: { sku: string; qty: number }[];
+}
