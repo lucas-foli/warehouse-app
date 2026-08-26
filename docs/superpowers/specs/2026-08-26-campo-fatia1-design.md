@@ -138,17 +138,22 @@ Precedência, avaliada por contato:
 6. tem ao menos uma interação → **contatado**
 7. nada → **novo**
 
-Implementada em SQL na view (fonte única); espelho em
-`src/utils/stageDerivation.ts` só se a UI precisar recalcular local, com
-teste de paridade contra fixtures.
+Implementada em TS (`src/utils/stageDerivation.ts`, fonte única), sobre
+fatos crus expostos pela view (`has_transaction`, `last_outcome`,
+`has_samples`, `has_interaction`, `last_fact_at`, `manual_stage`,
+`stage_overridden_at`). Emenda ao desenho original (que punha a derivação
+em SQL): a casa não tem harness de teste de banco — em SQL as 7 regras
+ficariam sem teste de unidade; em TS ganham a suíte completa. Relatório
+(fatia 3) e automações (fatia 5) são TS e importam o mesmo módulo.
 
 ## UI
 
 Aba nova **Campo** na navegação principal, três sub-visões (segmented
 control), mobile-first — layout do mockup aprovado:
 
-**Agenda (visão inicial).** Grupos "Atrasados", "Hoje" e "Esta semana"
-(os três nesta fatia): interações com próximo passo vencido/vencendo. Item mostra
+**Agenda (visão inicial).** Grupos "Atrasados", "Hoje", "Esta semana"
+(próximos 7 dias) e "Mais tarde" (além de 7 dias, colapsado — sem ele um
+follow-up longo sumiria da agenda): interações com próximo passo vencido/vencendo. Item mostra
 contato, papel (pill cliente/fornecedor), texto do passo, vencimento.
 Ações: marcar feito (`next_step_done_at = now()`) ou reagendar. Vazio
 honesto: "nenhum follow-up marcado". Botão fixo "+ Registrar visita".
