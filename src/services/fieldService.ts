@@ -43,7 +43,7 @@ export const mergeSamples = (samples: SampleInput[]): SampleInput[] => {
 	const merged = new Map<string, number>();
 	for (const s of samples) {
 		const sku = s.sku.trim().toUpperCase();
-		if (!sku || !Number.isFinite(s.qty) || s.qty <= 0) continue;
+		if (!sku || !Number.isInteger(s.qty) || s.qty <= 0) continue;
 		merged.set(sku, (merged.get(sku) ?? 0) + s.qty);
 	}
 	return Array.from(merged, ([sku, qty]) => ({ sku, qty }));
