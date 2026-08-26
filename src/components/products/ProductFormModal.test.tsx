@@ -22,11 +22,13 @@ describe('ProductFormModal', () => {
 		expect(screen.getByLabelText(/Name/i)).toHaveAttribute('aria-required', 'true');
 	});
 
-	it('BUG-3: Salvar desabilitado sem sku+name; habilitado com ambos', () => {
+	it('BUG-3: Salvar desabilitado sem sku+name; habilitado com ambos, mesmo sem dirty', () => {
 		const { rerender } = render(<ProductFormModal {...base} draft={draft()} />);
 		// mata: botão habilitado sem os obrigatórios
 		expect(screen.getByRole('button', { name: /salvar/i })).toBeDisabled();
-		rerender(<ProductFormModal {...base} dirty draft={draft({ sku: 'A', name: 'X' })} />);
+		// dirty=false (herdado de `base`) de propósito: no create, o BUG-3 exige que o Salvar
+		// habilite só com sku+name, sem depender de dirty — mata: create voltar a exigir dirty
+		rerender(<ProductFormModal {...base} draft={draft({ sku: 'A', name: 'X' })} />);
 		expect(screen.getByRole('button', { name: /salvar/i })).toBeEnabled();
 	});
 });
