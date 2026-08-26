@@ -29,6 +29,7 @@ describe('mergeSamples', () => {
 				{ sku: '  ', qty: 2 },
 				{ sku: 'POP-401', qty: 0 },
 				{ sku: 'POP-401', qty: -1 },
+				{ sku: 'POP-401', qty: 1.5 },
 			]),
 		).toEqual([]);
 	});
