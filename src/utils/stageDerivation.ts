@@ -12,7 +12,7 @@ import type { ContactStage, FieldContact } from '../types';
 // 7. nada                                                   → new
 export const deriveStage = (c: FieldContact): { stage: ContactStage; overridden: boolean } => {
 	if (c.manualStage && c.stageOverriddenAt) {
-		const overrideWins = !c.lastFactAt || c.stageOverriddenAt > c.lastFactAt;
+		const overrideWins = !c.lastFactAt || c.stageOverriddenAt >= c.lastFactAt;
 		if (overrideWins) return { stage: c.manualStage, overridden: true };
 	}
 	if (c.hasTransaction) return { stage: 'active', overridden: false };

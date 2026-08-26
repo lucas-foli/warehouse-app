@@ -26,14 +26,17 @@ describe('deriveStage — 7 regras da spec, em ordem de precedência', () => {
 
 	it('regra 6: tem interação → contacted', () => {
 		// mata: mutação que ignora hasInteraction
-		expect(deriveStage({ ...base, hasInteraction: true, lastFactAt: '2026-08-20T10:00:00Z' }).stage).toBe('contacted');
+		expect(deriveStage({ ...base, hasInteraction: true, lastFactAt: '2026-08-20T10:00:00Z' })).toEqual({
+			stage: 'contacted',
+			overridden: false,
+		});
 	});
 
 	it('regra 5: amostra entregue vence interação simples', () => {
 		// mata: inversão de precedência entre hasSamples e hasInteraction
 		expect(
-			deriveStage({ ...base, hasInteraction: true, hasSamples: true, lastFactAt: '2026-08-20T10:00:00Z' }).stage,
-		).toBe('sample_delivered');
+			deriveStage({ ...base, hasInteraction: true, hasSamples: true, lastFactAt: '2026-08-20T10:00:00Z' }),
+		).toEqual({ stage: 'sample_delivered', overridden: false });
 	});
 
 	it('regra 4: último resultado proposal_requested → negotiating (vence amostra)', () => {
@@ -45,12 +48,12 @@ describe('deriveStage — 7 regras da spec, em ordem de precedência', () => {
 				hasSamples: true,
 				lastOutcome: 'proposal_requested',
 				lastFactAt: '2026-08-20T10:00:00Z',
-			}).stage,
-		).toBe('negotiating');
+			}),
+		).toEqual({ stage: 'negotiating', overridden: false });
 	});
 
 	it('regra 3: último resultado not_interested → lost (vence negociação)', () => {
-		// mata: inversão de precedência entre lost e negotiating
+		// mata: mutação que não mapeia not_interested para lost (as regras 3 e 4 leem o mesmo campo; não há precedência real entre elas)
 		expect(
 			deriveStage({
 				...base,
@@ -58,8 +61,8 @@ describe('deriveStage — 7 regras da spec, em ordem de precedência', () => {
 				hasSamples: true,
 				lastOutcome: 'not_interested',
 				lastFactAt: '2026-08-20T10:00:00Z',
-			}).stage,
-		).toBe('lost');
+			}),
+		).toEqual({ stage: 'lost', overridden: false });
 	});
 
 	it('regra 2: transação vence tudo que não é override → active', () => {
@@ -71,8 +74,8 @@ describe('deriveStage — 7 regras da spec, em ordem de precedência', () => {
 				hasInteraction: true,
 				lastOutcome: 'not_interested',
 				lastFactAt: '2026-08-20T10:00:00Z',
-			}).stage,
-		).toBe('active');
+			}),
+		).toEqual({ stage: 'active', overridden: false });
 	});
 
 	it('regra 1: override manual mais novo que o último fato vale', () => {
@@ -107,6 +110,19 @@ describe('deriveStage — 7 regras da spec, em ordem de precedência', () => {
 			stage: 'negotiating',
 			overridden: true,
 		});
+	});
+
+	it('regra 1 (empate): override no mesmo instante do último fato ainda vale', () => {
+		// mata: mutação >= para > na comparação (empate faria o override perder)
+		expect(
+			deriveStage({
+				...base,
+				hasInteraction: true,
+				lastFactAt: '2026-08-21T10:00:00Z',
+				manualStage: 'lost',
+				stageOverriddenAt: '2026-08-21T10:00:00Z',
+			}),
+		).toEqual({ stage: 'lost', overridden: true });
 	});
 });
 
