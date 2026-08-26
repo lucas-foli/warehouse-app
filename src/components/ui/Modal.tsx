@@ -4,10 +4,10 @@ import { createPortal } from 'react-dom';
 type ModalSize = 'sm' | 'md' | 'lg' | 'xl';
 
 const sizeClass: Record<ModalSize, string> = {
-	sm: 'sm:max-w-md',
-	md: 'sm:max-w-lg',
-	lg: 'sm:max-w-2xl',
-	xl: 'sm:max-w-3xl',
+	sm: 'max-w-md',
+	md: 'max-w-lg',
+	lg: 'max-w-2xl',
+	xl: 'max-w-3xl',
 };
 
 type ModalProps = {
@@ -15,7 +15,6 @@ type ModalProps = {
 	onClose: () => void;
 	labelledById?: string;
 	size?: ModalSize;
-	mobileSheet?: boolean;
 	children: ReactNode;
 };
 
@@ -27,7 +26,6 @@ export const Modal = ({
 	onClose,
 	labelledById,
 	size = 'md',
-	mobileSheet = false,
 	children,
 }: ModalProps) => {
 	const panelRef = useRef<HTMLDivElement>(null);
@@ -82,18 +80,10 @@ export const Modal = ({
 
 	if (!open) return null;
 
-	const panelClass = mobileSheet
-		? `absolute inset-x-0 bottom-0 flex max-h-[92dvh] w-full flex-col rounded-t-2xl bg-card shadow-xl sm:static sm:w-full ${sizeClass[size]} sm:max-h-[90vh] sm:rounded-[var(--radius-card)]`
-		: `w-full ${sizeClass[size]} max-h-[90vh] overflow-y-auto rounded-[var(--radius-card)] bg-card shadow-xl`;
-
-	const overlayClass = mobileSheet
-		? 'fixed inset-0 z-50 flex items-end justify-center bg-black/60 sm:items-center sm:p-4'
-		: 'fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4';
-
 	return createPortal(
 		<div
 			data-testid="modal-backdrop"
-			className={overlayClass}
+			className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
 			onClick={onClose}>
 			<div
 				ref={panelRef}
@@ -101,13 +91,8 @@ export const Modal = ({
 				aria-modal="true"
 				aria-labelledby={labelledById}
 				tabIndex={-1}
-				className={panelClass}
+				className={`flex max-h-[85dvh] w-full flex-col overflow-hidden rounded-[var(--radius-card)] bg-card shadow-xl ${sizeClass[size]}`}
 				onClick={(e) => e.stopPropagation()}>
-				{mobileSheet && (
-					<div className="flex flex-shrink-0 justify-center py-3 sm:hidden">
-						<div className="h-1 w-10 rounded-full bg-border" />
-					</div>
-				)}
 				{children}
 			</div>
 		</div>,

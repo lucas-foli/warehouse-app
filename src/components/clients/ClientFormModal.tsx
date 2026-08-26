@@ -150,7 +150,7 @@ export const ClientFormModal = ({ open, tenantId, client, onClose, onSaved }: Pr
 	};
 
 	return (
-		<Modal open={open} onClose={onClose} size="md" mobileSheet labelledById="client-form-title">
+		<Modal open={open} onClose={onClose} size="md" labelledById="client-form-title">
 			<div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-6 pt-2 sm:pt-6">
 				<div className="flex items-start justify-between gap-4">
 					<div>
