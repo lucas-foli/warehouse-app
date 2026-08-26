@@ -6,25 +6,13 @@ import type { Client, Product, Seller } from '../types';
 import { aggregateBulkResults, chunked, type BulkResult } from '../utils/bulk';
 import { formatCurrency } from '../utils/currency';
 import { getProductRisk } from '../utils/productRisk';
+import type { ProductDraft } from '../utils/productForm';
 import { BulkActionBar } from './products/BulkActionBar';
 import { BulkEditFieldPopover, type BulkEditableField } from './products/BulkEditFieldPopover';
 import { BulkResultDialog } from './products/BulkResultDialog';
 import { ConfirmDialog } from './products/ConfirmDialog';
 import { SaleOrderModal } from './products/SaleOrderModal';
 import { Card, Section } from './ui/Primitives';
-
-type ProductDraft = {
-	id: string;
-	name: string;
-	sku: string;
-	status: string;
-	location: string;
-	qty: string;
-	min: string;
-	price: string;
-	barcode: string;
-	image: string;
-};
 
 // Referentially stable fallback so a missing `lastSaleBySku` prop doesn't
 // create a new Map identity on every render and bust the risk memo below.
