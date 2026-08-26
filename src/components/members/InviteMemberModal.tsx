@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { createInvitation } from "../../services/invitations";
 import { messageForEdgeErrorCode } from "../../utils/edgeErrors";
+import { Modal } from "../ui/Modal";
 
 interface Props {
   tenantId: string;
@@ -27,10 +28,10 @@ const InviteMemberModal = ({ tenantId, onClose, onInvited }: Props) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div className="w-full max-w-md rounded-[var(--radius-card)] border border-border/40 bg-card p-6 shadow-[var(--shadow-card)]" onClick={(e) => e.stopPropagation()}>
+    <Modal open={true} onClose={onClose} size="sm" mobileSheet labelledById="invite-member-title">
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-6 pt-2 sm:pt-6">
         <form onSubmit={handleSubmit} className="space-y-4">
-          <h2 className="text-lg font-semibold">Invite teammate</h2>
+          <h2 id="invite-member-title" className="text-lg font-semibold">Invite teammate</h2>
           <label className="block text-[10px] font-semibold uppercase tracking-[0.25em] text-muted-foreground">
             Email
             <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
@@ -56,7 +57,7 @@ const InviteMemberModal = ({ tenantId, onClose, onInvited }: Props) => {
           </div>
         </form>
       </div>
-    </div>
+    </Modal>
   );
 };
 
