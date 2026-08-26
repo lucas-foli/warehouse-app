@@ -473,6 +473,12 @@ git commit -m "feat(campo): view field_contacts (fatos crus p/ derivação de es
 
 ### Task 5: Tipos de domínio + deriveStage (fonte única) com testes
 
+> **Nota pós-review (2026-08-26):** emendas na execução — empate de
+> timestamps favorece o override (`>=`, com teste de fronteira novo), os 5
+> testes das regras 2-6 fixam o objeto inteiro (`toEqual` com `overridden`)
+> e a anotação `mata:` da regra 3 foi reescrita. Suíte da task: 11 testes
+> (não 10). Fonte: `src/utils/stageDerivation.ts` e seu `.test.ts`.
+
 **Files:**
 - Modify: `src/types/index.ts` (append no fim do arquivo)
 - Create: `src/utils/stageDerivation.ts`
@@ -680,7 +686,7 @@ import type { ContactStage, FieldContact } from '../types';
 // 7. nada                                                   → new
 export const deriveStage = (c: FieldContact): { stage: ContactStage; overridden: boolean } => {
 	if (c.manualStage && c.stageOverriddenAt) {
-		const overrideWins = !c.lastFactAt || c.stageOverriddenAt > c.lastFactAt;
+		const overrideWins = !c.lastFactAt || c.stageOverriddenAt >= c.lastFactAt;
 		if (overrideWins) return { stage: c.manualStage, overridden: true };
 	}
 	if (c.hasTransaction) return { stage: 'active', overridden: false };
@@ -716,12 +722,12 @@ Nota: a comparação `stageOverriddenAt > c.lastFactAt` é lexicográfica sobre 
 - [ ] **Step 5: Rodar e ver passar**
 
 Run: `npx vitest run src/utils/stageDerivation.test.ts`
-Expected: PASS (10 testes).
+Expected: PASS (11 testes).
 
 - [ ] **Step 6: Typecheck + suíte inteira**
 
 Run: `npx tsc -b && npm test`
-Expected: 0 erros TS; 167 testes passando (157 + 10).
+Expected: 0 erros TS; 168 testes passando (157 + 11).
 
 - [ ] **Step 7: Commit**
 
@@ -1226,7 +1232,7 @@ Nota: o client Supabase da casa é NÃO-tipado (`createClient` sem `<Database>` 
 - [ ] **Step 2: Typecheck + suíte**
 
 Run: `npx tsc -b && npm test`
-Expected: 0 erros; 175 testes passando.
+Expected: 0 erros; 176 testes passando.
 
 - [ ] **Step 3: Commit**
 
@@ -1403,7 +1409,7 @@ export default FieldPage;
 - [ ] **Step 6: Rodar testes e typecheck**
 
 Run: `npx vitest run src/utils/dashboardView.test.ts` → PASS.
-Run: `npx tsc -b && npm test` → 0 erros; 176 testes.
+Run: `npx tsc -b && npm test` → 0 erros; 177 testes.
 
 - [ ] **Step 7: Commit**
 
