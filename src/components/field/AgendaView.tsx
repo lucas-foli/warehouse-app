@@ -72,28 +72,28 @@ const AgendaView = ({ agenda, contacts, onChanged }: Props) => {
 			<div key={i.id} className="rounded-2xl border border-border bg-card p-4">
 				<div className="flex items-start justify-between gap-3">
 					<div className="min-w-0">
-						<p className="truncate text-sm font-semibold text-foreground">{contact?.name ?? 'Contato removido'}</p>
+						<p className="truncate text-sm font-semibold text-foreground">{contact?.name ?? 'Contato não identificado'}</p>
 						{contact && (
 							<span className="mt-1 inline-block rounded-full bg-secondary px-2.5 py-0.5 text-[11px] font-semibold text-secondary-foreground">
 								{contact.contactType === 'client' ? 'cliente' : 'fornecedor'}
 							</span>
 						)}
-						<p className="mt-1 text-sm text-muted-foreground">{i.nextStep}</p>
+						<p className="mt-1 text-sm text-muted-foreground">{i.nextStep || 'Follow-up sem descrição'}</p>
 						<p className="mt-1 text-xs text-muted-foreground">{dueLabel(i.nextStepDueAt)}</p>
 					</div>
-					<div className="flex shrink-0 flex-col items-end gap-2">
+					<div className="flex shrink-0 flex-col items-end gap-3">
 						<button
 							type="button"
 							disabled={busyId === i.id}
 							onClick={() => void handleDone(i)}
-							className="rounded-xl bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-50">
+							className="min-h-11 rounded-xl bg-primary px-4 text-xs font-semibold text-primary-foreground disabled:opacity-50">
 							Feito
 						</button>
 						<button
 							type="button"
 							disabled={busyId === i.id}
 							onClick={() => void handleReschedule(i, 1)}
-							className="rounded-xl border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground disabled:opacity-50">
+							className="min-h-11 rounded-xl border border-border px-4 text-xs font-medium text-muted-foreground disabled:opacity-50">
 							+1 dia
 						</button>
 					</div>
@@ -117,9 +117,24 @@ const AgendaView = ({ agenda, contacts, onChanged }: Props) => {
 							key={key}
 							type="button"
 							onClick={() => setLaterOpen(true)}
+							aria-expanded={false}
 							className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
 							Mais tarde · {items.length} — mostrar
 						</button>
+					);
+				}
+				if (key === 'later' && laterOpen) {
+					return (
+						<section key={key} className="space-y-2">
+							<button
+								type="button"
+								onClick={() => setLaterOpen(false)}
+								aria-expanded={true}
+								className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+								{title} · {items.length} — ocultar
+							</button>
+							{items.map(renderItem)}
+						</section>
 					);
 				}
 				return (

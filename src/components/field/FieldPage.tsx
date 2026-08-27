@@ -24,13 +24,13 @@ const FieldPage = ({ tenantId, products, onReload }: Props) => {
 	const [error, setError] = useState('');
 	const loadIdRef = useRef(0);
 
-	const reloadField = useCallback(async () => {
+	const reloadField = useCallback(async (opts?: { silent?: boolean }) => {
 		if (!tenantId) {
 			setLoading(false);
 			return;
 		}
 		const loadId = ++loadIdRef.current;
-		setLoading(true);
+		if (!opts?.silent) setLoading(true);
 		setError('');
 		try {
 			const [nextContacts, nextAgenda] = await Promise.all([
@@ -85,7 +85,7 @@ const FieldPage = ({ tenantId, products, onReload }: Props) => {
 			{loading && <p className="text-sm text-muted-foreground">Carregando…</p>}
 
 			{!loading && !error && view === 'agenda' && (
-				<AgendaView agenda={agenda} contacts={contacts} onChanged={() => void reloadField()} />
+				<AgendaView agenda={agenda} contacts={contacts} onChanged={() => void reloadField({ silent: true })} />
 			)}
 			{!loading && !error && view === 'funnel' && (
 				<p className="text-sm text-muted-foreground">
