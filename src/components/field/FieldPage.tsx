@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { FieldContact, Interaction, Product } from '../../types';
 import { fetchFieldContacts, fetchOpenAgenda } from '../../services/fieldService';
 import AgendaView from './AgendaView';
+import { QuickLogModal } from './QuickLogModal';
 
 type FieldView = 'agenda' | 'funnel' | 'suppliers';
 
@@ -22,6 +23,7 @@ const FieldPage = ({ tenantId, products, onReload }: Props) => {
 	const [agenda, setAgenda] = useState<Interaction[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState('');
+	const [logOpen, setLogOpen] = useState(false);
 	const loadIdRef = useRef(0);
 
 	const reloadField = useCallback(async (opts?: { silent?: boolean }) => {
@@ -52,10 +54,6 @@ const FieldPage = ({ tenantId, products, onReload }: Props) => {
 	useEffect(() => {
 		void reloadField();
 	}, [reloadField]);
-
-	// products e onReload são consumidos pelas sub-visões das Tasks 10-13.
-	void products;
-	void onReload;
 
 	return (
 		<div className="space-y-6">
@@ -99,6 +97,24 @@ const FieldPage = ({ tenantId, products, onReload }: Props) => {
 						: `${contacts.filter((c) => c.contactType === 'supplier').length} fornecedores.`}
 				</p>
 			)}
+
+			<button
+				type="button"
+				onClick={() => setLogOpen(true)}
+				className="fixed bottom-6 left-1/2 z-40 min-h-11 w-[calc(100%-3rem)] max-w-md -translate-x-1/2 rounded-2xl bg-primary py-3.5 text-center text-sm font-bold text-primary-foreground shadow-[var(--shadow-card)] sm:static sm:translate-x-0 sm:w-auto sm:px-6">
+				+ Registrar visita
+			</button>
+			<QuickLogModal
+				open={logOpen}
+				tenantId={tenantId}
+				contacts={contacts}
+				products={products}
+				onClose={() => setLogOpen(false)}
+				onSaved={() => {
+					void reloadField({ silent: true });
+					onReload();
+				}}
+			/>
 		</div>
 	);
 };
