@@ -150,3 +150,36 @@ fix por componente (regra de escopo já estabelecida para mudanças transversais
 
 **Jira:** WAR-8 (board Warehouse criado em 2026-08-26 no go-fly.atlassian.net;
 epic da obra Campo = WAR-1).
+
+## 2026-08-26 — Correção/estorno de interação e amostra (Campo)
+
+**Origem:** review final da fatia 1 da obra Campo (PR #73). O débito de estoque
+por amostra (`register_interaction`) é irreversível no app: não há policy de
+DELETE em `interactions`/`interaction_samples`, não há UI de editar/apagar
+interação, e nada devolve `qty` — diferente de `void_sale_order`, que estorna a
+venda. Enquanto a fatia 2 (entrada de mercadoria) não entra, o estoque só desce.
+
+**O que implementar:**
+- RPC de estorno espelhando `void_sale_order`: devolve `qty` das amostras e
+  marca a interação como estornada (ou permite exclusão sob policy).
+- UI de correção na ficha do contato (editar quantidade/SKU da amostra, ou
+  desfazer a interação inteira dentro de uma janela de tempo).
+- Decidir se a interação estornada some da timeline ou fica marcada.
+
+**Enquanto isso:** correção é SQL manual no Supabase. Registrado no runbook
+`docs/superpowers/runbooks/2026-08-26-campo-fatia1-e2e.md`.
+
+**Jira:** WAR (epic WAR-1).
+
+## 2026-08-26 — Idempotência do register_interaction (Campo)
+
+**Origem:** review da task 11 e review final da fatia 1. Se a rede cair depois
+do commit da RPC mas antes da resposta, a retentativa manual do Elcy cria uma
+segunda interação e um segundo débito de estoque. A fatia 2 mexe no mesmo RPC —
+bom momento para resolver junto.
+
+**O que implementar:** chave de idempotência por requisição (gerada no cliente,
+única por tentativa de registro), com unique index e retorno da interação já
+gravada quando a chave repetir.
+
+**Jira:** WAR (epic WAR-1).

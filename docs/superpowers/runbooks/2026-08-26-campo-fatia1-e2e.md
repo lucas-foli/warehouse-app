@@ -21,6 +21,22 @@ usuário não-admin no mesmo tenant.
    mesmo assim (estoque fica negativo em Produtos).
 10. ClientsPage: botão "Ficha" abre a timeline do cliente.
 
+## ⚠ Antes de pôr na mão do Elcy — limitação conhecida desta fatia
+
+**Amostra registrada não tem desfazer.** O débito de estoque da amostra é
+definitivo: não há edição nem exclusão de interação no app, e a entrada de
+mercadoria (que faz o estoque subir) só chega na fatia 2. Um "20" digitado no
+lugar de "2" corrompe o `qty` daquele SKU até alguém corrigir **por SQL
+manual** no Supabase.
+
+Consequências práticas enquanto a fatia 2 não entra:
+- avisar o Elcy de que a quantidade de amostra é para conferir antes de salvar;
+- quem administra o workspace precisa saber que a correção é SQL, não UI;
+- o mesmo vale para uma visita registrada no contato errado.
+
+Registrado como decisão consciente da fatia 1 (não é bug a reportar).
+
+
 ## Casos adicionais (surgidos nos reviews das tasks 1-13)
 
 11. Amostra com quantidade decimal (ex.: 1,5): tentar adicionar ao registro
