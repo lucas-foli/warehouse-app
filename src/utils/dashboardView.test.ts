@@ -27,4 +27,9 @@ describe('resolveDashboardView', () => {
 		// must still return a valid view if asked about one directly.
 		expect(resolveDashboardView('/anything-else')).toEqual({ page: 'overview', surface: 'dashboard' });
 	});
+
+	it('mapeia /field para a aba campo', () => {
+		// mata: rota nova sem case no resolver (cairia no default overview)
+		expect(resolveDashboardView('/field')).toEqual({ page: 'campo', surface: 'dashboard' });
+	});
 });

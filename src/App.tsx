@@ -417,6 +417,7 @@ const App = () => {
 			<Route path="/clients" element={dashboardElement} />
 			<Route path="/sellers" element={dashboardElement} />
 			<Route path="/sales" element={dashboardElement} />
+			<Route path="/field" element={dashboardElement} />
 			{isAdmin && (
 				<Route
 					path="/status-update"
