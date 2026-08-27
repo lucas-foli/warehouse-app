@@ -108,7 +108,6 @@ const ContactSheet = ({ open, tenantId, contact, products, onClose, onChanged, a
 			await setManualStage(contact.contactType, contact.id, next);
 			setOptimisticStage(next);
 			setStageTouched(true);
-			setReloadKey((k) => k + 1);
 			setStagePickerOpen(false);
 			onChanged();
 		} catch (err) {
