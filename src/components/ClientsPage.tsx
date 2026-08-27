@@ -8,7 +8,7 @@ import {
 	XAxis,
 	YAxis,
 } from 'recharts';
-import type { Client, HistoryItem } from '../types';
+import type { Client, FieldContact, HistoryItem } from '../types';
 import {
 	buildClientEvolutionFromClients,
 	buildClientPurchasesTimelineFromClients,
@@ -16,6 +16,7 @@ import {
 import { countNewClientsThisMonth } from '../utils/newClientsThisMonth';
 import { Card, Metric, Section } from './ui/Primitives';
 import { ClientFormModal } from './clients/ClientFormModal';
+import ContactSheet from './field/ContactSheet';
 
 const ClientsPage = ({
 	clientes,
@@ -36,6 +37,7 @@ const ClientsPage = ({
 }) => {
 	const [modalOpen, setModalOpen] = useState(false);
 	const [editingClient, setEditingClient] = useState<Client | null>(null);
+	const [sheetContact, setSheetContact] = useState<FieldContact | null>(null);
 
 	const openCreate = () => {
 		setEditingClient(null);
@@ -46,6 +48,27 @@ const ClientsPage = ({
 		setEditingClient(c);
 		setModalOpen(true);
 	};
+
+	// Ficha aberta pela lista de clientes: estágio é aproximado (os fatos de
+	// interação/amostra/resultado não existem no tipo Client) — o caminho
+	// canônico para ver o estágio real é o Funil do Campo.
+	const toFieldContact = (c: Client): FieldContact => ({
+		contactType: 'client',
+		id: c.id,
+		tenantId: tenantId ?? '',
+		name: c.nome,
+		city: c.cidade || undefined,
+		phone: c.telefone,
+		email: c.email,
+		manualStage: null,
+		stageOverriddenAt: null,
+		lastInteractionAt: null,
+		hasTransaction: !!c.ultimaCompra,
+		lastOutcome: null,
+		hasSamples: false,
+		hasInteraction: false,
+		lastFactAt: null,
+	});
 
 	const formatMonthYear = (value?: string) => {
 		if (!value) return '—';
@@ -203,7 +226,18 @@ const ClientsPage = ({
 									key={c.id}
 									onClick={() => openEdit(c)}
 									className={`rounded-2xl border border-border/40 bg-card p-4${isAdmin ? ' cursor-pointer transition hover:border-border' : ''}`}>
-									<p className="text-base font-semibold text-foreground">{c.nome}</p>
+									<div className="flex items-start justify-between gap-2">
+										<p className="text-base font-semibold text-foreground">{c.nome}</p>
+										<button
+											type="button"
+											onClick={(e) => {
+												e.stopPropagation();
+												setSheetContact(toFieldContact(c));
+											}}
+											className="min-h-11 shrink-0 rounded-full border border-border px-3 text-xs font-semibold text-foreground">
+											Ficha
+										</button>
+									</div>
 									<dl className="mt-2 divide-y divide-border/20 text-sm">
 										{c.cidade ? (
 											<div className="flex items-center justify-between py-2">
@@ -237,6 +271,7 @@ const ClientsPage = ({
 										<th className="px-4 py-3">Telefone</th>
 										<th className="px-4 py-3">E-mail</th>
 										<th className="px-4 py-3">Última compra</th>
+										<th className="px-4 py-3" />
 									</tr>
 								</thead>
 								<tbody className="divide-y divide-border/30 bg-card">
@@ -250,6 +285,17 @@ const ClientsPage = ({
 											<td className="px-4 py-3 text-foreground">{c.telefone ?? '—'}</td>
 											<td className="px-4 py-3 text-foreground">{c.email ?? '—'}</td>
 											<td className="px-4 py-3 text-foreground">{formatMonthYear(c.ultimaCompra)}</td>
+											<td className="px-4 py-3 text-right">
+												<button
+													type="button"
+													onClick={(e) => {
+														e.stopPropagation();
+														setSheetContact(toFieldContact(c));
+													}}
+													className="min-h-11 rounded-full border border-border px-3 text-xs font-semibold text-foreground">
+													Ficha
+												</button>
+											</td>
 										</tr>
 									))}
 								</tbody>
@@ -264,6 +310,14 @@ const ClientsPage = ({
 				client={editingClient}
 				onClose={() => setModalOpen(false)}
 				onSaved={() => onReload?.()}
+			/>
+			<ContactSheet
+				open={sheetContact !== null}
+				tenantId={tenantId}
+				contact={sheetContact}
+				products={[]}
+				onClose={() => setSheetContact(null)}
+				onChanged={() => onReload?.()}
 			/>
 		</>
 	);

@@ -2,8 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { FieldContact, Interaction, Product } from '../../types';
 import { fetchFieldContacts, fetchOpenAgenda } from '../../services/fieldService';
 import AgendaView from './AgendaView';
+import ContactSheet from './ContactSheet';
 import FunnelView from './FunnelView';
 import { QuickLogModal } from './QuickLogModal';
+import SuppliersView from './SuppliersView';
 
 type FieldView = 'agenda' | 'funnel' | 'suppliers';
 
@@ -25,6 +27,7 @@ const FieldPage = ({ tenantId, products, onReload }: Props) => {
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState('');
 	const [logOpen, setLogOpen] = useState(false);
+	const [sheetContact, setSheetContact] = useState<FieldContact | null>(null);
 	const loadIdRef = useRef(0);
 
 	const reloadField = useCallback(async (opts?: { silent?: boolean }) => {
@@ -86,13 +89,16 @@ const FieldPage = ({ tenantId, products, onReload }: Props) => {
 			{!loading && !error && view === 'agenda' && (
 				<AgendaView agenda={agenda} contacts={contacts} onChanged={() => void reloadField({ silent: true })} />
 			)}
-			{!loading && !error && view === 'funnel' && <FunnelView contacts={contacts} onOpenContact={() => {}} />}
+			{!loading && !error && view === 'funnel' && (
+				<FunnelView contacts={contacts} onOpenContact={(c) => setSheetContact(c)} />
+			)}
 			{!loading && !error && view === 'suppliers' && (
-				<p className="text-sm text-muted-foreground">
-					{contacts.filter((c) => c.contactType === 'supplier').length === 0
-						? 'Nenhum fornecedor cadastrado.'
-						: `${contacts.filter((c) => c.contactType === 'supplier').length} fornecedores.`}
-				</p>
+				<SuppliersView
+					suppliers={contacts.filter((c) => c.contactType === 'supplier')}
+					tenantId={tenantId}
+					onOpenContact={(c) => setSheetContact(c)}
+					onCreated={() => void reloadField()}
+				/>
 			)}
 
 			<button
@@ -108,6 +114,17 @@ const FieldPage = ({ tenantId, products, onReload }: Props) => {
 				products={products}
 				onClose={() => setLogOpen(false)}
 				onSaved={() => {
+					void reloadField({ silent: true });
+					onReload();
+				}}
+			/>
+			<ContactSheet
+				open={sheetContact !== null}
+				tenantId={tenantId}
+				contact={sheetContact}
+				products={products}
+				onClose={() => setSheetContact(null)}
+				onChanged={() => {
 					void reloadField({ silent: true });
 					onReload();
 				}}
