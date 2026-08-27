@@ -44,8 +44,7 @@ const FieldPage = ({ tenantId, products, onReload }: Props) => {
 			console.error('[campo] falha ao carregar', err);
 			setError(err instanceof Error ? err.message : 'Não foi possível carregar o Campo.');
 		} finally {
-			if (loadId !== loadIdRef.current) return;
-			setLoading(false);
+			if (loadId === loadIdRef.current) setLoading(false);
 		}
 	}, [tenantId]);
 
