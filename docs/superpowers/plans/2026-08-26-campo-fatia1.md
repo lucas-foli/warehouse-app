@@ -2189,6 +2189,18 @@ git commit -m "feat(campo): funil por estágio derivado com filtro de papel e al
 
 ### Task 13: ContactSheet (ficha com timeline) + SuppliersView + integração ClientsPage
 
+> **Nota pós-review (2026-08-26):** o brief deixava a ficha congelada — o
+> `contact` chega por referência estável, então nem a timeline nem o chip de
+> estágio refletiam o que acabara de acontecer (o chip era o pior: o usuário
+> escolhia, o seletor fechava e a etiqueta não mudava). Corrigido com
+> `reloadKey` nas deps e `optimisticStage`. Mais: a ficha aberta pela
+> ClientsPage esconde o chip (prop `approximate`) porque `manualStage` ali é
+> fabricado e contradizia overrides reais; `products` flui Dashboard →
+> ClientsPage → ContactSheet (mesmo aviso de estoque nas duas portas);
+> SuppliersView reseta o formulário, desabilita salvar vazio e traduz 42501;
+> data com ano quando não é o ano corrente. Fonte: `src/components/field/
+> ContactSheet.tsx` + `SuppliersView.tsx` (commit c4204ac).
+
 **Files:**
 - Create: `src/components/field/ContactSheet.tsx`
 - Create: `src/components/field/SuppliersView.tsx`
