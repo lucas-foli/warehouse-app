@@ -1,0 +1,52 @@
+# E2E manual — Campo fatia 1
+
+Pré: aplicar as 4 migrations 20260826* no Supabase do app (SQL Editor, em ordem).
+Dados: tenant de teste com 2+ produtos importados. Para o passo 18, um segundo
+usuário não-admin no mesmo tenant.
+
+1. Aba Campo aparece na navegação; abre na Agenda vazia ("Nenhum follow-up marcado").
+2. + Registrar visita → criar contato novo (cliente, nome+cidade) → resultado
+   "Interessado" → 1 amostra de SKU existente (qty 2) → próximo passo "voltar"
+   em 3 dias → salvar. Sem erro.
+3. Produtos: qty do SKU caiu 2. (Débito de amostra.)
+4. Agenda: item em "Esta semana" com o contato e o passo. "Feito" o remove.
+5. Funil: contato em "Amostra entregue" (estágio derivado). Registrar nova
+   interação com "Pediu proposta" → contato move para "Negociando".
+6. Ficha (tocar no card do funil): timeline com as 2 interações e amostras.
+7. Override: na ficha, mudar estágio para "Perdido" → funil mostra "marcado à
+   mão". Registrar nova interação → volta ao derivado (override expira).
+8. Fornecedores: criar "Noronha Pescados" → aparece na lista; registrar
+   interação de ligação nela; funil (filtro Fornecedores) mostra "Contatado".
+9. Amostra com qty maior que o estoque → aviso âmbar aparece e o registro salva
+   mesmo assim (estoque fica negativo em Produtos).
+10. ClientsPage: botão "Ficha" abre a timeline do cliente.
+
+## Casos adicionais (surgidos nos reviews das tasks 1-13)
+
+11. Amostra com quantidade decimal (ex.: 1,5): tentar adicionar ao registro
+    rápido → recusada com mensagem de erro visível, não some em silêncio da
+    lista de amostras.
+12. Amostra adicionada por engano: no registro rápido, adicionar uma amostra e
+    removê-la pelo ✕ antes de salvar → ela some da lista e não é debitada do
+    estoque ao salvar.
+13. Registrar visita com "próximo passo" preenchido e SEM tocar no campo de
+    data → o chip "amanhã" acende sozinho; ao salvar, o item aparece na
+    Agenda.
+14. Salvar uma visita que deixa o estoque negativo (amostra maior que o
+    saldo): o modal NÃO fecha sozinho, mostra o aviso âmbar, e o botão salvar
+    fica travado no estado "Visita registrada" até clicar em "Entendi,
+    fechar" — só aí o modal fecha.
+15. Na ficha aberta pelo Funil (tocar num card): registrar uma visita por ali
+    → a timeline atualiza sem fechar a ficha; trocar o estágio → o chip muda
+    na hora e passa a marcar "· à mão"; clicar em "voltar ao automático" → o
+    chip volta ao estágio derivado.
+16. Na ficha aberta pela ClientsPage (botão "Ficha"): confirmar que o chip de
+    estágio NÃO aparece ali (o estágio é aproximado só na aba Campo) — só o
+    badge de papel e a timeline.
+17. Funil com filtro "Fornecedores" num tenant (ou momento, antes do passo 8
+    criar o Noronha Pescados) sem nenhum fornecedor cadastrado → mostra
+    "Nenhum contato neste filtro.", não uma tela em branco.
+18. Logado como usuário NÃO-admin: consegue registrar visita normalmente e
+    marcar um follow-up como feito na Agenda; ao tentar mudar o estágio na
+    ficha, recebe "Apenas administradores podem alterar o estágio." e a
+    mudança não é aplicada.
