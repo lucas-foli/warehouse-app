@@ -1266,6 +1266,13 @@ git commit -m "feat(campo): fieldService — fetches, agenda ops, quick-create e
 
 ### Task 9: Rota e aba Campo (shell com segmented control)
 
+> **Nota pós-review (2026-08-26):** emendas na execução — os placeholders
+> ganharam gate `!error` (não afirmar vazio sob falha), `setLoading(false)`
+> no early return sem tenantId, guarda de resposta obsoleta via `loadIdRef`
+> (as Tasks 10-13 chamam `reloadField` após cada mutação), `console.error`
+> do erro cru e botão "Tentar de novo" na paleta `red-500/30` do repo.
+> Fonte: `src/components/field/FieldPage.tsx` (commit f9e57d2).
+
 **Files:**
 - Modify: `src/utils/dashboardView.ts`
 - Modify: `src/utils/dashboardView.test.ts` (append)
