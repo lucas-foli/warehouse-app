@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { FieldContact, Interaction, Product } from '../../types';
 import { fetchFieldContacts, fetchOpenAgenda } from '../../services/fieldService';
 
@@ -21,9 +21,14 @@ const FieldPage = ({ tenantId, products, onReload }: Props) => {
 	const [agenda, setAgenda] = useState<Interaction[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState('');
+	const loadIdRef = useRef(0);
 
 	const reloadField = useCallback(async () => {
-		if (!tenantId) return;
+		if (!tenantId) {
+			setLoading(false);
+			return;
+		}
+		const loadId = ++loadIdRef.current;
 		setLoading(true);
 		setError('');
 		try {
@@ -31,11 +36,15 @@ const FieldPage = ({ tenantId, products, onReload }: Props) => {
 				fetchFieldContacts(tenantId),
 				fetchOpenAgenda(tenantId),
 			]);
+			if (loadId !== loadIdRef.current) return;
 			setContacts(nextContacts);
 			setAgenda(nextAgenda);
 		} catch (err) {
+			if (loadId !== loadIdRef.current) return;
+			console.error('[campo] falha ao carregar', err);
 			setError(err instanceof Error ? err.message : 'Não foi possível carregar o Campo.');
 		} finally {
+			if (loadId !== loadIdRef.current) return;
 			setLoading(false);
 		}
 	}, [tenantId]);
@@ -63,21 +72,29 @@ const FieldPage = ({ tenantId, products, onReload }: Props) => {
 			</div>
 
 			{error && (
-				<p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>
+				<div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3">
+					<p className="text-sm text-red-700">{error}</p>
+					<button
+						type="button"
+						onClick={() => void reloadField()}
+						className="mt-2 text-xs font-semibold text-red-700 underline">
+						Tentar de novo
+					</button>
+				</div>
 			)}
 			{loading && <p className="text-sm text-muted-foreground">Carregando…</p>}
 
-			{!loading && view === 'agenda' && (
+			{!loading && !error && view === 'agenda' && (
 				<p className="text-sm text-muted-foreground">
 					{agenda.length === 0 ? 'Nenhum follow-up marcado.' : `${agenda.length} follow-ups abertos.`}
 				</p>
 			)}
-			{!loading && view === 'funnel' && (
+			{!loading && !error && view === 'funnel' && (
 				<p className="text-sm text-muted-foreground">
 					{contacts.length === 0 ? 'Nenhum contato ainda.' : `${contacts.length} contatos.`}
 				</p>
 			)}
-			{!loading && view === 'suppliers' && (
+			{!loading && !error && view === 'suppliers' && (
 				<p className="text-sm text-muted-foreground">
 					{contacts.filter((c) => c.contactType === 'supplier').length === 0
 						? 'Nenhum fornecedor cadastrado.'
