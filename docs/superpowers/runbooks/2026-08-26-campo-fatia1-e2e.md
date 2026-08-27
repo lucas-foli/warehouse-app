@@ -62,7 +62,12 @@ Registrado como decisão consciente da fatia 1 (não é bug a reportar).
 17. Funil com filtro "Fornecedores" num tenant (ou momento, antes do passo 8
     criar o Noronha Pescados) sem nenhum fornecedor cadastrado → mostra
     "Nenhum contato neste filtro.", não uma tela em branco.
-18. Logado como usuário NÃO-admin: consegue registrar visita normalmente e
-    marcar um follow-up como feito na Agenda; ao tentar mudar o estágio na
-    ficha, recebe "Apenas administradores podem alterar o estágio." e a
-    mudança não é aplicada.
+18. Logado como usuário NÃO-admin: consegue registrar visita em contato que
+    JÁ existe e marcar um follow-up como feito na Agenda. É barrado, com
+    mensagem clara e sem erro em inglês, em três pontos:
+    - mudar o estágio na ficha → "Apenas administradores podem alterar o
+      estágio." (e a mudança não é aplicada);
+    - criar contato novo pelo registro rápido → "Apenas administradores podem
+      cadastrar clientes.";
+    - Fornecedores → "+ Novo fornecedor" → "Apenas administradores podem
+      cadastrar fornecedores.".
