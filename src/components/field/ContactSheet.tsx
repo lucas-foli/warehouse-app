@@ -116,7 +116,7 @@ const ContactSheet = ({ open, tenantId, contact, products, onClose, onChanged, a
 	};
 
 	return (
-		<div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center sm:p-6">
+		<div className="fixed inset-0 z-50 !mt-0 flex items-end justify-center bg-black/40 sm:items-center sm:p-6">
 			<div className="max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-t-3xl bg-card p-5 sm:rounded-3xl">
 				<div className="mb-1 flex items-center justify-between">
 					<h2 className="text-lg font-bold text-foreground">{contact.name}</h2>

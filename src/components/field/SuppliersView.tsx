@@ -37,13 +37,7 @@ const SuppliersView = ({ suppliers, tenantId, onOpenContact, onCreated }: Props)
 			setCity('');
 			onCreated();
 		} catch (err) {
-			const message =
-				err instanceof Error
-					? err.message
-					: (err as { code?: string })?.code === '42501'
-						? 'Apenas administradores podem cadastrar fornecedores.'
-						: 'Não foi possível criar o fornecedor.';
-			setError(message);
+			setError(err instanceof Error ? err.message : 'Não foi possível criar o fornecedor.');
 		} finally {
 			setSaving(false);
 		}

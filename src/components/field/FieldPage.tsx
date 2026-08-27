@@ -26,6 +26,7 @@ const FieldPage = ({ tenantId, products, onReload }: Props) => {
 	const [agenda, setAgenda] = useState<Interaction[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState('');
+	const [loadedOnce, setLoadedOnce] = useState(false);
 	const [logOpen, setLogOpen] = useState(false);
 	const [sheetContact, setSheetContact] = useState<FieldContact | null>(null);
 	const loadIdRef = useRef(0);
@@ -46,10 +47,19 @@ const FieldPage = ({ tenantId, products, onReload }: Props) => {
 			if (loadId !== loadIdRef.current) return;
 			setContacts(nextContacts);
 			setAgenda(nextAgenda);
+			setLoadedOnce(true);
 		} catch (err) {
 			if (loadId !== loadIdRef.current) return;
 			console.error('[campo] falha ao carregar', err);
-			setError(err instanceof Error ? err.message : 'Não foi possível carregar o Campo.');
+			const raw = err instanceof Error ? err.message : '';
+			const code = (err as { code?: string })?.code;
+			const message =
+				code === 'PGRST205' || raw.includes('schema cache')
+					? 'O módulo Campo ainda não está configurado neste workspace. As migrations precisam ser aplicadas.'
+					: err instanceof Error
+						? err.message
+						: 'Não foi possível carregar o Campo.';
+			setError(message);
 		} finally {
 			if (loadId === loadIdRef.current) setLoading(false);
 		}
@@ -86,13 +96,13 @@ const FieldPage = ({ tenantId, products, onReload }: Props) => {
 			)}
 			{loading && <p className="text-sm text-muted-foreground">Carregando…</p>}
 
-			{!loading && !error && view === 'agenda' && (
+			{!loading && (!error || loadedOnce) && view === 'agenda' && (
 				<AgendaView agenda={agenda} contacts={contacts} onChanged={() => void reloadField({ silent: true })} />
 			)}
-			{!loading && !error && view === 'funnel' && (
+			{!loading && (!error || loadedOnce) && view === 'funnel' && (
 				<FunnelView contacts={contacts} onOpenContact={(c) => setSheetContact(c)} />
 			)}
-			{!loading && !error && view === 'suppliers' && (
+			{!loading && (!error || loadedOnce) && view === 'suppliers' && (
 				<SuppliersView
 					suppliers={contacts.filter((c) => c.contactType === 'supplier')}
 					tenantId={tenantId}

@@ -250,8 +250,16 @@ export async function quickCreateContact(
 		.select('id')
 		.single();
 	if (error) {
-		if ((error as { code?: string }).code === '23505') {
+		const code = (error as { code?: string }).code;
+		if (code === '23505') {
 			throw new Error('Já existe um contato com esse nome. Busque-o na lista.');
+		}
+		if (code === '42501') {
+			throw new Error(
+				contactType === 'client'
+					? 'Apenas administradores podem cadastrar clientes.'
+					: 'Apenas administradores podem cadastrar fornecedores.',
+			);
 		}
 		throw error;
 	}
