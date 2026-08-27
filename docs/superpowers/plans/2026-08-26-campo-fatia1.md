@@ -1450,6 +1450,14 @@ git commit -m "feat(campo): aba Campo com rota /field e shell segmented (agenda/
 
 ### Task 10: AgendaView (marcar feito / reagendar)
 
+> **Nota pós-review (2026-08-26):** emendas na execução — alvo de toque de
+> 44px (`min-h-11`) nos botões, porque "Feito" é irreversível na fatia 1;
+> fallback honesto "Contato não identificado" (o contato pode não ter vindo
+> no fetch) e "Follow-up sem descrição"; "Mais tarde" virou toggle
+> bidirecional com `aria-expanded`; e `reloadField({ silent: true })` para a
+> lista não desmontar a cada ação. Fonte: `src/components/field/
+> AgendaView.tsx` + `FieldPage.tsx` (commit 3f43cc0).
+
 **Files:**
 - Create: `src/components/field/AgendaView.tsx`
 - Modify: `src/components/field/FieldPage.tsx` (substituir o placeholder da agenda)
