@@ -34,6 +34,7 @@ const FieldPage = ({ tenantId, products, onReload }: Props) => {
 	const reloadField = useCallback(async (opts?: { silent?: boolean }) => {
 		if (!tenantId) {
 			setLoading(false);
+			setLoadedOnce(false);
 			return;
 		}
 		const loadId = ++loadIdRef.current;
@@ -66,6 +67,8 @@ const FieldPage = ({ tenantId, products, onReload }: Props) => {
 	}, [tenantId]);
 
 	useEffect(() => {
+		// tenantId novo: a lista do anterior não pode sobreviver a um load que falhe.
+		setLoadedOnce(false);
 		void reloadField();
 	}, [reloadField]);
 

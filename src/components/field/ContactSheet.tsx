@@ -81,7 +81,16 @@ const ContactSheet = ({ open, tenantId, contact, products, onClose, onChanged, a
 		setError('');
 		fetchContactInteractions(tenantId, contact.contactType, contact.id)
 			.then(setTimeline)
-			.catch((err) => setError(err instanceof Error ? err.message : 'Não foi possível carregar a timeline.'))
+			.catch((err) => {
+				console.error('[campo] falha ao carregar a timeline', err);
+				const raw = err instanceof Error ? err.message : '';
+				const code = (err as { code?: string })?.code;
+				setError(
+					code === 'PGRST205' || raw.includes('schema cache')
+						? 'O módulo Campo ainda não está configurado neste workspace. As migrations precisam ser aplicadas.'
+						: raw || 'Não foi possível carregar a timeline.',
+				);
+			})
 			.finally(() => setLoading(false));
 	}, [open, contact, tenantId, reloadKey]);
 
