@@ -1636,6 +1636,17 @@ git commit -m "feat(campo): AgendaView com grupos por dia local, feito e reagend
 
 ### Task 11: QuickLogModal (registro em 30s) + botão fixo
 
+> **Nota pós-review (2026-08-26):** o brief tinha dois defeitos de perda
+> silenciosa de dado, corrigidos na execução — (1) o aviso de estoque
+> negativo era código morto (`onClose()` desmontava antes de pintar; agora
+> exige fechamento explícito) e (2) falha do RPC após o `quickCreateContact`
+> deixava contato órfão e travava a retentativa no 23505 (agora o contato
+> criado vira estado). Mais: próximo passo com texto assume "amanhã" (senão
+> sumia da agenda), amostra decimal avisa em vez de ser engolida, amostras
+> removíveis, aviso de estoque só para SKU conhecido (o Dashboard passa o
+> catálogo cru — a RPC resolve SKU tenant-wide), `92dvh`/`bg-card` e ✕ de
+> 44px. Fonte: `src/components/field/QuickLogModal.tsx` (commit 342d884).
+
 **Files:**
 - Create: `src/components/field/QuickLogModal.tsx`
 - Modify: `src/components/field/FieldPage.tsx` (botão "+ Registrar visita" + modal)
