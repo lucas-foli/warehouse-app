@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { FieldContact, Interaction, Product } from '../../types';
 import { fetchFieldContacts, fetchOpenAgenda } from '../../services/fieldService';
 import AgendaView from './AgendaView';
+import FunnelView from './FunnelView';
 import { QuickLogModal } from './QuickLogModal';
 
 type FieldView = 'agenda' | 'funnel' | 'suppliers';
@@ -85,11 +86,7 @@ const FieldPage = ({ tenantId, products, onReload }: Props) => {
 			{!loading && !error && view === 'agenda' && (
 				<AgendaView agenda={agenda} contacts={contacts} onChanged={() => void reloadField({ silent: true })} />
 			)}
-			{!loading && !error && view === 'funnel' && (
-				<p className="text-sm text-muted-foreground">
-					{contacts.length === 0 ? 'Nenhum contato ainda.' : `${contacts.length} contatos.`}
-				</p>
-			)}
+			{!loading && !error && view === 'funnel' && <FunnelView contacts={contacts} onOpenContact={() => {}} />}
 			{!loading && !error && view === 'suppliers' && (
 				<p className="text-sm text-muted-foreground">
 					{contacts.filter((c) => c.contactType === 'supplier').length === 0
