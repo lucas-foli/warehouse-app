@@ -91,6 +91,13 @@ export const QuickLogModal = ({ open, tenantId, contacts, products, presetContac
 		setWarning('');
 	}, [open, presetContact]);
 
+	useEffect(() => {
+		if (nextStep.trim() && !dueAt) {
+			setDueDays(1);
+			setDueAt(inDays(1));
+		}
+	}, [nextStep, dueAt]);
+
 	const stockBySku = useMemo(() => {
 		const map = new Map<string, number>();
 		for (const p of products) map.set(p.sku.trim().toUpperCase(), p.qty);
@@ -104,13 +111,27 @@ export const QuickLogModal = ({ open, tenantId, contacts, products, presetContac
 	}, [contacts, search]);
 
 	const merged = useMemo(() => mergeSamples(samples), [samples]);
-	const lowStock = merged.filter((s) => (stockBySku.get(s.sku) ?? 0) < s.qty).map((s) => s.sku);
+	const lowStock = merged
+		.filter((s) => {
+			const stock = stockBySku.get(s.sku);
+			return stock !== undefined && stock < s.qty;
+		})
+		.map((s) => s.sku);
 
 	if (!open) return null;
 
+	const removeSample = (sku: string) => {
+		setSamples((current) => current.filter((s) => s.sku.trim().toUpperCase() !== sku));
+	};
+
 	const addSample = () => {
 		const qty = Number(sampleQty);
-		if (!sampleSku.trim() || !Number.isFinite(qty) || qty <= 0) return;
+		if (!sampleSku.trim()) return;
+		if (!Number.isInteger(qty) || qty <= 0) {
+			setError('A quantidade da amostra deve ser um número inteiro maior que zero.');
+			return;
+		}
+		setError('');
 		setSamples((current) => [...current, { sku: sampleSku, qty }]);
 		setSampleSku('');
 		setSampleQty('1');
@@ -139,6 +160,8 @@ export const QuickLogModal = ({ open, tenantId, contacts, products, presetContac
 					hasInteraction: false,
 					lastFactAt: null,
 				};
+				setContact(target);
+				setCreating(false);
 			}
 			if (!target) throw new Error('Escolha ou crie um contato.');
 
@@ -154,7 +177,9 @@ export const QuickLogModal = ({ open, tenantId, contacts, products, presetContac
 				samples,
 			});
 			if (result.negativeSkus.length > 0) {
-				setWarning(`Estoque ficou negativo: ${result.negativeSkus.join(', ')} — confira no relatório.`);
+				setWarning(`Estoque ficou negativo: ${result.negativeSkus.join(', ')}. A visita foi registrada.`);
+				onSaved();
+				return;
 			}
 			onSaved();
 			onClose();
@@ -167,10 +192,14 @@ export const QuickLogModal = ({ open, tenantId, contacts, products, presetContac
 
 	return (
 		<div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-6">
-			<div className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-3xl bg-background p-5 sm:rounded-3xl">
+			<div className="max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-t-3xl bg-card p-5 sm:rounded-3xl">
 				<div className="mb-4 flex items-center justify-between">
 					<h2 className="text-lg font-bold text-foreground">Registrar visita</h2>
-					<button type="button" onClick={onClose} className="rounded-full bg-secondary px-3 py-1 text-sm">
+					<button
+						type="button"
+						onClick={onClose}
+						disabled={saving}
+						className="min-h-11 rounded-full bg-secondary px-4 text-sm">
 						✕
 					</button>
 				</div>
@@ -181,9 +210,11 @@ export const QuickLogModal = ({ open, tenantId, contacts, products, presetContac
 						{contact ? (
 							<div className="mt-2 flex items-center justify-between rounded-xl border border-border bg-card px-3 py-2">
 								<span className="text-sm font-medium">{contact.name}</span>
-								<button type="button" className="text-xs text-muted-foreground" onClick={() => setContact(null)}>
-									trocar
-								</button>
+								{!presetContact && (
+									<button type="button" className="text-xs text-muted-foreground" onClick={() => setContact(null)}>
+										trocar
+									</button>
+								)}
 							</div>
 						) : creating ? (
 							<div className="mt-2 space-y-2">
@@ -259,7 +290,16 @@ export const QuickLogModal = ({ open, tenantId, contacts, products, presetContac
 						{merged.map((s) => (
 							<div key={s.sku} className="mt-2 flex items-center justify-between rounded-xl border border-border bg-card px-3 py-2 text-sm">
 								<span>{s.sku}</span>
-								<span className="font-semibold">{s.qty}</span>
+								<span className="flex items-center gap-3">
+									<span className="font-semibold">{s.qty}</span>
+									<button
+										type="button"
+										onClick={() => removeSample(s.sku)}
+										aria-label={`Remover amostra ${s.sku}`}
+										className="min-h-11 px-2 text-muted-foreground">
+										✕
+									</button>
+								</span>
 							</div>
 						))}
 						{lowStock.length > 0 && (
@@ -284,6 +324,7 @@ export const QuickLogModal = ({ open, tenantId, contacts, products, presetContac
 								className={`${fieldClass} mt-0 w-20`}
 								type="number"
 								min={1}
+								step={1}
 								value={sampleQty}
 								onChange={(e) => setSampleQty(e.target.value)}
 							/>
@@ -317,6 +358,7 @@ export const QuickLogModal = ({ open, tenantId, contacts, products, presetContac
 							<input
 								type="date"
 								className={`${fieldClass} mt-0 w-auto`}
+								value={dueDays === null && dueAt ? dueAt.slice(0, 10) : ''}
 								onChange={(e) => {
 									setDueDays(null);
 									setDueAt(e.target.value ? new Date(`${e.target.value}T12:00:00`).toISOString() : null);
@@ -332,7 +374,15 @@ export const QuickLogModal = ({ open, tenantId, contacts, products, presetContac
 
 					{error && <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
 					{warning && (
-						<p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">{warning}</p>
+						<div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
+							<p className="text-sm text-amber-700">{warning}</p>
+							<button
+								type="button"
+								onClick={onClose}
+								className="mt-2 min-h-11 text-xs font-semibold text-amber-700 underline">
+								Entendi, fechar
+							</button>
+						</div>
 					)}
 
 					<button
