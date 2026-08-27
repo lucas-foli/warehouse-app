@@ -56,7 +56,7 @@ const FunnelView = ({ contacts, onOpenContact }: Props) => {
 					<section key={stage} className="space-y-2">
 						<div className="flex items-center justify-between">
 							<h3 className="text-sm font-semibold text-foreground">{STAGE_LABELS[stage]}</h3>
-							<span className="rounded-full bg-secondary px-2.5 py-0.5 text-xs font-bold">{items.length}</span>
+							<span className="rounded-full bg-secondary px-2.5 py-0.5 text-xs font-bold text-secondary-foreground">{items.length}</span>
 						</div>
 						{items.map(({ contact, overridden }) => {
 							const days = daysSince(contact.lastInteractionAt);
@@ -71,11 +71,13 @@ const FunnelView = ({ contacts, onOpenContact }: Props) => {
 										<p className="text-xs text-muted-foreground">
 											{days === null
 												? 'sem interação'
-												: `há ${days} ${days === 1 ? 'dia' : 'dias'}${days >= STALE_DAYS ? ' ⚠' : ''}`}
+												: days === 0
+													? 'hoje'
+													: `há ${days} ${days === 1 ? 'dia' : 'dias'}${days >= STALE_DAYS ? ' ⚠' : ''}`}
 											{overridden ? ' · marcado à mão' : ''}
 										</p>
 									</div>
-									<span className="ml-3 shrink-0 rounded-full bg-secondary px-2.5 py-0.5 text-[11px] font-semibold">
+									<span className="ml-3 shrink-0 rounded-full bg-secondary px-2.5 py-0.5 text-[11px] font-semibold text-secondary-foreground">
 										{contact.contactType === 'client' ? 'cliente' : 'fornecedor'}
 									</span>
 								</button>
@@ -85,7 +87,11 @@ const FunnelView = ({ contacts, onOpenContact }: Props) => {
 				);
 			})}
 
-			{contacts.length === 0 && <p className="text-sm text-muted-foreground">Nenhum contato ainda.</p>}
+			{[...grouped.values()].every((items) => items.length === 0) && (
+				<p className="text-sm text-muted-foreground">
+					{contacts.length === 0 ? 'Nenhum contato ainda.' : 'Nenhum contato neste filtro.'}
+				</p>
+			)}
 		</div>
 	);
 };
