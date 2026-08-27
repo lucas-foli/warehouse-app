@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { FieldContact, Interaction, Product } from '../../types';
 import { fetchFieldContacts, fetchOpenAgenda } from '../../services/fieldService';
+import AgendaView from './AgendaView';
 
 type FieldView = 'agenda' | 'funnel' | 'suppliers';
 
@@ -84,9 +85,7 @@ const FieldPage = ({ tenantId, products, onReload }: Props) => {
 			{loading && <p className="text-sm text-muted-foreground">Carregando…</p>}
 
 			{!loading && !error && view === 'agenda' && (
-				<p className="text-sm text-muted-foreground">
-					{agenda.length === 0 ? 'Nenhum follow-up marcado.' : `${agenda.length} follow-ups abertos.`}
-				</p>
+				<AgendaView agenda={agenda} contacts={contacts} onChanged={() => void reloadField()} />
 			)}
 			{!loading && !error && view === 'funnel' && (
 				<p className="text-sm text-muted-foreground">
