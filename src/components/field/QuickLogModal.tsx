@@ -387,10 +387,10 @@ export const QuickLogModal = ({ open, tenantId, contacts, products, presetContac
 
 					<button
 						type="button"
-						disabled={saving}
+						disabled={saving || !!warning}
 						onClick={() => void handleSave()}
 						className="w-full min-h-11 rounded-2xl bg-primary py-3 text-sm font-bold text-primary-foreground disabled:opacity-50">
-						{saving ? 'Salvando…' : 'Salvar visita'}
+						{saving ? 'Salvando…' : warning ? 'Visita registrada' : 'Salvar visita'}
 					</button>
 				</div>
 			</div>
