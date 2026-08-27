@@ -2052,6 +2052,12 @@ git commit -m "feat(campo): registro rápido em uma tela com amostras e próximo
 
 ### Task 12: FunnelView (estágio derivado + filtro por papel)
 
+> **Nota pós-review (2026-08-26):** emendas na execução — `min-h-11` nos
+> chips de filtro (decisão de 44px da obra), empty state que respeita o
+> filtro de papel ativo ("Nenhum contato neste filtro." em vez de tela em
+> branco), `text-secondary-foreground` nos badges e cópia "hoje" no lugar de
+> "há 0 dias". Fonte: `src/components/field/FunnelView.tsx` (commit d5551c2).
+
 **Files:**
 - Create: `src/components/field/FunnelView.tsx`
 - Modify: `src/components/field/FieldPage.tsx` (substituir o placeholder do funil)
