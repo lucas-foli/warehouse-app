@@ -19,6 +19,13 @@ const SuppliersView = ({ suppliers, tenantId, onOpenContact, onCreated }: Props)
 	const [saving, setSaving] = useState(false);
 	const [error, setError] = useState('');
 
+	const openCreate = () => {
+		setName('');
+		setCity('');
+		setError('');
+		setCreating(true);
+	};
+
 	const handleCreate = async () => {
 		if (!tenantId || !name.trim()) return;
 		setSaving(true);
@@ -30,7 +37,13 @@ const SuppliersView = ({ suppliers, tenantId, onOpenContact, onCreated }: Props)
 			setCity('');
 			onCreated();
 		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Não foi possível criar o fornecedor.');
+			const message =
+				err instanceof Error
+					? err.message
+					: (err as { code?: string })?.code === '42501'
+						? 'Apenas administradores podem cadastrar fornecedores.'
+						: 'Não foi possível criar o fornecedor.';
+			setError(message);
 		} finally {
 			setSaving(false);
 		}
@@ -62,7 +75,7 @@ const SuppliersView = ({ suppliers, tenantId, onOpenContact, onCreated }: Props)
 					<div className="mt-3 flex gap-2">
 						<button
 							type="button"
-							disabled={saving}
+							disabled={saving || !name.trim()}
 							onClick={() => void handleCreate()}
 							className="min-h-11 flex-1 rounded-xl bg-primary py-2 text-sm font-bold text-primary-foreground disabled:opacity-50">
 							Salvar
@@ -78,7 +91,7 @@ const SuppliersView = ({ suppliers, tenantId, onOpenContact, onCreated }: Props)
 			) : (
 				<button
 					type="button"
-					onClick={() => setCreating(true)}
+					onClick={openCreate}
 					className="min-h-11 text-sm font-semibold text-foreground">
 					+ Novo fornecedor
 				</button>

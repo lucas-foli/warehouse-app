@@ -415,6 +415,7 @@ const Dashboard = ({
 							tenantId={tenantId}
 							isAdmin={isAdmin}
 							onReload={reload}
+							products={products}
 						/>
 					)}
 

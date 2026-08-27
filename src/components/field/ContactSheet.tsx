@@ -12,6 +12,11 @@ type Props = {
 	products: Product[];
 	onClose: () => void;
 	onChanged: () => void;
+	// A ClientsPage monta um FieldContact aproximado (sem os fatos de
+	// interação/amostra/resultado) — nesse caso o chip de estágio é um
+	// controle de escrita alimentado por dado fabricado, então nem ele nem
+	// o seletor são exibidos; só o badge de papel (cliente/fornecedor).
+	approximate?: boolean;
 };
 
 const KIND_LABELS: Record<Interaction['kind'], string> = {
@@ -29,35 +34,81 @@ const OUTCOME_LABELS: Record<NonNullable<Interaction['outcome']>, string> = {
 	buyer_absent: 'comprador ausente',
 };
 
-const dateLabel = (iso: string): string =>
-	new Date(iso).toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' });
+const dateLabel = (iso: string): string => {
+	const d = new Date(iso);
+	const sameYear = d.getFullYear() === new Date().getFullYear();
+	return d.toLocaleDateString('pt-BR', {
+		day: 'numeric',
+		month: 'short',
+		...(sameYear ? {} : { year: 'numeric' }),
+	});
+};
 
-const ContactSheet = ({ open, tenantId, contact, products, onClose, onChanged }: Props) => {
+const ContactSheet = ({ open, tenantId, contact, products, onClose, onChanged, approximate = false }: Props) => {
 	const [timeline, setTimeline] = useState<Interaction[]>([]);
 	const [loading, setLoading] = useState(false);
 	const [stagePickerOpen, setStagePickerOpen] = useState(false);
 	const [logOpen, setLogOpen] = useState(false);
 	const [error, setError] = useState('');
+	// reloadKey força um novo fetch da timeline sem trocar de contato (ex.:
+	// depois de uma visita registrada de dentro da própria ficha — o
+	// `contact` recebido por prop não muda de referência, então sem isso a
+	// lista congelava na foto de quando a ficha abriu).
+	const [reloadKey, setReloadKey] = useState(0);
+	// Estágio otimista: contact.manualStage/stageOverriddenAt só refletem o
+	// banco no momento em que a ficha abriu (o objeto não é re-buscado no
+	// meio da sessão), então sem isso o chip também congelava depois de um
+	// clique no seletor — exatamente o mesmo sintoma da timeline, só que a
+	// 2cm do dedo que acabou de tocar.
+	const [optimisticStage, setOptimisticStage] = useState<ContactStage | null>(null);
+	const [stageTouched, setStageTouched] = useState(false);
 	const navigate = useNavigate();
+
+	// Reset do estágio otimista é amarrado à IDENTIDADE do contato (efeito
+	// separado, deps=[contact]) — não pode viver no efeito da timeline
+	// porque aquele também dispara em reloadKey, e resetaria o otimista
+	// bem no instante em que handleStage acabou de setá-lo, apagando a
+	// própria correção antes de ela aparecer.
+	useEffect(() => {
+		setOptimisticStage(null);
+		setStageTouched(false);
+	}, [contact]);
 
 	useEffect(() => {
 		if (!open || !contact || !tenantId) return;
+		setTimeline([]);
 		setLoading(true);
 		setError('');
 		fetchContactInteractions(tenantId, contact.contactType, contact.id)
 			.then(setTimeline)
 			.catch((err) => setError(err instanceof Error ? err.message : 'Não foi possível carregar a timeline.'))
 			.finally(() => setLoading(false));
-	}, [open, contact, tenantId]);
+	}, [open, contact, tenantId, reloadKey]);
 
 	if (!open || !contact) return null;
 
-	const { stage, overridden } = deriveStage(contact);
+	// Enquanto o estágio não foi tocado nesta sessão, deriva normalmente do
+	// contato recebido. Depois de tocado, reconstrói o override em cima do
+	// contato (com stageOverriddenAt "agora", ou limpo quando o usuário
+	// escolheu "voltar ao automático") para que deriveStage recalcule com a
+	// decisão local mais recente em vez da foto congelada.
+	const derived = stageTouched
+		? deriveStage({
+				...contact,
+				manualStage: optimisticStage,
+				stageOverriddenAt: optimisticStage ? new Date().toISOString() : null,
+			})
+		: deriveStage(contact);
+	const stage = derived.stage;
+	const overridden = derived.overridden;
 
 	const handleStage = async (next: ContactStage | null) => {
 		setError('');
 		try {
 			await setManualStage(contact.contactType, contact.id, next);
+			setOptimisticStage(next);
+			setStageTouched(true);
+			setReloadKey((k) => k + 1);
 			setStagePickerOpen(false);
 			onChanged();
 		} catch (err) {
@@ -81,15 +132,17 @@ const ContactSheet = ({ open, tenantId, contact, products, onClose, onChanged }:
 					<span className="rounded-full bg-secondary px-2.5 py-0.5 text-[11px] font-semibold">
 						{contact.contactType === 'client' ? 'cliente' : 'fornecedor'}
 					</span>
-					<button
-						type="button"
-						onClick={() => setStagePickerOpen((v) => !v)}
-						className="min-h-11 rounded-full border border-border px-2.5 text-[11px] font-semibold text-foreground">
-						{STAGE_LABELS[stage]}
-						{overridden ? ' · à mão' : ''} ▾
-					</button>
+					{!approximate && (
+						<button
+							type="button"
+							onClick={() => setStagePickerOpen((v) => !v)}
+							className="min-h-11 rounded-full border border-border px-2.5 text-[11px] font-semibold text-foreground">
+							{STAGE_LABELS[stage]}
+							{overridden ? ' · à mão' : ''} ▾
+						</button>
+					)}
 				</div>
-				{stagePickerOpen && (
+				{!approximate && stagePickerOpen && (
 					<div className="mt-2 flex flex-wrap gap-2">
 						{STAGE_ORDER.map((s) => (
 							<button
@@ -173,7 +226,13 @@ const ContactSheet = ({ open, tenantId, contact, products, onClose, onChanged }:
 				products={products}
 				presetContact={contact}
 				onClose={() => setLogOpen(false)}
-				onSaved={onChanged}
+				onSaved={() => {
+					// Mesma causa da timeline congelada (finding original): sem isso,
+					// uma visita registrada aqui dentro só aparece na lista se a
+					// ficha for fechada e reaberta.
+					setReloadKey((k) => k + 1);
+					onChanged();
+				}}
 			/>
 		</div>
 	);

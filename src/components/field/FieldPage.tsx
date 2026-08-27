@@ -97,7 +97,7 @@ const FieldPage = ({ tenantId, products, onReload }: Props) => {
 					suppliers={contacts.filter((c) => c.contactType === 'supplier')}
 					tenantId={tenantId}
 					onOpenContact={(c) => setSheetContact(c)}
-					onCreated={() => void reloadField()}
+					onCreated={() => void reloadField({ silent: true })}
 				/>
 			)}
 

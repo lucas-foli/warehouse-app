@@ -8,7 +8,7 @@ import {
 	XAxis,
 	YAxis,
 } from 'recharts';
-import type { Client, FieldContact, HistoryItem } from '../types';
+import type { Client, FieldContact, HistoryItem, Product } from '../types';
 import {
 	buildClientEvolutionFromClients,
 	buildClientPurchasesTimelineFromClients,
@@ -26,6 +26,7 @@ const ClientsPage = ({
 	tenantId,
 	isAdmin = false,
 	onReload,
+	products,
 }: {
 	clientes: Client[];
 	clientEvolution?: HistoryItem[];
@@ -34,6 +35,7 @@ const ClientsPage = ({
 	tenantId?: string;
 	isAdmin?: boolean;
 	onReload?: () => void;
+	products: Product[];
 }) => {
 	const [modalOpen, setModalOpen] = useState(false);
 	const [editingClient, setEditingClient] = useState<Client | null>(null);
@@ -315,7 +317,8 @@ const ClientsPage = ({
 				open={sheetContact !== null}
 				tenantId={tenantId}
 				contact={sheetContact}
-				products={[]}
+				products={products}
+				approximate
 				onClose={() => setSheetContact(null)}
 				onChanged={() => onReload?.()}
 			/>
