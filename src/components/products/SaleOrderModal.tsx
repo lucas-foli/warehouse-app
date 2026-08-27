@@ -5,6 +5,7 @@ import { listProductOptions } from '../../services/productOptions';
 import { mergeCartLines, skusMissingPrice, type CartLine } from '../../utils/cart';
 import { findProductByCode } from '../../utils/barcode';
 import { formatCurrency } from '../../utils/currency';
+import { Modal } from '../ui/Modal';
 
 type Props = {
 	open: boolean;
@@ -99,8 +100,6 @@ export const SaleOrderModal = ({
 		if (selectedProduct) setUnitPrice(selectedProduct.price !== undefined ? String(selectedProduct.price) : '');
 	}, [selectedProduct]);
 
-	if (!open) return null;
-
 	const labelClass = 'block text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground';
 	const fieldClass =
 		'mt-2 block w-full rounded-xl border border-input bg-card px-3 py-2 text-sm text-foreground outline-none transition focus:border-ring/60 focus:ring-2 focus:ring-ring/25';
@@ -190,16 +189,11 @@ export const SaleOrderModal = ({
 	};
 
 	return (
-		<div className="fixed inset-0 z-50 bg-black/60 sm:flex sm:items-center sm:justify-center sm:p-4">
-			<div className="absolute inset-x-0 bottom-0 flex max-h-[92dvh] w-full flex-col rounded-t-2xl bg-card shadow-xl sm:static sm:max-h-[90vh] sm:max-w-2xl sm:rounded-[var(--radius-card)]">
-				{/* Drag handle – mobile only */}
-				<div className="flex flex-shrink-0 justify-center py-3 sm:hidden">
-					<div className="h-1 w-10 rounded-full bg-border" />
-				</div>
+		<Modal open={open} onClose={onClose} size="lg" labelledById="sale-order-title">
 				<div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-6 pt-2 sm:pt-6">
 				<div className="flex items-start justify-between gap-4">
 					<div>
-						<p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-muted-foreground">
+						<p id="sale-order-title" className="text-[11px] font-semibold uppercase tracking-[0.25em] text-muted-foreground">
 							Nova venda (vários itens)
 						</p>
 						<p className="mt-2 text-sm text-muted-foreground">
@@ -415,7 +409,6 @@ export const SaleOrderModal = ({
 						{submitting ? 'Registrando…' : 'Registrar venda'}
 					</button>
 				</div>
-			</div>
-		</div>
+			</Modal>
 	);
 };
