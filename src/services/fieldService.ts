@@ -144,27 +144,74 @@ const rowToInteraction = (r: InteractionRow): Interaction => ({
 	samples: r.interaction_samples ?? [],
 });
 
+const PAGE_SIZE = 1000;
+
+// PostgREST corta a resposta em 1000 linhas por padrão (não é hipotético: foi
+// exatamente isso que fez um fornecedor recém-cadastrado sumir da aba
+// Fornecedores em produção — o tenant de teste tinha 1000 contatos e, como a
+// query ordenava por last_interaction_at desc com nulls por último, o
+// fornecedor sem interação nenhuma caiu na cauda cortada). Pagina por `id`
+// ascendente (chave estável, sem colisão entre clients/suppliers na view nem
+// dentro de interactions) e para assim que uma página vier menor que
+// PAGE_SIZE. A ordenação que a UI espera é aplicada em memória depois, sobre
+// a lista completa.
+async function fetchAllPages<T>(
+	buildQuery: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>,
+): Promise<T[]> {
+	const rows: T[] = [];
+	for (let from = 0; ; from += PAGE_SIZE) {
+		const { data, error } = await buildQuery(from, from + PAGE_SIZE - 1);
+		if (error) throw error;
+		if (!data?.length) break;
+		rows.push(...data);
+		if (data.length < PAGE_SIZE) break;
+	}
+	return rows;
+}
+
 export async function fetchFieldContacts(tenantId: string): Promise<FieldContact[]> {
-	const { data, error } = await supabase
-		.from('field_contacts')
-		.select('*')
-		.eq('tenant_id', tenantId)
-		.order('last_interaction_at', { ascending: false, nullsFirst: false });
-	if (error) throw error;
-	return ((data ?? []) as FieldContactRow[]).map(rowToFieldContact);
+	const rows = await fetchAllPages<FieldContactRow>((from, to) =>
+		supabase
+			.from('field_contacts')
+			.select('*')
+			.eq('tenant_id', tenantId)
+			.order('id', { ascending: true })
+			.range(from, to),
+	);
+	const contacts = rows.map(rowToFieldContact);
+	contacts.sort((a, b) => {
+		const aAt = a.lastInteractionAt ? new Date(a.lastInteractionAt).getTime() : null;
+		const bAt = b.lastInteractionAt ? new Date(b.lastInteractionAt).getTime() : null;
+		if (aAt !== null && bAt !== null) return bAt - aAt;
+		if (aAt !== null) return -1;
+		if (bAt !== null) return 1;
+		return a.name.localeCompare(b.name);
+	});
+	return contacts;
 }
 
 // Agenda = interações com próximo passo em aberto (não existe tabela própria).
 export async function fetchOpenAgenda(tenantId: string): Promise<Interaction[]> {
-	const { data, error } = await supabase
-		.from('interactions')
-		.select('*, interaction_samples(sku, qty)')
-		.eq('tenant_id', tenantId)
-		.not('next_step_due_at', 'is', null)
-		.is('next_step_done_at', null)
-		.order('next_step_due_at', { ascending: true });
-	if (error) throw error;
-	return ((data ?? []) as InteractionRow[]).map(rowToInteraction);
+	const rows = await fetchAllPages<InteractionRow>((from, to) =>
+		supabase
+			.from('interactions')
+			.select('*, interaction_samples(sku, qty)')
+			.eq('tenant_id', tenantId)
+			.not('next_step_due_at', 'is', null)
+			.is('next_step_done_at', null)
+			.order('id', { ascending: true })
+			.range(from, to),
+	);
+	const interactions = rows.map(rowToInteraction);
+	interactions.sort((a, b) => {
+		const aAt = a.nextStepDueAt ? new Date(a.nextStepDueAt).getTime() : null;
+		const bAt = b.nextStepDueAt ? new Date(b.nextStepDueAt).getTime() : null;
+		if (aAt !== null && bAt !== null) return aAt - bAt;
+		if (aAt !== null) return -1;
+		if (bAt !== null) return 1;
+		return 0;
+	});
+	return interactions;
 }
 
 export async function fetchContactInteractions(
@@ -173,14 +220,26 @@ export async function fetchContactInteractions(
 	contactId: string,
 ): Promise<Interaction[]> {
 	const column = contactType === 'client' ? 'client_id' : 'supplier_id';
-	const { data, error } = await supabase
-		.from('interactions')
-		.select('*, interaction_samples(sku, qty)')
-		.eq('tenant_id', tenantId)
-		.eq(column, contactId)
-		.order('occurred_at', { ascending: false });
-	if (error) throw error;
-	return ((data ?? []) as InteractionRow[]).map(rowToInteraction);
+	const rows = await fetchAllPages<InteractionRow>((from, to) =>
+		supabase
+			.from('interactions')
+			.select('*, interaction_samples(sku, qty)')
+			.eq('tenant_id', tenantId)
+			.eq(column, contactId)
+			.order('id', { ascending: true })
+			.range(from, to),
+	);
+	const interactions = rows.map(rowToInteraction);
+	// A view usa occurred_at desc, created_at desc, id desc para o
+	// last_outcome; sem created_at por aqui, desempata por id desc para não
+	// discordar dela num empate de occurred_at.
+	interactions.sort((a, b) => {
+		const aAt = new Date(a.occurredAt).getTime();
+		const bAt = new Date(b.occurredAt).getTime();
+		if (aAt !== bAt) return bAt - aAt;
+		return b.id.localeCompare(a.id);
+	});
+	return interactions;
 }
 
 export async function markNextStepDone(interactionId: string): Promise<void> {

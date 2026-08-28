@@ -1,9 +1,32 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const rpcMock = vi.fn();
-vi.mock('../lib/supabaseClient', () => ({
-	supabase: { rpc: (...args: unknown[]) => rpcMock(...args) },
-}));
+const rangeMock = vi.fn();
+// Páginas que o `from(...).range(...)` mockado devolve, uma por chamada, na
+// ordem em que os testes de paginação as definem. Sobra `[]` para chamadas
+// além do que o teste configurou.
+let fromPages: Record<string, unknown>[][] = [];
+
+vi.mock('../lib/supabaseClient', () => {
+	const makeBuilder = () => {
+		const builder: Record<string, unknown> = {};
+		builder.select = () => builder;
+		builder.eq = () => builder;
+		builder.order = () => builder;
+		builder.range = (...args: unknown[]) => {
+			rangeMock(...args);
+			const page = fromPages[rangeMock.mock.calls.length - 1] ?? [];
+			return Promise.resolve({ data: page, error: null });
+		};
+		return builder;
+	};
+	return {
+		supabase: {
+			rpc: (...args: unknown[]) => rpcMock(...args),
+			from: () => makeBuilder(),
+		},
+	};
+});
 
 import { mergeSamples } from './fieldService';
 
@@ -76,5 +99,54 @@ describe('registerInteraction', () => {
 			'register_interaction',
 			expect.objectContaining({ p_samples: [{ sku: 'POP-401', qty: 3 }] }),
 		);
+	});
+});
+
+describe('fetchFieldContacts paginação', () => {
+	beforeEach(() => {
+		rangeMock.mockClear();
+		fromPages = [];
+	});
+
+	const makeContactRow = (i: number): Record<string, unknown> => ({
+		contact_type: 'supplier',
+		id: `id-${String(i).padStart(5, '0')}`,
+		tenant_id: 't1',
+		name: `Fornecedor ${i}`,
+		city: null,
+		phone: null,
+		email: null,
+		manual_stage: null,
+		stage_overridden_at: null,
+		last_interaction_at: null,
+		has_transaction: false,
+		last_outcome: null,
+		has_samples: false,
+		has_interaction: false,
+		last_fact_at: null,
+	});
+
+	it('busca todas as páginas quando o tenant passa de 1000 contatos', async () => {
+		// mata: fetch sem range (devolveria só a primeira página, que é o bug do e2e)
+		const page1 = Array.from({ length: 1000 }, (_, i) => makeContactRow(i));
+		const page2 = Array.from({ length: 3 }, (_, i) => makeContactRow(1000 + i));
+		fromPages = [page1, page2];
+		const { fetchFieldContacts } = await import('./fieldService');
+
+		const result = await fetchFieldContacts('t1');
+
+		expect(result).toHaveLength(1003);
+		expect(rangeMock).toHaveBeenCalledTimes(2);
+	});
+
+	it('para na primeira página incompleta', async () => {
+		// mata: loop infinito ou chamada extra desnecessária
+		fromPages = [Array.from({ length: 3 }, (_, i) => makeContactRow(i))];
+		const { fetchFieldContacts } = await import('./fieldService');
+
+		const result = await fetchFieldContacts('t1');
+
+		expect(result).toHaveLength(3);
+		expect(rangeMock).toHaveBeenCalledTimes(1);
 	});
 });
