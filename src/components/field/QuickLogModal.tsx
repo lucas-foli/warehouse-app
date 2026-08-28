@@ -39,8 +39,9 @@ const chipClass = (active: boolean) =>
 	}`;
 
 const labelClass = 'block text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground';
-const fieldClass =
-	'mt-2 block w-full rounded-xl border border-input bg-card px-3 py-2 text-sm text-foreground outline-none transition focus:border-ring/60 focus:ring-2 focus:ring-ring/25';
+const fieldBase =
+	'rounded-xl border border-input bg-card px-3 py-2 text-sm text-foreground outline-none transition focus:border-ring/60 focus:ring-2 focus:ring-ring/25';
+const fieldClass = `mt-2 block w-full ${fieldBase}`;
 
 const inDays = (days: number): string => {
 	const d = new Date();
@@ -309,7 +310,7 @@ export const QuickLogModal = ({ open, tenantId, contacts, products, presetContac
 						)}
 						<div className="mt-2 flex gap-2">
 							<input
-								className={`${fieldClass} mt-0 flex-1`}
+								className={`${fieldBase} min-w-0 flex-1`}
 								placeholder="SKU"
 								list="field-skus"
 								value={sampleSku}
@@ -321,14 +322,14 @@ export const QuickLogModal = ({ open, tenantId, contacts, products, presetContac
 								))}
 							</datalist>
 							<input
-								className={`${fieldClass} mt-0 w-20`}
+								className={`${fieldBase} w-20 shrink-0 text-center`}
 								type="number"
 								min={1}
 								step={1}
 								value={sampleQty}
 								onChange={(e) => setSampleQty(e.target.value)}
 							/>
-							<button type="button" onClick={addSample} className="rounded-xl border border-border px-3 text-sm">
+							<button type="button" onClick={addSample} className="shrink-0 min-h-11 rounded-xl border border-border px-3 text-sm">
 								+
 							</button>
 						</div>
@@ -357,7 +358,7 @@ export const QuickLogModal = ({ open, tenantId, contacts, products, presetContac
 							))}
 							<input
 								type="date"
-								className={`${fieldClass} mt-0 w-auto`}
+								className={`${fieldBase} w-auto`}
 								value={dueDays === null && dueAt ? dueAt.slice(0, 10) : ''}
 								onChange={(e) => {
 									setDueDays(null);

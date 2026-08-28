@@ -18,11 +18,13 @@ const SuppliersView = ({ suppliers, tenantId, onOpenContact, onCreated }: Props)
 	const [city, setCity] = useState('');
 	const [saving, setSaving] = useState(false);
 	const [error, setError] = useState('');
+	const [justCreated, setJustCreated] = useState('');
 
 	const openCreate = () => {
 		setName('');
 		setCity('');
 		setError('');
+		setJustCreated('');
 		setCreating(true);
 	};
 
@@ -33,6 +35,7 @@ const SuppliersView = ({ suppliers, tenantId, onOpenContact, onCreated }: Props)
 		try {
 			await quickCreateContact(tenantId, 'supplier', name, city);
 			setCreating(false);
+			setJustCreated(name.trim());
 			setName('');
 			setCity('');
 			onCreated();
@@ -83,12 +86,19 @@ const SuppliersView = ({ suppliers, tenantId, onOpenContact, onCreated }: Props)
 					</div>
 				</div>
 			) : (
-				<button
-					type="button"
-					onClick={openCreate}
-					className="min-h-11 text-sm font-semibold text-foreground">
-					+ Novo fornecedor
-				</button>
+				<>
+					{justCreated && (
+						<p className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+							Fornecedor "{justCreated}" cadastrado.
+						</p>
+					)}
+					<button
+						type="button"
+						onClick={openCreate}
+						className="min-h-11 text-sm font-semibold text-foreground">
+						+ Novo fornecedor
+					</button>
+				</>
 			)}
 		</div>
 	);
