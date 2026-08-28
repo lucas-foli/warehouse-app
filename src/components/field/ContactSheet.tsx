@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { ContactStage, FieldContact, Interaction, Product } from '../../types';
 import { deriveStage, STAGE_LABELS, STAGE_ORDER } from '../../utils/stageDerivation';
@@ -33,6 +33,10 @@ const OUTCOME_LABELS: Record<NonNullable<Interaction['outcome']>, string> = {
 	not_interested: 'sem interesse',
 	buyer_absent: 'comprador ausente',
 };
+
+type TimelineEntry =
+	| { kind: 'interaction'; at: string; interaction: Interaction }
+	| { kind: 'override'; at: string; stage: ContactStage };
 
 const dateLabel = (iso: string): string => {
 	const d = new Date(iso);
@@ -93,6 +97,19 @@ const ContactSheet = ({ open, tenantId, contact, products, onClose, onChanged, a
 			})
 			.finally(() => setLoading(false));
 	}, [open, contact, tenantId, reloadKey]);
+
+	// clients/suppliers guardam o override numa coluna só (manualStage +
+	// stageOverriddenAt), não numa tabela de histórico — então só o ÚLTIMO
+	// "marcar à mão" sobrevive. A timeline abaixo mistura esse único evento
+	// com as interações reais, ordenado por data; ela mostra que ALGUÉM
+	// marcou o estágio à mão numa certa data, não a série completa de trocas.
+	const entries = useMemo<TimelineEntry[]>(() => {
+		const list: TimelineEntry[] = timeline.map((i) => ({ kind: 'interaction', at: i.occurredAt, interaction: i }));
+		if (contact?.manualStage && contact.stageOverriddenAt) {
+			list.push({ kind: 'override', at: contact.stageOverriddenAt, stage: contact.manualStage });
+		}
+		return list.sort((a, b) => b.at.localeCompare(a.at));
+	}, [timeline, contact]);
 
 	if (!open || !contact) return null;
 
@@ -201,34 +218,47 @@ const ContactSheet = ({ open, tenantId, contact, products, onClose, onChanged, a
 
 				<h3 className="mt-5 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Timeline</h3>
 				{loading && <p className="mt-2 text-sm text-muted-foreground">Carregando…</p>}
-				{!loading && timeline.length === 0 && (
+				{!loading && entries.length === 0 && (
 					<p className="mt-2 text-sm text-muted-foreground">Nenhuma interação registrada.</p>
 				)}
 				<div className="mt-2 space-y-2 border-l-2 border-border pl-4">
-					{timeline.map((i) => (
-						<div key={i.id} className="rounded-2xl border border-border bg-card p-3">
-							<div className="flex items-center justify-between">
-								<p className="text-sm font-semibold text-foreground">
-									{KIND_LABELS[i.kind]}
-									{i.outcome ? ` · ${OUTCOME_LABELS[i.outcome]}` : ''}
-								</p>
-								<span className="text-xs text-muted-foreground">{dateLabel(i.occurredAt)}</span>
+					{entries.map((entry) =>
+						entry.kind === 'interaction' ? (
+							<div key={`i-${entry.interaction.id}`} className="rounded-2xl border border-border bg-card p-3">
+								<div className="flex items-center justify-between">
+									<p className="text-sm font-semibold text-foreground">
+										{KIND_LABELS[entry.interaction.kind]}
+										{entry.interaction.outcome ? ` · ${OUTCOME_LABELS[entry.interaction.outcome]}` : ''}
+									</p>
+									<span className="text-xs text-muted-foreground">{dateLabel(entry.interaction.occurredAt)}</span>
+								</div>
+								{entry.interaction.samples.length > 0 && (
+									<p className="mt-1 text-xs text-muted-foreground">
+										Amostras: {entry.interaction.samples.map((s) => `${s.qty}× ${s.sku}`).join(', ')}
+									</p>
+								)}
+								{entry.interaction.nextStep && (
+									<p className="mt-1 text-xs text-muted-foreground">
+										Próximo passo: {entry.interaction.nextStep}
+										{entry.interaction.nextStepDueAt ? ` (${dateLabel(entry.interaction.nextStepDueAt)})` : ''}
+										{entry.interaction.nextStepDoneAt ? ' ✓' : ''}
+									</p>
+								)}
+								{entry.interaction.note && (
+									<p className="mt-1 text-xs text-muted-foreground">{entry.interaction.note}</p>
+								)}
 							</div>
-							{i.samples.length > 0 && (
-								<p className="mt-1 text-xs text-muted-foreground">
-									Amostras: {i.samples.map((s) => `${s.qty}× ${s.sku}`).join(', ')}
-								</p>
-							)}
-							{i.nextStep && (
-								<p className="mt-1 text-xs text-muted-foreground">
-									Próximo passo: {i.nextStep}
-									{i.nextStepDueAt ? ` (${dateLabel(i.nextStepDueAt)})` : ''}
-									{i.nextStepDoneAt ? ' ✓' : ''}
-								</p>
-							)}
-							{i.note && <p className="mt-1 text-xs text-muted-foreground">{i.note}</p>}
-						</div>
-					))}
+						) : (
+							<div key={`override-${entry.at}`} className="rounded-2xl border border-dashed border-border bg-secondary/40 p-3">
+								<div className="flex items-center justify-between">
+									<p className="text-sm font-medium text-muted-foreground">
+										Estágio marcado à mão · {STAGE_LABELS[entry.stage]}
+									</p>
+									<span className="text-xs text-muted-foreground">{dateLabel(entry.at)}</span>
+								</div>
+							</div>
+						),
+					)}
 				</div>
 			</div>
 
