@@ -50,6 +50,11 @@ const inDays = (days: number): string => {
 	return d.toISOString();
 };
 
+const todayInput = (): string => {
+	const d = new Date();
+	return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
 export const QuickLogModal = ({ open, tenantId, contacts, products, presetContact, onClose, onSaved }: Props) => {
 	const [contact, setContact] = useState<FieldContact | null>(null);
 	const [search, setSearch] = useState('');
@@ -57,6 +62,7 @@ export const QuickLogModal = ({ open, tenantId, contacts, products, presetContac
 	const [newName, setNewName] = useState('');
 	const [newCity, setNewCity] = useState('');
 	const [newType, setNewType] = useState<ContactType>('client');
+	const [occurredOn, setOccurredOn] = useState(todayInput());
 	const [kind, setKind] = useState<InteractionKind>('visit');
 	const [outcome, setOutcome] = useState<InteractionOutcome | null>(null);
 	const [samples, setSamples] = useState<SampleInput[]>([]);
@@ -78,6 +84,7 @@ export const QuickLogModal = ({ open, tenantId, contacts, products, presetContac
 		setNewName('');
 		setNewCity('');
 		setNewType('client');
+		setOccurredOn(todayInput());
 		setKind('visit');
 		setOutcome(null);
 		setSamples([]);
@@ -173,6 +180,10 @@ export const QuickLogModal = ({ open, tenantId, contacts, products, presetContac
 				kind,
 				outcome,
 				note: note || null,
+				occurredAt:
+					occurredOn === todayInput()
+						? new Date().toISOString()
+						: new Date(`${occurredOn}T12:00:00`).toISOString(),
 				nextStep: nextStep || null,
 				nextStepDueAt: dueAt,
 				samples,
@@ -258,6 +269,17 @@ export const QuickLogModal = ({ open, tenantId, contacts, products, presetContac
 								</button>
 							</div>
 						)}
+					</div>
+
+					<div className="flex items-center justify-between gap-3">
+						<span className={labelClass}>Quando</span>
+						<input
+							type="date"
+							value={occurredOn}
+							max={todayInput()}
+							onChange={(e) => setOccurredOn(e.target.value || todayInput())}
+							className={`${fieldBase} w-auto`}
+						/>
 					</div>
 
 					<div>
