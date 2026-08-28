@@ -31,11 +31,11 @@ const FieldPage = ({ tenantId, products, onReload }: Props) => {
 	const [sheetContact, setSheetContact] = useState<FieldContact | null>(null);
 	const loadIdRef = useRef(0);
 
-	const reloadField = useCallback(async (opts?: { silent?: boolean }) => {
+	const reloadField = useCallback(async (opts?: { silent?: boolean }): Promise<boolean> => {
 		if (!tenantId) {
 			setLoading(false);
 			setLoadedOnce(false);
-			return;
+			return false;
 		}
 		const loadId = ++loadIdRef.current;
 		if (!opts?.silent) setLoading(true);
@@ -45,7 +45,7 @@ const FieldPage = ({ tenantId, products, onReload }: Props) => {
 				fetchFieldContacts(tenantId),
 				fetchOpenAgenda(tenantId),
 			]);
-			if (loadId !== loadIdRef.current) return;
+			if (loadId !== loadIdRef.current) return false;
 			setContacts(nextContacts);
 			setAgenda(nextAgenda);
 			setLoadedOnce(true);
@@ -57,8 +57,9 @@ const FieldPage = ({ tenantId, products, onReload }: Props) => {
 					? (nextContacts.find((c) => c.contactType === current.contactType && c.id === current.id) ?? current)
 					: current,
 			);
+			return true;
 		} catch (err) {
-			if (loadId !== loadIdRef.current) return;
+			if (loadId !== loadIdRef.current) return false;
 			console.error('[campo] falha ao carregar', err);
 			const raw = err instanceof Error ? err.message : '';
 			const code = (err as { code?: string })?.code;
@@ -69,6 +70,7 @@ const FieldPage = ({ tenantId, products, onReload }: Props) => {
 						? err.message
 						: 'Não foi possível carregar o Campo.';
 			setError(message);
+			return false;
 		} finally {
 			if (loadId === loadIdRef.current) setLoading(false);
 		}
@@ -145,9 +147,10 @@ const FieldPage = ({ tenantId, products, onReload }: Props) => {
 				contact={sheetContact}
 				products={products}
 				onClose={() => setSheetContact(null)}
-				onChanged={() => {
-					void reloadField({ silent: true });
+				onChanged={async () => {
+					const ok = await reloadField({ silent: true });
 					onReload();
+					return ok;
 				}}
 			/>
 		</div>

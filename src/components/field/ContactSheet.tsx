@@ -11,7 +11,7 @@ type Props = {
 	contact: FieldContact | null;
 	products: Product[];
 	onClose: () => void;
-	onChanged: () => void;
+	onChanged: () => void | Promise<boolean | void>;
 	// A ClientsPage monta um FieldContact aproximado (sem os fatos de
 	// interação/amostra/resultado) — nesse caso o chip de estágio é um
 	// controle de escrita alimentado por dado fabricado, então nem ele nem
@@ -160,7 +160,10 @@ const ContactSheet = ({ open, tenantId, contact, products, onClose, onChanged, a
 			setStageTouched(true);
 			setStagePickerOpen(false);
 			if (next === null) setStageRefreshing(true);
-			onChanged();
+			const ok = await onChanged();
+			if (ok === false && next === null) {
+				setError('Não foi possível atualizar a ficha. Feche e reabra para ver o estágio atual.');
+			}
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Não foi possível mudar o estágio.');
 		}
@@ -295,7 +298,7 @@ const ContactSheet = ({ open, tenantId, contact, products, onClose, onChanged, a
 					// uma visita registrada aqui dentro só aparece na lista se a
 					// ficha for fechada e reaberta.
 					setReloadKey((k) => k + 1);
-					onChanged();
+					void onChanged();
 				}}
 			/>
 		</div>
