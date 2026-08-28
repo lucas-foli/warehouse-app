@@ -97,7 +97,12 @@ export const QuickLogModal = ({ open, tenantId, contacts, products, presetContac
 		setSaving(false);
 		setError('');
 		setWarning('');
-	}, [open, presetContact]);
+		// Dep por identidade (contactType+id), não pela referência: o reload
+		// do FieldPage troca a referência de presetContact a cada volta, e
+		// isso limparia o formulário no meio da digitação se a dep fosse o
+		// objeto inteiro.
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [open, presetContact?.contactType, presetContact?.id]);
 
 	useEffect(() => {
 		if (nextStep.trim() && !dueAt) {
@@ -150,6 +155,9 @@ export const QuickLogModal = ({ open, tenantId, contacts, products, presetContac
 		setSaving(true);
 		setError('');
 		try {
+			if (occurredOn > todayInput()) {
+				throw new Error('A data da visita não pode ser no futuro.');
+			}
 			let target = contact;
 			if (!target && creating) {
 				if (!newName.trim()) throw new Error('Informe o nome do novo contato.');

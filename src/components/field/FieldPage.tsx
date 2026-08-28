@@ -49,6 +49,14 @@ const FieldPage = ({ tenantId, products, onReload }: Props) => {
 			setContacts(nextContacts);
 			setAgenda(nextAgenda);
 			setLoadedOnce(true);
+			// A ficha aberta precisa acompanhar o recarregamento: sem isso ela
+			// segue com a foto de quando abriu (timeline sem o override recém
+			// marcado, e estágio errado depois de "voltar ao automático").
+			setSheetContact((current) =>
+				current
+					? (nextContacts.find((c) => c.contactType === current.contactType && c.id === current.id) ?? current)
+					: current,
+			);
 		} catch (err) {
 			if (loadId !== loadIdRef.current) return;
 			console.error('[campo] falha ao carregar', err);

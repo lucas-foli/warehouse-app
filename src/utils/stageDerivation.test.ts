@@ -112,6 +112,15 @@ describe('deriveStage — 7 regras da spec, em ordem de precedência', () => {
 		});
 	});
 
+	it('regra 1: manualStage sem stage_overridden_at é ignorado', () => {
+		// mata: guarda que aceita manualStage sem a data do override (linha
+		// editada fora do app não pode sequestrar a derivação)
+		expect(deriveStage({ ...base, manualStage: 'lost', stageOverriddenAt: null })).toEqual({
+			stage: 'new',
+			overridden: false,
+		});
+	});
+
 	it('regra 1 (escopo): amostra anterior ao override não ressuscita "amostra entregue"', () => {
 		// mata: derivação que olha fatos de antes do override (o caso do e2e:
 		// marcado Perdido, visitado depois sem amostra, voltava para Amostra entregue)

@@ -1,6 +1,10 @@
 # E2E manual — Campo fatia 1
 
-Pré: aplicar as 4 migrations 20260826* no Supabase do app (SQL Editor, em ordem).
+Pré: aplicar as 5 migrations (20260826* e 20260827000100), em ordem numérica,
+no Supabase do app (SQL Editor). Rodar o app novo sem a última faz o estágio
+marcado à mão ser ignorado em silêncio: a view antiga entrega `last_fact_at`
+não-nulo mesmo para fatos anteriores ao override, e a regra nova exige nulo
+para honrá-lo — sem erro visível, o override simplesmente nunca "pega".
 Dados: tenant de teste com 2+ produtos importados. Para o passo 18, um segundo
 usuário não-admin no mesmo tenant.
 
@@ -71,3 +75,12 @@ Registrado como decisão consciente da fatia 1 (não é bug a reportar).
       cadastrar clientes.";
     - Fornecedores → "+ Novo fornecedor" → "Apenas administradores podem
       cadastrar fornecedores.".
+19. Campo "Quando": registrar uma visita com data de ontem e conferir que a
+    timeline mostra a data de ontem, não a de hoje; conferir que o seletor
+    não deixa escolher data futura.
+20. Rastro do override: marcar um contato como "Perdido" e conferir que a
+    timeline ganha o card "Estágio marcado à mão · Perdido" na data de hoje,
+    SEM fechar e reabrir a ficha.
+21. Escopo do override: no mesmo contato (que já tinha amostra entregue
+    antes), registrar uma visita nova SEM amostra e conferir que ele vai
+    para "Contatado" — e NÃO volta para "Amostra entregue".

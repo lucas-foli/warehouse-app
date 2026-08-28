@@ -66,6 +66,12 @@ const ContactSheet = ({ open, tenantId, contact, products, onClose, onChanged, a
 	// 2cm do dedo que acabou de tocar.
 	const [optimisticStage, setOptimisticStage] = useState<ContactStage | null>(null);
 	const [stageTouched, setStageTouched] = useState(false);
+	// "Voltar ao automático" limpa o override, mas no instante seguinte o
+	// `contact` local ainda tem fatos escopados ao override recém-apagado
+	// (todos falsos) — deriveStage cairia na regra 7 e mostraria "Novo" por
+	// ~200ms, até o reload trazer o contato de verdade. Em vez de exibir o
+	// estágio errado, mostramos um rótulo de transição até o reload chegar.
+	const [stageRefreshing, setStageRefreshing] = useState(false);
 	const navigate = useNavigate();
 
 	// Reset do estágio otimista é amarrado à IDENTIDADE do contato (efeito
@@ -76,6 +82,14 @@ const ContactSheet = ({ open, tenantId, contact, products, onClose, onChanged, a
 	useEffect(() => {
 		setOptimisticStage(null);
 		setStageTouched(false);
+	}, [contact]);
+
+	// Aqui a dep É o objeto inteiro, de propósito: é a TROCA DE REFERÊNCIA
+	// (não a identidade contactType+id, que não muda) que sinaliza que o
+	// reload do FieldPage chegou e trouxe o contato de verdade — só aí o
+	// rótulo de transição pode sair.
+	useEffect(() => {
+		setStageRefreshing(false);
 	}, [contact]);
 
 	useEffect(() => {
@@ -96,7 +110,12 @@ const ContactSheet = ({ open, tenantId, contact, products, onClose, onChanged, a
 				);
 			})
 			.finally(() => setLoading(false));
-	}, [open, contact, tenantId, reloadKey]);
+		// Dep por identidade (contactType+id), não pela referência: o reload
+		// do FieldPage troca a referência de contact a cada volta, e o
+		// setTimeline([]) no início deste efeito faria a timeline piscar a
+		// cada reload se a dep fosse o objeto inteiro.
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [open, contact?.contactType, contact?.id, tenantId, reloadKey]);
 
 	// clients/suppliers guardam o override numa coluna só (manualStage +
 	// stageOverriddenAt), não numa tabela de histórico — então só o ÚLTIMO
@@ -140,6 +159,7 @@ const ContactSheet = ({ open, tenantId, contact, products, onClose, onChanged, a
 			setOptimisticStage(next);
 			setStageTouched(true);
 			setStagePickerOpen(false);
+			if (next === null) setStageRefreshing(true);
 			onChanged();
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Não foi possível mudar o estágio.');
@@ -165,10 +185,11 @@ const ContactSheet = ({ open, tenantId, contact, products, onClose, onChanged, a
 					{!approximate && (
 						<button
 							type="button"
+							disabled={stageRefreshing}
 							onClick={() => setStagePickerOpen((v) => !v)}
-							className="min-h-11 rounded-full border border-border px-2.5 text-[11px] font-semibold text-foreground">
-							{STAGE_LABELS[stage]}
-							{overridden ? ' · à mão' : ''} ▾
+							className="min-h-11 rounded-full border border-border px-2.5 text-[11px] font-semibold text-foreground disabled:opacity-50">
+							{stageRefreshing ? 'atualizando…' : STAGE_LABELS[stage]}
+							{!stageRefreshing && overridden ? ' · à mão' : ''} ▾
 						</button>
 					)}
 				</div>
