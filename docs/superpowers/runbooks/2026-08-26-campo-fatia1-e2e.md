@@ -4,22 +4,22 @@ Pré: aplicar as 4 migrations 20260826* no Supabase do app (SQL Editor, em ordem
 Dados: tenant de teste com 2+ produtos importados. Para o passo 18, um segundo
 usuário não-admin no mesmo tenant.
 
-1. Aba Campo aparece na navegação; abre na Agenda vazia ("Nenhum follow-up marcado").
+1. Aba Campo aparece na navegação; abre na Agenda vazia ("Nenhum follow-up marcado"). ✅
 2. + Registrar visita → criar contato novo (cliente, nome+cidade) → resultado
    "Interessado" → 1 amostra de SKU existente (qty 2) → próximo passo "voltar"
-   em 3 dias → salvar. Sem erro.
-3. Produtos: qty do SKU caiu 2. (Débito de amostra.)
-4. Agenda: item em "Esta semana" com o contato e o passo. "Feito" o remove.
+   em 3 dias → salvar. Sem erro.✅
+3. Produtos: qty do SKU caiu 2. (Débito de amostra.)✅
+4. Agenda: item em "Esta semana" com o contato e o passo. "Feito" o remove.✅
 5. Funil: contato em "Amostra entregue" (estágio derivado). Registrar nova
-   interação com "Pediu proposta" → contato move para "Negociando".
-6. Ficha (tocar no card do funil): timeline com as 2 interações e amostras.
+   interação com "Pediu proposta" → contato move para "Negociando".✅
+6. Ficha (tocar no card do funil): timeline com as 2 interações e amostras.✅
 7. Override: na ficha, mudar estágio para "Perdido" → funil mostra "marcado à
-   mão". Registrar nova interação → volta ao derivado (override expira).
+   mão". Registrar nova interação → volta ao derivado (override expira).✅
 8. Fornecedores: criar "Noronha Pescados" → aparece na lista; registrar
-   interação de ligação nela; funil (filtro Fornecedores) mostra "Contatado".
+   interação de ligação nela; funil (filtro Fornecedores) mostra "Contatado".✅
 9. Amostra com qty maior que o estoque → aviso âmbar aparece e o registro salva
-   mesmo assim (estoque fica negativo em Produtos).
-10. ClientsPage: botão "Ficha" abre a timeline do cliente.
+   mesmo assim (estoque fica negativo em Produtos).✅
+10. ClientsPage: botão "Ficha" abre a timeline do cliente.✅
 
 ## ⚠ Antes de pôr na mão do Elcy — limitação conhecida desta fatia
 

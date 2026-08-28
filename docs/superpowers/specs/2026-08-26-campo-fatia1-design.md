@@ -211,3 +211,48 @@ escopo).
 1. Aplicar as migrations novas no Supabase do app (risco mapeado: RPC não
    aplicada = falha em runtime, ver `project_warehouse_sales_migrations_risk`).
 2. E2e manual roteirizado com dados da Global (Noronha + 2 mercados).
+
+---
+
+## Emenda 2 — 2026-08-27, após a seção 1 do e2e manual
+
+Três decisões do Lucas ao rodar o roteiro com dados reais.
+
+### 1. Quando a interação aconteceu
+
+O modal só tinha data para o **próximo passo**; `occurred_at` era sempre
+`now()`. Quem registra à noite as visitas do dia carimbava tudo com a hora da
+digitação, e a timeline mentia sobre quando ele esteve lá.
+
+Passa a existir um seletor discreto de data no topo do registro rápido, com
+**hoje** como padrão e o dia inteiro de folga (não pede hora). O campo do
+próximo passo continua separado e inalterado.
+
+### 2. Override manual: rastro e escopo
+
+Dois defeitos que apareceram juntos no mesmo teste (marcar "Perdido" e depois
+registrar visita nova):
+
+**Rastro.** Marcar estágio à mão escreve em `clients`/`suppliers`, e a timeline
+lê só `interactions` — então o override não deixava rastro nenhum e o histórico
+ficava incompreensível. A ficha passa a exibir o override armazenado como um
+evento na timeline, na data em que foi feito. Limitação assumida: só o **último**
+override é guardado (não há tabela de histórico), então a timeline mostra um
+evento de estágio, não a série completa.
+
+**Escopo.** A derivação olhava todos os fatos de sempre — por isso um contato
+marcado "Perdido" e depois visitado sem amostra voltava para "Amostra entregue",
+por causa de uma amostra de semanas antes. Passa a valer: **depois de um
+override manual, só contam os fatos posteriores a ele.**
+
+A view `field_contacts` passa a escopar `has_transaction`, `last_outcome`,
+`has_samples`, `has_interaction` e `last_fact_at` ao que aconteceu **após**
+`stage_overridden_at` (sem override, nada muda — são todos os fatos). Com isso
+`deriveStage` simplifica: o override vale exatamente enquanto `lastFactAt` for
+nulo, e as regras 2-7 passam a operar sobre os fatos do ciclo atual.
+
+### 3. Editar/excluir interação — fora desta fatia
+
+Confirmado que fica no WAR-10. A fatia 1 entrega sem correção in-app; quantidade
+de amostra tem que ser conferida antes de salvar, e o conserto é SQL manual até
+a fatia 2/3.
