@@ -78,13 +78,13 @@ describe('deriveStage — 7 regras da spec, em ordem de precedência', () => {
 		).toEqual({ stage: 'active', overridden: false });
 	});
 
-	it('regra 1: override manual mais novo que o último fato vale', () => {
-		// mata: mutação que ignora manualStage ou compara datas ao contrário
+	it('regra 1: override vale enquanto não há fato posterior', () => {
+		// mata: mutação que ignora manualStage ou não exige lastFactAt nulo
 		expect(
 			deriveStage({
 				...base,
 				hasInteraction: true,
-				lastFactAt: '2026-08-20T10:00:00Z',
+				lastFactAt: null,
 				manualStage: 'lost',
 				stageOverriddenAt: '2026-08-21T10:00:00Z',
 			}),
@@ -112,17 +112,19 @@ describe('deriveStage — 7 regras da spec, em ordem de precedência', () => {
 		});
 	});
 
-	it('regra 1 (empate): override no mesmo instante do último fato ainda vale', () => {
-		// mata: mutação >= para > na comparação (empate faria o override perder)
+	it('regra 1 (escopo): amostra anterior ao override não ressuscita "amostra entregue"', () => {
+		// mata: derivação que olha fatos de antes do override (o caso do e2e:
+		// marcado Perdido, visitado depois sem amostra, voltava para Amostra entregue)
 		expect(
 			deriveStage({
 				...base,
 				hasInteraction: true,
-				lastFactAt: '2026-08-21T10:00:00Z',
+				hasSamples: false,
+				lastFactAt: '2026-08-22T10:00:00Z',
 				manualStage: 'lost',
 				stageOverriddenAt: '2026-08-21T10:00:00Z',
 			}),
-		).toEqual({ stage: 'lost', overridden: true });
+		).toEqual({ stage: 'contacted', overridden: false });
 	});
 });
 

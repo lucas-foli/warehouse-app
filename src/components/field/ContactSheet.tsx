@@ -106,6 +106,11 @@ const ContactSheet = ({ open, tenantId, contact, products, onClose, onChanged, a
 				...contact,
 				manualStage: optimisticStage,
 				stageOverriddenAt: optimisticStage ? new Date().toISOString() : null,
+				// Override "agora" não pode ter fato posterior a ele — senão a
+				// regra 1 (escopo) nunca vence e o chip não muda. No caminho
+				// "voltar ao automático" (optimisticStage null) os fatos reais
+				// de contact seguem intactos pelo spread acima.
+				lastFactAt: optimisticStage ? null : contact.lastFactAt,
 			})
 		: deriveStage(contact);
 	const stage = derived.stage;

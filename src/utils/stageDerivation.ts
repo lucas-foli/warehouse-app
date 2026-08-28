@@ -3,7 +3,7 @@ import type { ContactStage, FieldContact } from '../types';
 // Fonte única da derivação de estágio (emenda da spec: TS, não SQL — aqui as
 // 7 regras têm suíte de unidade; a view field_contacts entrega só fatos crus).
 // Precedência, avaliada de cima para baixo:
-// 1. override manual, se mais novo que o último fato (senão expira)
+// 1. override manual, enquanto não houver fato posterior a ele (senão expira)
 // 2. tem transação (venda; recebimento entra na fatia 2)   → active
 // 3. último resultado not_interested                        → lost
 // 4. último resultado proposal_requested                    → negotiating
@@ -11,9 +11,11 @@ import type { ContactStage, FieldContact } from '../types';
 // 6. tem ao menos uma interação                             → contacted
 // 7. nada                                                   → new
 export const deriveStage = (c: FieldContact): { stage: ContactStage; overridden: boolean } => {
-	if (c.manualStage && c.stageOverriddenAt) {
-		const overrideWins = !c.lastFactAt || c.stageOverriddenAt >= c.lastFactAt;
-		if (overrideWins) return { stage: c.manualStage, overridden: true };
+	// Fatos vêm da view já escopados ao que aconteceu DEPOIS do último override
+	// manual (migration 20260827000100). Logo o override vale exatamente
+	// enquanto nada aconteceu depois dele — sem comparar datas aqui.
+	if (c.manualStage && c.stageOverriddenAt && !c.lastFactAt) {
+		return { stage: c.manualStage, overridden: true };
 	}
 	if (c.hasTransaction) return { stage: 'active', overridden: false };
 	if (c.lastOutcome === 'not_interested') return { stage: 'lost', overridden: false };
