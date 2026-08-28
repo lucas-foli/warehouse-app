@@ -201,3 +201,31 @@ contato. O filtro de data entra como Filter, não Index Cond, porque
 custo (irrelevante na escala da Global: dezenas de contatos, não milhares).
 
 Sem ação nesta fatia. Reavaliar se a lista do Campo começar a pesar.
+
+## 2026-08-27 — Seletor de produto do registro rápido não serve no mobile (Campo)
+
+**Origem:** pergunta do Lucas no e2e da fatia 1 ("esse campo number+select vai
+funcionar bem no mobile mesmo?"). Verificado: não.
+
+**O problema.** O seletor de SKU usa `<datalist>` com o SKU no `value` e o nome
+do produto como rótulo. **O Safari não usa o rótulo — mostra só o value**
+(WebKit bug 201768, nunca implementado; Chrome/Edge mostram os dois desde
+2012/2014). No iPhone o Elcy veria uma lista de códigos sem nome de produto —
+exatamente a reclamação do print 1, agora insolúvel por CSS. O iOS ainda teve
+o bug de tocar na sugestão sem atualizar o campo, corrigido só no iOS 18, e há
+relatos de instabilidade em 2026.
+
+Secundário: `type="number"` abre no iOS o teclado de números-e-pontuação, não o
+numérico grande (`inputMode="numeric"` resolve), e as setinhas do spinner são
+desktop-only.
+
+**Fix decidido:** trocar o datalist por lista de produtos tocável, reusando o
+padrão da busca de contato que já existe no MESMO modal — cada linha com nome,
+SKU e saldo em estoque; tocar seleciona. Resolve nome visível, alvo de toque e
+saldo à vista na hora de escolher a quantidade.
+
+**Timing (decisão do Lucas, 2026-08-27):** depois que ele terminar o roteiro
+e2e — o datalist funciona no desktop, onde o teste está sendo feito. Entra com
+o resto dos achados do e2e, antes do merge.
+
+**Jira:** WAR-2 (não é WAR-8: é funcional, não repaginação).
