@@ -199,3 +199,30 @@ controlada antes de fechar a causa.
   resolver a raiz (modais viverem dentro do container de espaçamento).
 - **Origem:** reportado no uso manual (2026-08-05, modal "Novo vendedor"); causa raiz confirmada no
   DOM renderizado, não só no código.
+
+## 2026-08-27 — BUG-15: campo de SKU colapsado no registro de visita (CORRIGIDO)
+
+**Origem:** e2e manual da fatia 1 do Campo (seção 1), Lucas.
+
+O input de SKU das amostras renderizava com poucos pixels e o de quantidade
+ocupava a linha inteira — impossível ver qual produto estava sendo escolhido.
+
+**Causa:** a constante `fieldClass` do `QuickLogModal` embutia `w-full`. No input
+de quantidade a string ficava `w-full … w-20`; como `.w-full` é emitido DEPOIS
+de `.w-20` no CSS gerado pelo Tailwind (byte 7409 vs 7204, mesma
+especificidade), `w-full` vencia. O SKU, com `flex-1` (basis 0), colapsava. O
+mesmo conflito afetava o input de data (`w-auto`).
+
+**Fix:** `fieldBase` sem largura + larguras explícitas na linha das amostras
+(SKU `flex-1 min-w-0`, qty `w-20 shrink-0`). Commit 6ae5bfa.
+
+## 2026-08-27 — BUG-16: criar fornecedor não dava feedback (CORRIGIDO)
+
+**Origem:** e2e manual da fatia 1 do Campo (seção 1), Lucas.
+
+Cadastrar fornecedor fechava o formulário sem nenhuma confirmação. Como o
+reload é silencioso, o usuário não sabia se tinha funcionado — e tentou de novo,
+tomando "Já existe um contato com esse nome".
+
+**Fix:** confirmação temporária "Fornecedor X cadastrado." acima do botão de
+novo fornecedor, limpa ao reabrir o formulário. Commit 6ae5bfa.
