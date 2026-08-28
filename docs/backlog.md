@@ -183,3 +183,21 @@ bom momento para resolver junto.
 gravada quando a chave repetir.
 
 **Jira:** WAR (epic WAR-1).
+
+## 2026-08-27 — Custo da view field_contacts dobrou (Campo)
+
+**Origem:** review da emenda 2 da fatia 1 (medido em Postgres com 3.010 contatos,
+24.010 interações, 6.004 pedidos): `EXPLAIN ANALYZE select * from field_contacts`
+saiu de ~12,3 ms para ~25,9 ms.
+
+**Causa (medida, não suposta):** não é o predicado novo de escopo do override —
+é o `last_fact_at` do braço cliente ter deixado de ler a coluna denormalizada
+`clients.last_interaction_at` e passado a calcular `max(occurred_at)` por
+contato. O filtro de data entra como Filter, não Index Cond, porque
+`(x is null or col > x)` não vira limite de índice; nenhum índice novo resolve.
+
+**Possível caminho:** manter uma coluna denormalizada equivalente ao
+`last_fact_at` escopado, atualizada pela RPC e pelo override — ou aceitar o
+custo (irrelevante na escala da Global: dezenas de contatos, não milhares).
+
+Sem ação nesta fatia. Reavaliar se a lista do Campo começar a pesar.
