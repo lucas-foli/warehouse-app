@@ -24,3 +24,5 @@ dist-ssr
 *.sw?
 
 .env
+# Claude Code worktrees
+.claude/worktrees/
