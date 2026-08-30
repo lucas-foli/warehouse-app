@@ -12,6 +12,7 @@ import { BulkEditFieldPopover, type BulkEditableField } from './products/BulkEdi
 import { BulkResultDialog } from './products/BulkResultDialog';
 import { ConfirmDialog } from './products/ConfirmDialog';
 import ProductFormModal from './products/ProductFormModal';
+import { ReceiptModal } from './products/ReceiptModal';
 import { SaleOrderModal } from './products/SaleOrderModal';
 import { Card, Section } from './ui/Primitives';
 
@@ -61,6 +62,7 @@ const ProductsPage = ({
 	const [bulkBusy, setBulkBusy] = useState(false);
 	const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
 	const [saleOrderModalOpen, setSaleOrderModalOpen] = useState(false);
+	const [receiptModalOpen, setReceiptModalOpen] = useState(false);
 	const [ondeOptions, setOndeOptions] = useState<string[]>([]);
 	const [localOptions, setLocalOptions] = useState<string[]>([]);
 
@@ -461,6 +463,12 @@ const ProductsPage = ({
 						</button>
 						<button
 							type="button"
+							onClick={() => setReceiptModalOpen(true)}
+							className="rounded-full border border-border/40 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-foreground transition hover:bg-primary hover:text-primary-foreground">
+							Registrar recebimento
+						</button>
+						<button
+							type="button"
 							onClick={() => setSaleOrderModalOpen(true)}
 							className="rounded-full bg-primary px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-primary-foreground transition hover:opacity-90">
 							Registrar venda
@@ -784,6 +792,13 @@ const ProductsPage = ({
 			initialProductId={selectedProductId}
 			tenantId={tenantId}
 			onClose={() => setSaleOrderModalOpen(false)}
+			onRegistered={handleOrderRegistered}
+		/>
+		<ReceiptModal
+			open={receiptModalOpen}
+			products={products}
+			tenantId={tenantId}
+			onClose={() => setReceiptModalOpen(false)}
 			onRegistered={handleOrderRegistered}
 		/>
 		<BulkResultDialog
