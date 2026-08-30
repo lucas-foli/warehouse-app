@@ -25,6 +25,7 @@ import { filterClientsByStoreOrders } from '../utils/clientsByStore';
 import { filterSalesByLocation } from '../utils/salesByLocation';
 import { buildStoreFilterOptions } from '../utils/storeFilterOptions';
 import ClientsPage from './ClientsPage';
+import FieldPage from './field/FieldPage';
 import OrdersPage from './OrdersPage';
 import OverviewPage from './OverviewPage';
 import ProductsPage from './ProductsPage';
@@ -340,6 +341,7 @@ const Dashboard = ({
 								{page === 'clientes' && 'Clientes'}
 								{page === 'vendedores' && 'Vendedores'}
 								{page === 'vendas' && 'Vendas'}
+								{page === 'campo' && 'Campo'}
 							</Title>
 						</div>
 							<div className="w-full overflow-x-auto sm:w-auto">
@@ -347,6 +349,7 @@ const Dashboard = ({
 									{(
 										[
 											{ key: 'overview', label: 'Dashboard', path: '/' },
+											{ key: 'campo', label: 'Campo', path: '/field' },
 											{ key: 'clientes', label: 'Clientes', path: '/clients' },
 											{ key: 'vendedores', label: 'Vendedores', path: '/sellers' },
 											{ key: 'vendas', label: 'Vendas', path: '/sales' },
@@ -412,6 +415,7 @@ const Dashboard = ({
 							tenantId={tenantId}
 							isAdmin={isAdmin}
 							onReload={reload}
+							products={products}
 						/>
 					)}
 
@@ -443,6 +447,10 @@ const Dashboard = ({
 								reload();
 							}}
 						/>
+					)}
+
+					{page === 'campo' && (
+						<FieldPage tenantId={tenantId} products={products} onReload={reload} />
 					)}
 				</div>
 			</main>

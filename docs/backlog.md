@@ -131,3 +131,101 @@ modal e/ou como coluna/tooltip na tabela. Estender ao cliente (`external_id` de 
 tem o mesmo papel). Decidir se é sempre visível ou só quando presente.
 
 **Fora do escopo da obra Dashboard honesto** — melhoria de UI/suporte, com spec quando priorizada.
+
+## 2026-08-26 — Estender a direção visual "app nativo" ao app inteiro
+
+**Origem:** brainstorm da obra Campo (spec `2026-08-26-campo-fatia1-design.md`).
+O mockup da aba Campo (cards arredondados, pills, segmented control, botão de
+ação fixo, agrupamentos com hierarquia mobile-first) foi aprovado pelo Lucas
+com decisão explícita de **adotar essa linguagem** — "tá caminhando pra se
+tornar um app nativo".
+
+**O que implementar:** aplicar a mesma linguagem visual às telas existentes
+(Overview, Produtos, Pedidos, Clientes, Vendedores, Ajustes), hoje em padrão
+misto. Referência viva: a aba Campo (fatia 1 da obra) e o mockup
+`docs/superpowers/specs/2026-08-26-campo-fatia1-preview.html`.
+
+**Escopo:** obra própria com brainstorming/spec — mudança app-wide de UI, não
+fix por componente (regra de escopo já estabelecida para mudanças transversais).
+
+**Jira:** WAR-8 (board Warehouse criado em 2026-08-26 no go-fly.atlassian.net;
+epic da obra Campo = WAR-1).
+
+## 2026-08-26 — Correção/estorno de interação e amostra (Campo)
+
+**Origem:** review final da fatia 1 da obra Campo (PR #73). O débito de estoque
+por amostra (`register_interaction`) é irreversível no app: não há policy de
+DELETE em `interactions`/`interaction_samples`, não há UI de editar/apagar
+interação, e nada devolve `qty` — diferente de `void_sale_order`, que estorna a
+venda. Enquanto a fatia 2 (entrada de mercadoria) não entra, o estoque só desce.
+
+**O que implementar:**
+- RPC de estorno espelhando `void_sale_order`: devolve `qty` das amostras e
+  marca a interação como estornada (ou permite exclusão sob policy).
+- UI de correção na ficha do contato (editar quantidade/SKU da amostra, ou
+  desfazer a interação inteira dentro de uma janela de tempo).
+- Decidir se a interação estornada some da timeline ou fica marcada.
+
+**Enquanto isso:** correção é SQL manual no Supabase. Registrado no runbook
+`docs/superpowers/runbooks/2026-08-26-campo-fatia1-e2e.md`.
+
+**Jira:** WAR (epic WAR-1).
+
+## 2026-08-26 — Idempotência do register_interaction (Campo)
+
+**Origem:** review da task 11 e review final da fatia 1. Se a rede cair depois
+do commit da RPC mas antes da resposta, a retentativa manual do Elcy cria uma
+segunda interação e um segundo débito de estoque. A fatia 2 mexe no mesmo RPC —
+bom momento para resolver junto.
+
+**O que implementar:** chave de idempotência por requisição (gerada no cliente,
+única por tentativa de registro), com unique index e retorno da interação já
+gravada quando a chave repetir.
+
+**Jira:** WAR (epic WAR-1).
+
+## 2026-08-27 — Custo da view field_contacts dobrou (Campo)
+
+**Origem:** review da emenda 2 da fatia 1 (medido em Postgres com 3.010 contatos,
+24.010 interações, 6.004 pedidos): `EXPLAIN ANALYZE select * from field_contacts`
+saiu de ~12,3 ms para ~25,9 ms.
+
+**Causa (medida, não suposta):** não é o predicado novo de escopo do override —
+é o `last_fact_at` do braço cliente ter deixado de ler a coluna denormalizada
+`clients.last_interaction_at` e passado a calcular `max(occurred_at)` por
+contato. O filtro de data entra como Filter, não Index Cond, porque
+`(x is null or col > x)` não vira limite de índice; nenhum índice novo resolve.
+
+**Possível caminho:** manter uma coluna denormalizada equivalente ao
+`last_fact_at` escopado, atualizada pela RPC e pelo override — ou aceitar o
+custo (irrelevante na escala da Global: dezenas de contatos, não milhares).
+
+Sem ação nesta fatia. Reavaliar se a lista do Campo começar a pesar.
+
+## 2026-08-27 — Seletor de produto do registro rápido não serve no mobile (Campo)
+
+**Origem:** pergunta do Lucas no e2e da fatia 1 ("esse campo number+select vai
+funcionar bem no mobile mesmo?"). Verificado: não.
+
+**O problema.** O seletor de SKU usa `<datalist>` com o SKU no `value` e o nome
+do produto como rótulo. **O Safari não usa o rótulo — mostra só o value**
+(WebKit bug 201768, nunca implementado; Chrome/Edge mostram os dois desde
+2012/2014). No iPhone o Elcy veria uma lista de códigos sem nome de produto —
+exatamente a reclamação do print 1, agora insolúvel por CSS. O iOS ainda teve
+o bug de tocar na sugestão sem atualizar o campo, corrigido só no iOS 18, e há
+relatos de instabilidade em 2026.
+
+Secundário: `type="number"` abre no iOS o teclado de números-e-pontuação, não o
+numérico grande (`inputMode="numeric"` resolve), e as setinhas do spinner são
+desktop-only.
+
+**Fix decidido:** trocar o datalist por lista de produtos tocável, reusando o
+padrão da busca de contato que já existe no MESMO modal — cada linha com nome,
+SKU e saldo em estoque; tocar seleciona. Resolve nome visível, alvo de toque e
+saldo à vista na hora de escolher a quantidade.
+
+**Timing (decisão do Lucas, 2026-08-27):** depois que ele terminar o roteiro
+e2e — o datalist funciona no desktop, onde o teste está sendo feito. Entra com
+o resto dos achados do e2e, antes do merge.
+
+**Jira:** WAR-2 (não é WAR-8: é funcional, não repaginação).

@@ -1,0 +1,212 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Campo — mockup fatia 1</title>
+<style>
+  :root{
+    --background:hsl(36 33% 96%);--foreground:hsl(24 26% 12%);
+    --card:hsl(0 0% 100%);--border:hsl(30 20% 88%);--input:hsl(30 20% 92%);
+    --primary:hsl(24 26% 12%);--primary-fg:hsl(0 0% 100%);
+    --secondary:hsl(34 25% 93%);--muted-fg:hsl(24 12% 42%);
+    --accent:hsl(36 90% 60%);--ring:hsl(20 90% 48%);
+    --radius-card:24px;--shadow-card:0 24px 60px rgba(0,0,0,.14);
+    --ok:#46b280;--warn:#d97706;--bad:#dc2626;
+  }
+  *{box-sizing:border-box;margin:0}
+  body{background:var(--background);color:var(--foreground);
+    font-family:'Plus Jakarta Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+    padding:32px 16px;display:flex;flex-wrap:wrap;gap:28px;justify-content:center}
+  .phone{width:375px;flex:0 0 375px;background:var(--background);border:1px solid var(--border);
+    border-radius:36px;box-shadow:var(--shadow-card);overflow:hidden;display:flex;flex-direction:column;height:740px}
+  .phone h1{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-fg);
+    text-align:center;padding:10px 0 0}
+  .screen{flex:1;overflow-y:auto;padding:16px 16px 90px}
+  .topbar{display:flex;align-items:center;justify-content:space-between;padding:8px 2px 14px}
+  .topbar b{font-size:20px}
+  .chip{font-size:11px;background:var(--secondary);border:1px solid var(--border);
+    padding:4px 10px;border-radius:999px;color:var(--muted-fg)}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-card);
+    padding:16px;margin-bottom:12px}
+  .row{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .muted{color:var(--muted-fg);font-size:12.5px}
+  .small{font-size:13px}
+  .pill{display:inline-block;font-size:11px;font-weight:600;padding:3px 10px;border-radius:999px}
+  .pill.late{background:#fef2f2;color:var(--bad)}
+  .pill.today{background:#fffbeb;color:var(--warn)}
+  .pill.sup{background:#eef6f2;color:var(--ok)}
+  .pill.cli{background:var(--secondary);color:var(--foreground)}
+  .btn{display:block;width:100%;text-align:center;background:var(--primary);color:var(--primary-fg);
+    border:none;border-radius:16px;padding:14px;font-size:15px;font-weight:700;font-family:inherit}
+  .btn.ghost{background:var(--secondary);color:var(--foreground);border:1px solid var(--border)}
+  .fab{position:absolute;left:16px;right:16px;bottom:74px}
+  .tabs{display:flex;border-top:1px solid var(--border);background:var(--card)}
+  .tabs div{flex:1;text-align:center;font-size:10.5px;padding:10px 0 14px;color:var(--muted-fg)}
+  .tabs div.on{color:var(--foreground);font-weight:700}
+  .tabs span{display:block;font-size:17px;margin-bottom:2px}
+  .seg{display:flex;background:var(--secondary);border-radius:14px;padding:3px;margin-bottom:14px}
+  .seg div{flex:1;text-align:center;font-size:12.5px;padding:7px 0;border-radius:11px;color:var(--muted-fg)}
+  .seg div.on{background:var(--card);color:var(--foreground);font-weight:700;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+  .check{width:22px;height:22px;border:2px solid var(--border);border-radius:7px;flex:0 0 22px}
+  .field{margin-bottom:12px}
+  .field label{font-size:12px;font-weight:600;color:var(--muted-fg);display:block;margin-bottom:5px}
+  .input{background:var(--input);border:1px solid var(--border);border-radius:12px;
+    padding:11px 12px;font-size:14px;color:var(--foreground)}
+  .opts{display:flex;flex-wrap:wrap;gap:7px}
+  .opt{font-size:12.5px;padding:8px 12px;border-radius:999px;border:1px solid var(--border);
+    background:var(--card);color:var(--muted-fg)}
+  .opt.on{background:var(--primary);color:var(--primary-fg);border-color:var(--primary);font-weight:600}
+  .stage{margin-bottom:14px}
+  .stage>.row{margin-bottom:8px}
+  .count{font-size:11px;background:var(--secondary);border-radius:999px;padding:2px 9px;font-weight:700}
+  .mini{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:11px 13px;margin-bottom:7px}
+  .tl{border-left:2px solid var(--border);margin-left:8px;padding-left:16px}
+  .tl .card{position:relative;border-radius:16px;padding:12px 14px}
+  .tl .card:before{content:'';position:absolute;left:-22px;top:16px;width:10px;height:10px;
+    border-radius:50%;background:var(--accent);border:2px solid var(--background)}
+  .warnbox{background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:9px 12px;
+    font-size:12px;color:var(--warn);margin-bottom:12px}
+</style>
+
+<!-- ============ TELA 1: AGENDA ============ -->
+<div class="phone"><h1>Campo · Agenda (tela inicial)</h1>
+  <div class="screen" style="position:relative">
+    <div class="topbar"><b>Campo</b><span class="chip">Global Foods</span></div>
+    <div class="seg"><div class="on">Agenda</div><div>Funil</div><div>Fornecedores</div></div>
+
+    <p class="muted" style="margin:4px 2px 8px;font-weight:700;color:var(--bad)">Atrasados · 2</p>
+    <div class="card"><div class="row">
+      <div><b class="small">Mercado La Placita</b> <span class="pill cli">cliente</span>
+        <p class="muted">Voltar com preço da embalagem 400g</p>
+        <p class="muted"><span class="pill late">venceu sex, 22 ago</span></p></div>
+      <div class="check"></div></div></div>
+    <div class="card"><div class="row">
+      <div><b class="small">Noronha Pescados</b> <span class="pill sup">fornecedor</span>
+        <p class="muted">Confirmar data do próximo contêiner</p>
+        <p class="muted"><span class="pill late">venceu seg, 25 ago</span></p></div>
+      <div class="check"></div></div></div>
+
+    <p class="muted" style="margin:14px 2px 8px;font-weight:700">Hoje · qua, 26 ago</p>
+    <div class="card"><div class="row">
+      <div><b class="small">Ocean Fresh Market</b> <span class="pill cli">cliente</span>
+        <p class="muted">Levar amostras Popeye — falar com Sr. Rui</p>
+        <p class="muted"><span class="pill today">hoje</span> · Kendall, Miami</p></div>
+      <div class="check"></div></div></div>
+    <div class="card"><div class="row">
+      <div><b class="small">Sedano's #12</b> <span class="pill cli">cliente</span>
+        <p class="muted">Ligar: resposta da proposta de 10 cx</p>
+        <p class="muted"><span class="pill today">hoje</span></p></div>
+      <div class="check"></div></div></div>
+
+    <button class="btn fab">+ Registrar visita</button>
+  </div>
+  <div class="tabs"><div><span>▦</span>Overview</div><div><span>◫</span>Produtos</div>
+    <div class="on"><span>◎</span>Campo</div><div><span>▤</span>Pedidos</div><div><span>⚙</span>Ajustes</div></div>
+</div>
+
+<!-- ============ TELA 2: REGISTRO RÁPIDO ============ -->
+<div class="phone"><h1>Registro rápido (30 segundos)</h1>
+  <div class="screen">
+    <div class="topbar"><b>Registrar visita</b><span class="chip">✕</span></div>
+
+    <div class="field"><label>Contato</label>
+      <div class="input row"><span>Ocean Fresh Market</span><span class="pill cli">cliente</span></div>
+      <p class="muted" style="margin-top:4px">busca por nome · “+ novo contato” cria só com nome e cidade</p></div>
+
+    <div class="field"><label>Tipo</label>
+      <div class="opts"><span class="opt on">Visita</span><span class="opt">Ligação</span>
+        <span class="opt">WhatsApp</span><span class="opt">E-mail</span></div></div>
+
+    <div class="field"><label>Resultado</label>
+      <div class="opts"><span class="opt on">Interessado</span><span class="opt">Pediu proposta</span>
+        <span class="opt">Indeciso</span><span class="opt">Sem interesse</span><span class="opt">Comprador ausente</span></div></div>
+
+    <div class="field"><label>Amostras deixadas (baixa o estoque)</label>
+      <div class="mini row"><span class="small">POP-401 · Filé de tilápia 400g</span><b>2</b></div>
+      <div class="mini row"><span class="small">POP-114 · Camarão 36/40 1lb</span><b>1</b></div>
+      <div class="warnbox">POP-114: estoque no app é 0 — registro mesmo assim, divergência vai ao relatório</div>
+      <span class="opt">+ adicionar amostra</span></div>
+
+    <div class="field"><label>Próximo passo (opcional)</label>
+      <div class="input" style="margin-bottom:7px">Voltar com tabela de preço p/ 10 cx</div>
+      <div class="opts"><span class="opt">amanhã</span><span class="opt on">em 3 dias</span>
+        <span class="opt">próx. semana</span><span class="opt">📅 data</span></div></div>
+
+    <div class="field"><label>Nota (opcional)</label>
+      <div class="input muted">Comprador é o Sr. Rui, prefere manhã…</div></div>
+
+    <button class="btn">Salvar visita</button>
+  </div>
+  <div class="tabs"><div><span>▦</span>Overview</div><div><span>◫</span>Produtos</div>
+    <div class="on"><span>◎</span>Campo</div><div><span>▤</span>Pedidos</div><div><span>⚙</span>Ajustes</div></div>
+</div>
+
+<!-- ============ TELA 3: FUNIL ============ -->
+<div class="phone"><h1>Campo · Funil</h1>
+  <div class="screen" style="position:relative">
+    <div class="topbar"><b>Campo</b><span class="chip">Global Foods</span></div>
+    <div class="seg"><div>Agenda</div><div class="on">Funil</div><div>Fornecedores</div></div>
+    <div class="opts" style="margin-bottom:14px"><span class="opt on">Todos</span>
+      <span class="opt">Clientes</span><span class="opt">Fornecedores</span></div>
+
+    <div class="stage"><div class="row"><b class="small">Negociando</b><span class="count">2</span></div>
+      <div class="mini row"><div><b class="small">Sedano's #12</b>
+        <p class="muted">proposta de 10 cx · há 2 dias</p></div><span class="pill cli">cliente</span></div>
+      <div class="mini row"><div><b class="small">Mercado La Placita</b>
+        <p class="muted">quer embalagem 400g · há 4 dias</p></div><span class="pill cli">cliente</span></div></div>
+
+    <div class="stage"><div class="row"><b class="small">Amostra entregue</b><span class="count">3</span></div>
+      <div class="mini row"><div><b class="small">Ocean Fresh Market</b>
+        <p class="muted">3 amostras · hoje</p></div><span class="pill cli">cliente</span></div>
+      <div class="mini row"><div><b class="small">Presidente Supermarket</b>
+        <p class="muted">2 amostras · há 6 dias ⚠</p></div><span class="pill cli">cliente</span></div>
+      <div class="mini row"><div><b class="small">Bravo Supermarket</b>
+        <p class="muted">1 amostra · há 9 dias ⚠</p></div><span class="pill cli">cliente</span></div></div>
+
+    <div class="stage"><div class="row"><b class="small">Ativo</b><span class="count">2</span></div>
+      <div class="mini row"><div><b class="small">Noronha Pescados</b>
+        <p class="muted">1 recebimento · há 12 dias</p></div><span class="pill sup">fornecedor</span></div>
+      <div class="mini row"><div><b class="small">Fresco y Más Hialeah</b>
+        <p class="muted">últ. pedido há 3 dias</p></div><span class="pill cli">cliente</span></div></div>
+
+    <div class="stage"><div class="row"><b class="small">Perdido</b><span class="count">1</span></div>
+      <div class="mini row"><div><b class="small">Winn Mart Doral</b>
+        <p class="muted">sem interesse · marcado pelo Elcy</p></div><span class="pill cli">cliente</span></div></div>
+
+    <button class="btn fab">+ Registrar visita</button>
+  </div>
+  <div class="tabs"><div><span>▦</span>Overview</div><div><span>◫</span>Produtos</div>
+    <div class="on"><span>◎</span>Campo</div><div><span>▤</span>Pedidos</div><div><span>⚙</span>Ajustes</div></div>
+</div>
+
+<!-- ============ TELA 4: FICHA DO CONTATO ============ -->
+<div class="phone"><h1>Ficha do contato (timeline)</h1>
+  <div class="screen">
+    <div class="topbar"><b>Ocean Fresh Market</b><span class="chip">editar</span></div>
+    <div class="row" style="margin-bottom:6px">
+      <span class="pill cli">cliente</span>
+      <span class="pill" style="background:#fffbeb;color:var(--warn)">amostra entregue</span></div>
+    <p class="muted" style="margin-bottom:2px">Kendall, Miami · (305) 555-0182 · Sr. Rui</p>
+    <p class="muted" style="margin-bottom:14px">última compra — · última interação hoje</p>
+
+    <div class="row" style="gap:8px;margin-bottom:16px">
+      <button class="btn" style="flex:1;padding:11px;font-size:13.5px">+ Visita</button>
+      <button class="btn ghost" style="flex:1;padding:11px;font-size:13.5px">Novo pedido</button></div>
+
+    <p class="muted" style="font-weight:700;margin:0 2px 10px">Timeline</p>
+    <div class="tl">
+      <div class="card"><div class="row"><b class="small">Visita · interessado</b>
+        <span class="muted">hoje</span></div>
+        <p class="muted">2× POP-401, 1× POP-114 deixadas · próximo passo sex, 29 ago</p></div>
+      <div class="card"><div class="row"><b class="small">Ligação · comprador ausente</b>
+        <span class="muted">21 ago</span></div>
+        <p class="muted">Recepção pediu para voltar quarta de manhã</p></div>
+      <div class="card"><div class="row"><b class="small">Visita · indeciso</b>
+        <span class="muted">14 ago</span></div>
+        <p class="muted">Apresentação da linha Popeye, sem amostra</p></div>
+      <div class="card" style="border-style:dashed"><div class="row">
+        <b class="small muted">Pedido #1042 (exemplo fatia 2+)</b><span class="muted">—</span></div>
+        <p class="muted">pedidos e recebimentos entram nesta mesma timeline</p></div>
+    </div>
+  </div>
+  <div class="tabs"><div><span>▦</span>Overview</div><div><span>◫</span>Produtos</div>
+    <div class="on"><span>◎</span>Campo</div><div><span>▤</span>Pedidos</div><div><span>⚙</span>Ajustes</div></div>
+</div>

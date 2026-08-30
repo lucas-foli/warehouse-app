@@ -223,3 +223,55 @@ controlada antes de fechar a causa.
   abertas no `<Modal>` (ou um contexto), de modo que apenas a última montada trate o `keydown`.
 - **Origem:** descoberto na revisão final da obra do `<Modal>` base (PR #72). Não introduzido por
   ela — é inerente a listeners de Esc por-instância; aflorou porque agora há um base único.
+
+## 2026-08-27 — BUG-16: campo de SKU colapsado no registro de visita (CORRIGIDO)
+
+**Origem:** e2e manual da fatia 1 do Campo (seção 1), Lucas.
+
+O input de SKU das amostras renderizava com poucos pixels e o de quantidade
+ocupava a linha inteira — impossível ver qual produto estava sendo escolhido.
+
+**Causa:** a constante `fieldClass` do `QuickLogModal` embutia `w-full`. No input
+de quantidade a string ficava `w-full … w-20`; como `.w-full` é emitido DEPOIS
+de `.w-20` no CSS gerado pelo Tailwind (byte 7409 vs 7204, mesma
+especificidade), `w-full` vencia. O SKU, com `flex-1` (basis 0), colapsava. O
+mesmo conflito afetava o input de data (`w-auto`).
+
+**Fix:** `fieldBase` sem largura + larguras explícitas na linha das amostras
+(SKU `flex-1 min-w-0`, qty `w-20 shrink-0`). Commit 6ae5bfa.
+
+## 2026-08-27 — BUG-17: criar fornecedor não dava feedback (CORRIGIDO)
+
+**Origem:** e2e manual da fatia 1 do Campo (seção 1), Lucas.
+
+Cadastrar fornecedor fechava o formulário sem nenhuma confirmação. Como o
+reload é silencioso, o usuário não sabia se tinha funcionado — e tentou de novo,
+tomando "Já existe um contato com esse nome".
+
+**Fix:** confirmação temporária "Fornecedor X cadastrado." acima do botão de
+novo fornecedor, limpa ao reabrir o formulário. Commit 6ae5bfa.
+
+## 2026-08-27 — BUG-18: contatos sumiam no teto de 1000 linhas do PostgREST (CORRIGIDO)
+
+**Origem:** e2e manual da fatia 1 do Campo, Lucas: "cadastrei fornecedores e não
+apareceu nada".
+
+**Sintoma:** fornecedor criado com sucesso (o insert funcionava — a segunda
+tentativa dava 23505 "já existe") nunca aparecia na aba Fornecedores nem no
+funil.
+
+**Causa:** `fetchFieldContacts` fazia `.select('*')` sem `.range()`. O PostgREST
+corta em 1000 linhas por padrão. O tenant de teste tinha exatamente 1000 contatos
+retornados (o funil mostrava 996 "Novo" + 1 + 2 + 1 = 1000 — a soma exata é a
+assinatura do teto). Como a query ordenava por `last_interaction_at desc` com
+nulos no fim, fornecedor recém-criado (sem interação) caía na cauda cortada.
+
+**Por que passou:** o risco estava registrado como deferido desde a review da
+task 10 ("fetchFieldContacts sem paginação"), tratado como hipotético porque a
+Global tem poucos contatos. O tenant de teste tinha o dump do CSV inteiro e
+bateu no teto no primeiro dia. Não havia teste — 14 tasks e uma review de branch
+não pegaram.
+
+**Fix:** helper de paginação nos três fetches do Campo, espelhando
+`dashboardService.fetchAllRows` (ordenação por `id` na query, reordenação de
+exibição em memória). Dois testes novos cobrem a paginação. Commit 689f902.
