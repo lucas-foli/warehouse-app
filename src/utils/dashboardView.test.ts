@@ -32,4 +32,12 @@ describe('resolveDashboardView', () => {
 		// mata: rota nova sem case no resolver (cairia no default overview)
 		expect(resolveDashboardView('/field')).toEqual({ page: 'campo', surface: 'dashboard' });
 	});
+
+	it('mantém "/" e "/products" na mesma page, separados só pelo surface', () => {
+		// mata: unificar as duas rotas (a aba Produtos ficaria ativa no Dashboard também)
+		const home = resolveDashboardView('/');
+		const products = resolveDashboardView('/products');
+		expect(home.page).toBe(products.page);
+		expect(home.surface).not.toBe(products.surface);
+	});
 });
