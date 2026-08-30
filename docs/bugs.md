@@ -173,7 +173,13 @@ controlada antes de fechar a causa.
 
 ## 2026-08-05 — Backdrop de modal deslocado pelo espaçamento do shell (`src/components/Dashboard.tsx`)
 
-### BUG-14 — O backdrop escurecido da modal não cobre o topo da tela (CONFIRMADO)
+### BUG-14 — O backdrop escurecido da modal não cobre o topo da tela (RESOLVIDO — PR #72)
+
+> **Resolvido** em PR #72 (`worktree-modal-base`): criado um `<Modal>` base
+> (`src/components/ui/Modal.tsx`) que renderiza via `createPortal(document.body)` — tira o
+> overlay do container com `space-y-10`, então o backdrop cobre 100% da viewport. As 11 modais
+> foram migradas para ele (grep de sanidade: só o popover `BulkEditFieldPopover` mantém overlay
+> próprio). Foi o "fix sugerido" abaixo (createPortal, correção única para todas).
 
 - **Atual:** o overlay de toda modal é `fixed inset-0 z-50 bg-black/60`
   (`sellers/SellerFormModal.tsx:134`, e idêntico em `products/SaleOrderModal.tsx:193`,
@@ -200,7 +206,25 @@ controlada antes de fechar a causa.
 - **Origem:** reportado no uso manual (2026-08-05, modal "Novo vendedor"); causa raiz confirmada no
   DOM renderizado, não só no código.
 
-## 2026-08-27 — BUG-15: campo de SKU colapsado no registro de visita (CORRIGIDO)
+## 2026-08-26 — Esc fecha modais empilhadas de uma vez (`src/components/ui/Modal.tsx`)
+
+### BUG-15 — Apertar Esc numa modal empilhada fecha também a de baixo (CONFIRMADO)
+
+- **Atual:** cada instância de `<Modal>` registra seu próprio listener de `keydown` no `document`
+  e chama `onClose` no Esc, sem noção de "topo da pilha". Quando duas modais estão montadas ao
+  mesmo tempo — ex.: no `ProductFormModal` em modo edit, clicar "Excluir" abre o `ConfirmDialog`
+  enquanto o painel de edição segue montado (`ProductsPage`: `onRequestDelete` não fecha o form) —
+  apertar Esc dispara os dois `onClose`: fecha o `ConfirmDialog` **e** o painel de edição por baixo.
+- **Consequência:** o Esc no diálogo de confirmação também descarta o formulário atrás dele. Blast
+  radius pequeno (o fluxo era de exclusão), mas é lacuna do componente-base que reaparece em
+  qualquer empilhamento futuro. Backdrop e foco-preso (Tab) não sofrem — o trap é escopado por
+  painel; só o Esc vaza.
+- **Esperado:** só a modal no topo da pilha responde ao Esc. Padrão: um contador/stack de modais
+  abertas no `<Modal>` (ou um contexto), de modo que apenas a última montada trate o `keydown`.
+- **Origem:** descoberto na revisão final da obra do `<Modal>` base (PR #72). Não introduzido por
+  ela — é inerente a listeners de Esc por-instância; aflorou porque agora há um base único.
+
+## 2026-08-27 — BUG-16: campo de SKU colapsado no registro de visita (CORRIGIDO)
 
 **Origem:** e2e manual da fatia 1 do Campo (seção 1), Lucas.
 
@@ -216,7 +240,7 @@ mesmo conflito afetava o input de data (`w-auto`).
 **Fix:** `fieldBase` sem largura + larguras explícitas na linha das amostras
 (SKU `flex-1 min-w-0`, qty `w-20 shrink-0`). Commit 6ae5bfa.
 
-## 2026-08-27 — BUG-16: criar fornecedor não dava feedback (CORRIGIDO)
+## 2026-08-27 — BUG-17: criar fornecedor não dava feedback (CORRIGIDO)
 
 **Origem:** e2e manual da fatia 1 do Campo (seção 1), Lucas.
 
@@ -227,7 +251,7 @@ tomando "Já existe um contato com esse nome".
 **Fix:** confirmação temporária "Fornecedor X cadastrado." acima do botão de
 novo fornecedor, limpa ao reabrir o formulário. Commit 6ae5bfa.
 
-## 2026-08-27 — BUG-17: contatos sumiam no teto de 1000 linhas do PostgREST (CORRIGIDO)
+## 2026-08-27 — BUG-18: contatos sumiam no teto de 1000 linhas do PostgREST (CORRIGIDO)
 
 **Origem:** e2e manual da fatia 1 do Campo, Lucas: "cadastrei fornecedores e não
 apareceu nada".

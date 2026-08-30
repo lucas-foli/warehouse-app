@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabaseClient';
+import { Modal } from '../ui/Modal';
 import type { Seller } from '../../types';
 import {
 	buildSellerInsert,
@@ -41,8 +42,6 @@ export const SellerFormModal = ({ open, tenantId, seller, onClose, onSaved }: Pr
 		setSaving(false);
 		setNameWarning('');
 	}, [open, seller]);
-
-	if (!open) return null;
 
 	const update = (partial: Partial<SellerDraft>) => setDraft((c) => ({ ...c, ...partial }));
 
@@ -149,106 +148,103 @@ export const SellerFormModal = ({ open, tenantId, seller, onClose, onSaved }: Pr
 	};
 
 	return (
-		<div className="fixed inset-0 z-50 bg-black/60 sm:flex sm:items-center sm:justify-center sm:p-4">
-			<div className="absolute inset-x-0 bottom-0 flex max-h-[92dvh] w-full flex-col rounded-t-2xl bg-card shadow-xl sm:static sm:max-h-[90vh] sm:max-w-lg sm:rounded-[var(--radius-card)]">
-				<div className="flex flex-shrink-0 justify-center py-3 sm:hidden">
-					<div className="h-1 w-10 rounded-full bg-border" />
-				</div>
-				<div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-6 pt-2 sm:pt-6">
-					<div className="flex items-start justify-between gap-4">
-						<div>
-							<p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-muted-foreground">
-								{isEdit ? 'Editar vendedor' : 'Novo vendedor'}
-							</p>
-							<p className="mt-2 text-sm text-muted-foreground">
-								{isEdit ? 'Atualize os dados do vendedor.' : 'Cadastre um vendedor manualmente.'}
-							</p>
-						</div>
-						<button
-							type="button"
-							onClick={onClose}
-							className="rounded-full border border-border/60 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-foreground transition hover:bg-muted">
-							Fechar
-						</button>
+		<Modal open={open} onClose={onClose} size="md" labelledById="seller-form-title">
+			<div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-6 pt-2 sm:pt-6">
+				<div className="flex items-start justify-between gap-4">
+					<div>
+						<p
+							id="seller-form-title"
+							className="text-[11px] font-semibold uppercase tracking-[0.25em] text-muted-foreground">
+							{isEdit ? 'Editar vendedor' : 'Novo vendedor'}
+						</p>
+						<p className="mt-2 text-sm text-muted-foreground">
+							{isEdit ? 'Atualize os dados do vendedor.' : 'Cadastre um vendedor manualmente.'}
+						</p>
 					</div>
-
-					<div className="mt-6 grid gap-4">
-						<div>
-							<label className={labelClass}>Nome *</label>
-							<input
-								value={draft.nome}
-								onChange={(e) => {
-									update({ nome: e.target.value });
-									setNameWarning('');
-								}}
-								autoFocus
-								className={fieldClass}
-							/>
-						</div>
-						<div>
-							<label className={labelClass}>E-mail</label>
-							<input type="email" value={draft.email} onChange={(e) => update({ email: e.target.value })} className={fieldClass} />
-						</div>
-						{nameWarning && <p className="text-xs text-amber-600">{nameWarning}</p>}
-						{error && <p className="text-xs text-rose-500">{error}</p>}
-					</div>
+					<button
+						type="button"
+						onClick={onClose}
+						className="rounded-full border border-border/60 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-foreground transition hover:bg-muted">
+						Fechar
+					</button>
 				</div>
 
-				<div className="flex flex-shrink-0 items-center justify-between gap-3 border-t border-border/20 px-6 py-4">
-					{confirmDelete ? (
-						<div className="flex w-full items-center justify-between gap-3">
-							<span className="text-xs text-muted-foreground">Excluir este vendedor?</span>
-							<div className="flex gap-2">
-								<button
-									type="button"
-									onClick={() => setConfirmDelete(false)}
-									className="rounded-full border border-border/60 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground transition hover:bg-muted">
-									Cancelar
-								</button>
-								<button
-									type="button"
-									onClick={remove}
-									disabled={saving}
-									className="rounded-full bg-rose-500 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-white transition hover:opacity-90 disabled:opacity-50">
-									Confirmar exclusão
-								</button>
-							</div>
-						</div>
-					) : (
-						<>
-							<div>
-								{isEdit && (
-									<button
-										type="button"
-										onClick={() => {
-											setError('');
-											setNameWarning('');
-											setConfirmDelete(true);
-										}}
-										className="rounded-full border border-rose-500/60 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-rose-500 transition hover:bg-rose-500/10">
-										Excluir
-									</button>
-								)}
-							</div>
-							<div className="flex gap-3">
-								<button
-									type="button"
-									onClick={onClose}
-									className="rounded-full border border-border/60 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground transition hover:bg-muted">
-									Cancelar
-								</button>
-								<button
-									type="button"
-									onClick={() => save(Boolean(nameWarning))}
-									disabled={saving || !tenantId}
-									className="rounded-full bg-primary px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50">
-									{saving ? 'Salvando…' : nameWarning ? 'Salvar mesmo assim' : isEdit ? 'Salvar' : 'Criar vendedor'}
-								</button>
-							</div>
-						</>
-					)}
+				<div className="mt-6 grid gap-4">
+					<div>
+						<label className={labelClass}>Nome *</label>
+						<input
+							value={draft.nome}
+							onChange={(e) => {
+								update({ nome: e.target.value });
+								setNameWarning('');
+							}}
+							autoFocus
+							className={fieldClass}
+						/>
+					</div>
+					<div>
+						<label className={labelClass}>E-mail</label>
+						<input type="email" value={draft.email} onChange={(e) => update({ email: e.target.value })} className={fieldClass} />
+					</div>
+					{nameWarning && <p className="text-xs text-amber-600">{nameWarning}</p>}
+					{error && <p className="text-xs text-rose-500">{error}</p>}
 				</div>
 			</div>
-		</div>
+
+			<div className="flex flex-shrink-0 items-center justify-between gap-3 border-t border-border/20 px-6 py-4">
+				{confirmDelete ? (
+					<div className="flex w-full items-center justify-between gap-3">
+						<span className="text-xs text-muted-foreground">Excluir este vendedor?</span>
+						<div className="flex gap-2">
+							<button
+								type="button"
+								onClick={() => setConfirmDelete(false)}
+								className="rounded-full border border-border/60 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground transition hover:bg-muted">
+								Cancelar
+							</button>
+							<button
+								type="button"
+								onClick={remove}
+								disabled={saving}
+								className="rounded-full bg-rose-500 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-white transition hover:opacity-90 disabled:opacity-50">
+								Confirmar exclusão
+							</button>
+						</div>
+					</div>
+				) : (
+					<>
+						<div>
+							{isEdit && (
+								<button
+									type="button"
+									onClick={() => {
+										setError('');
+										setNameWarning('');
+										setConfirmDelete(true);
+									}}
+									className="rounded-full border border-rose-500/60 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-rose-500 transition hover:bg-rose-500/10">
+									Excluir
+								</button>
+							)}
+						</div>
+						<div className="flex gap-3">
+							<button
+								type="button"
+								onClick={onClose}
+								className="rounded-full border border-border/60 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground transition hover:bg-muted">
+								Cancelar
+							</button>
+							<button
+								type="button"
+								onClick={() => save(Boolean(nameWarning))}
+								disabled={saving || !tenantId}
+								className="rounded-full bg-primary px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50">
+								{saving ? 'Salvando…' : nameWarning ? 'Salvar mesmo assim' : isEdit ? 'Salvar' : 'Criar vendedor'}
+							</button>
+						</div>
+					</>
+				)}
+			</div>
+		</Modal>
 	);
 };
