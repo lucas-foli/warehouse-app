@@ -31,4 +31,10 @@ describe('ProductFormModal', () => {
 		rerender(<ProductFormModal {...base} draft={draft({ sku: 'A', name: 'X' })} />);
 		expect(screen.getByRole('button', { name: /salvar/i })).toBeEnabled();
 	});
+
+	it('não deixa editar o saldo na edição de produto', () => {
+		// mata: manter o input editável no modo edit (a porta dos fundos do estoque)
+		render(<ProductFormModal {...base} mode="edit" draft={draft({ qty: '148' })} />);
+		expect(screen.getByText('só-leitura')).toBeInTheDocument();
+	});
 });
