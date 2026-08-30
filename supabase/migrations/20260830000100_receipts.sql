@@ -30,7 +30,7 @@ create table if not exists public.receipt_items (
 	tenant_id uuid not null references public.tenants (id) on delete cascade,
 	receipt_id uuid not null references public.receipts (id) on delete cascade,
 	receipt_number text not null,
-	product_id uuid references public.products (id),
+	product_id uuid references public.products (id) on delete set null,
 	sku text not null,
 	qty integer not null check (qty > 0),
 	unit_cost numeric,
