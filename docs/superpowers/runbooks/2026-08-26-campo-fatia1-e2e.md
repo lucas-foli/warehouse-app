@@ -45,29 +45,31 @@ Registrado como decisão consciente da fatia 1 (não é bug a reportar).
 
 11. Amostra com quantidade decimal (ex.: 1,5): tentar adicionar ao registro
     rápido → recusada com mensagem de erro visível, não some em silêncio da
-    lista de amostras.
+    lista de amostras.✅
 12. Amostra adicionada por engano: no registro rápido, adicionar uma amostra e
     removê-la pelo ✕ antes de salvar → ela some da lista e não é debitada do
-    estoque ao salvar.
+    estoque ao salvar.✅
 13. Registrar visita com "próximo passo" preenchido e SEM tocar no campo de
     data → o chip "amanhã" acende sozinho; ao salvar, o item aparece na
-    Agenda.
+    Agenda.✅
 14. Salvar uma visita que deixa o estoque negativo (amostra maior que o
     saldo): o modal NÃO fecha sozinho. A caixa âmbar traz "Visita registrada."
     em destaque e, abaixo, "Estoque ficou negativo: <SKU>." — as duas como
     TEXTO, nada clicável. O botão do rodapé vira a ação: "Entendi, fechar",
     habilitado, e é o único jeito de fechar. Salvar duas vezes é impossível
-    (com o aviso na tela o botão fecha, não salva).
+    (com o aviso na tela o botão fecha, não salva).✅ (reprovado na 1ª rodada por
+    hierarquia invertida — botão morto "Visita registrada" e ação num link;
+    corrigido no commit 187a63e e reaprovado)
 15. Na ficha aberta pelo Funil (tocar num card): registrar uma visita por ali
     → a timeline atualiza sem fechar a ficha; trocar o estágio → o chip muda
     na hora e passa a marcar "· à mão"; clicar em "voltar ao automático" → o
-    chip volta ao estágio derivado.
+    chip volta ao estágio derivado.✅
 16. Na ficha aberta pela ClientsPage (botão "Ficha"): confirmar que o chip de
     estágio NÃO aparece ali (o estágio é aproximado só na aba Campo) — só o
-    badge de papel e a timeline.
+    badge de papel e a timeline.✅
 17. Funil com filtro "Fornecedores" num tenant (ou momento, antes do passo 8
     criar o Noronha Pescados) sem nenhum fornecedor cadastrado → mostra
-    "Nenhum contato neste filtro.", não uma tela em branco.
+    "Nenhum contato neste filtro.", não uma tela em branco.✅
 18. Logado como usuário NÃO-admin: consegue registrar visita em contato que
     JÁ existe e marcar um follow-up como feito na Agenda. É barrado, com
     mensagem clara e sem erro em inglês, em três pontos:
@@ -76,13 +78,13 @@ Registrado como decisão consciente da fatia 1 (não é bug a reportar).
     - criar contato novo pelo registro rápido → "Apenas administradores podem
       cadastrar clientes.";
     - Fornecedores → "+ Novo fornecedor" → "Apenas administradores podem
-      cadastrar fornecedores.".
+      cadastrar fornecedores.".✅
 19. Campo "Quando": registrar uma visita com data de ontem e conferir que a
     timeline mostra a data de ontem, não a de hoje; conferir que o seletor
-    não deixa escolher data futura.
+    não deixa escolher data futura.✅
 20. Rastro do override: marcar um contato como "Perdido" e conferir que a
     timeline ganha o card "Estágio marcado à mão · Perdido" na data de hoje,
-    SEM fechar e reabrir a ficha.
+    SEM fechar e reabrir a ficha.✅
 21. Escopo do override — **use o MESMO contato do passo 20** (o que você
     acabou de marcar como "Perdido" e que já tinha amostra entregue antes
     disso). Registrar nele uma visita nova SEM amostra e conferir que ele vai
@@ -92,4 +94,4 @@ Registrado como decisão consciente da fatia 1 (não é bug a reportar).
     resultado CORRETO: sem `stage_overridden_at` o escopo é inerte e todos os
     fatos contam, inclusive amostras antigas. O jeito rápido de saber se um
     contato tem override é a timeline: se não há card "Estágio marcado à mão",
-    não há override e não há escopo.
+    não há override e não há escopo.✅
