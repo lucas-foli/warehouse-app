@@ -58,14 +58,11 @@ em vez de dar erro — por isso a UI exige o nome na própria linha e marca a
 criação de forma explícita (ver UI). Rejeitado: rejeitar o lote como faz a venda
 (seria simétrico, mas trava o primeiro carregamento de fornecedor novo).
 
-**Produto criado pelo recebimento nasce sem local.** `products.location` é
-`not null default 'Brasília Shopping'` (`multitenant.sql:71`, herança do tenant
-brasileiro original). Deixar o default agir plantaria uma loja que ninguém
-escolheu no cadastro de um app US-first — então a RPC informa `location = ''`
-explicitamente: não atribuído, visível em "Todos os locais", atribuível depois.
-`status` é o caso oposto e fica com o default `'ESTOQUE'`, que descreve
-corretamente mercadoria recém-chegada. Rejeitado: campo "local de destino" no
-cabeçalho do lote (mais completo, mas adiciona decisão a cada recebimento).
+**Produto criado pelo recebimento recebe o local de destino do lote.**
+~~A RPC informa `location = ''` explicitamente: não atribuído, visível em
+"Todos os locais", atribuível depois.~~ **Revisto em 2026-08-30, durante a
+execução — ver Emenda 1.** `status` continua com o default `'ESTOQUE'`, que
+descreve corretamente mercadoria recém-chegada.
 
 **SKU desativado é reativado pelo recebimento.** Receber mercadoria de um item
 desativado reativa o produto e soma o saldo, com aviso explícito na tela antes
@@ -280,3 +277,46 @@ cadastro" e o botão "Registrar recebimento deste item".
 2. E2e manual roteirizado com dados da Global (Noronha + os 10 SKUs Popeye).
 3. Fechar o PR #70 (backlog de navegação) quando esta fatia mergear — a decisão
    que ele registrava passa a estar implementada.
+
+---
+
+## Emenda 1 — 2026-08-30: local de destino do lote
+
+**Por que a decisão original caiu.** A spec mandava a RPC gravar `location = ''`
+para não plantar no cadastro uma loja que ninguém escolheu, e o modal prometia ao
+usuário que o produto novo apareceria "só em Todos os locais até você escolher uma
+loja". A revisão do runbook derrubou a premissa: o app **desfaz** o vazio em três
+pontos na leitura e na escrita —
+
+- `src/services/dashboardService.ts:111` — `location: str(row,'location') || 'Loja principal'`
+- `src/components/ProductsPage.tsx:145` — mesmo fallback ao abrir a edição
+- `src/components/ProductsPage.tsx:220` — ao **salvar** a edição, grava `'Loja principal'` de verdade
+
+Efeito real: o produto novo aparece como "Loja principal" (não como não-atribuído),
+entra no filtro daquela loja, e a primeira edição materializa esse valor no banco.
+A decisão original trocava o `'Brasília Shopping'` do default do banco pelo
+`'Loja principal'` do app — sem resolver o problema que a motivava. E a caixa verde
+do modal passou a prometer um comportamento que o app não cumpre.
+
+**Decisão revista (Lucas, 2026-08-30):** resolver na origem. O lote passa a carregar
+um **local de destino**, e o produto criado pelo recebimento nasce com ele. A opção
+havia sido rejeitada no brainstorm por "adicionar uma decisão a cada recebimento" —
+o que se resolve tornando o campo **obrigatório apenas quando o lote contém ao menos
+um SKU novo**. Lote só de SKUs conhecidos não pergunta nada, porque produto existente
+mantém o local que já tem: o local do lote se aplica **exclusivamente** aos produtos
+criados, nunca move produto entre lojas.
+
+**Consequências:**
+
+- `register_receipt` ganha o parâmetro `p_location`, usado no `insert into products`.
+  Se o lote tiver SKU novo e `p_location` vier vazio ⇒ exceção `receipt_location_required`.
+  O default `'Brasília Shopping'` da tabela nunca age.
+- `receiptService` passa `location` no input.
+- O modal ganha o campo no cabeçalho, alimentado pelas opções de local do tenant
+  (`listProductOptions`, kind `local` — a mesma fonte do `ProductFormModal`), exibido
+  e exigido apenas quando há SKU novo no lote.
+- A caixa verde deixa de prometer "Todos os locais" e passa a dizer em que loja o
+  produto vai nascer.
+- O fallback `|| 'Loja principal'` dos três pontos acima **não** é tocado por esta
+  fatia: é comportamento app-wide, afeta todo produto sem local e o filtro de lojas
+  derivado deles, e merece spec própria. Fica em `docs/backlog.md`.
