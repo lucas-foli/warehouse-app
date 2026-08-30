@@ -1,0 +1,239 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Campo — mockup fatia 2 (entrada de mercadoria)</title>
+<style>
+  :root{
+    --background:hsl(36 33% 96%);--foreground:hsl(24 26% 12%);
+    --card:hsl(0 0% 100%);--border:hsl(30 20% 88%);--input:hsl(30 20% 92%);
+    --primary:hsl(24 26% 12%);--primary-fg:hsl(0 0% 100%);
+    --secondary:hsl(34 25% 93%);--muted-fg:hsl(24 12% 42%);
+    --accent:hsl(36 90% 60%);--ring:hsl(20 90% 48%);
+    --radius-card:24px;--shadow-card:0 24px 60px rgba(0,0,0,.14);
+    --ok:#46b280;--warn:#d97706;--bad:#dc2626;
+  }
+  *{box-sizing:border-box;margin:0}
+  body{background:var(--background);color:var(--foreground);
+    font-family:'Plus Jakarta Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+    padding:32px 16px;display:flex;flex-wrap:wrap;gap:28px;justify-content:center;align-items:flex-start}
+  .phone{width:375px;flex:0 0 375px;background:var(--background);border:1px solid var(--border);
+    border-radius:36px;box-shadow:var(--shadow-card);overflow:hidden;display:flex;flex-direction:column;height:740px}
+  .phone h1{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-fg);
+    text-align:center;padding:10px 0 0}
+  .screen{flex:1;overflow-y:auto;padding:16px 16px 90px;position:relative}
+  .topbar{display:flex;align-items:center;justify-content:space-between;padding:8px 2px 14px}
+  .topbar b{font-size:20px}
+  .chip{font-size:11px;background:var(--secondary);border:1px solid var(--border);
+    padding:4px 10px;border-radius:999px;color:var(--muted-fg)}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-card);
+    padding:16px;margin-bottom:12px}
+  .row{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .muted{color:var(--muted-fg);font-size:12.5px}
+  .small{font-size:13px}
+  .pill{display:inline-block;font-size:11px;font-weight:600;padding:3px 10px;border-radius:999px}
+  .pill.new{background:#eef6f2;color:var(--ok)}
+  .pill.warn{background:#fffbeb;color:var(--warn)}
+  .pill.sup{background:var(--secondary);color:var(--foreground)}
+  .btn{display:block;width:100%;text-align:center;background:var(--primary);color:var(--primary-fg);
+    border:none;border-radius:16px;padding:14px;font-size:15px;font-weight:700;font-family:inherit}
+  .btn.ghost{background:var(--secondary);color:var(--foreground);border:1px solid var(--border)}
+  .btn:disabled{opacity:.45}
+  .fab{position:absolute;left:16px;right:16px;bottom:74px}
+  .tabs{display:flex;border-top:1px solid var(--border);background:var(--card)}
+  .tabs div{flex:1;text-align:center;font-size:10.5px;padding:10px 0 14px;color:var(--muted-fg)}
+  .tabs div.on{color:var(--foreground);font-weight:700}
+  .tabs span{display:block;font-size:17px;margin-bottom:2px}
+  .field{margin-bottom:12px}
+  .field label{font-size:12px;font-weight:600;color:var(--muted-fg);display:block;margin-bottom:5px}
+  .input{background:var(--input);border:1px solid var(--border);border-radius:12px;
+    padding:11px 12px;font-size:14px;color:var(--foreground)}
+  .input.ph{color:var(--muted-fg)}
+  .two{display:flex;gap:8px}
+  .two>*{flex:1}
+  .line{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:12px 13px;margin-bottom:8px}
+  .line.newsku{border-color:var(--ok);box-shadow:0 0 0 2px rgba(70,178,128,.12)}
+  .line.react{border-color:#fde68a;box-shadow:0 0 0 2px rgba(217,119,6,.10)}
+  .warnbox{background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:9px 12px;
+    font-size:12px;color:var(--warn);margin-bottom:12px}
+  .okbox{background:#eef6f2;border:1px solid #cfe8dc;border-radius:12px;padding:9px 12px;
+    font-size:12px;color:#2f7d5c;margin-bottom:12px}
+  .sheet{position:absolute;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--border);
+    border-radius:24px 24px 0 0;padding:16px;box-shadow:0 -16px 40px rgba(0,0,0,.10)}
+  .grab{width:38px;height:4px;background:var(--border);border-radius:999px;margin:0 auto 14px}
+  .total{display:flex;justify-content:space-between;align-items:baseline;padding:10px 2px 14px}
+  .total b{font-size:20px}
+  /* desktop panel */
+  .desk{width:820px;flex:0 0 820px;background:var(--card);border:1px solid var(--border);
+    border-radius:20px;box-shadow:var(--shadow-card);overflow:hidden}
+  .desk h1{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-fg);
+    padding:12px 18px 0}
+  .deskbar{display:flex;align-items:center;justify-content:space-between;padding:16px 18px 18px;gap:16px}
+  .logo{display:flex;align-items:center;gap:9px;font-weight:800;font-size:17px}
+  .logo i{width:28px;height:28px;border-radius:9px;background:var(--primary);display:block}
+  .segbar{display:inline-flex;background:var(--secondary);border-radius:999px;padding:4px;
+    font-size:11px;font-weight:600;letter-spacing:.2em;text-transform:uppercase}
+  .segbar div{padding:8px 15px;border-radius:999px;color:var(--muted-fg)}
+  .segbar div.on{background:var(--primary);color:var(--primary-fg)}
+  .note{font-size:12px;color:var(--muted-fg);padding:0 18px 16px;line-height:1.55}
+  .note b{color:var(--foreground)}
+  .strike{text-decoration:line-through;opacity:.45}
+</style>
+
+<!-- ============ PAINEL A: NAVEGAÇÃO (desktop) ============ -->
+<div class="desk"><h1>A · Barra de tabs — antes × depois</h1>
+  <div class="deskbar">
+    <div class="logo"><i></i>Global Foods</div>
+    <div class="segbar">
+      <div class="strike">Dashboard</div><div>Campo</div><div>Clientes</div>
+      <div>Vendedores</div><div>Vendas</div>
+    </div>
+  </div>
+  <div class="deskbar" style="border-top:1px solid var(--border)">
+    <div class="logo"><i></i>Global Foods</div>
+    <div class="segbar">
+      <div class="on">Produtos</div><div>Campo</div><div>Clientes</div>
+      <div>Vendedores</div><div>Vendas</div>
+    </div>
+  </div>
+  <p class="note"><b>Produtos</b> entra na barra como entrada principal (a tela mais visitada).
+  O <b>Dashboard</b> sai da barra e passa a ser alcançado clicando na <b>logo</b> — o gesto de shell
+  registrado no PR #70. Cinco abas continuam cinco abas: nada cresce.</p>
+</div>
+
+<!-- ============ TELA 1: PRODUTOS ============ -->
+<div class="phone"><h1>1 · Produtos (aba nova)</h1>
+  <div class="screen">
+    <div class="topbar"><b>Produtos</b><span class="chip">Global Foods</span></div>
+
+    <div class="card" style="padding:14px 16px">
+      <div class="row"><div>
+        <b class="small">POP-401</b>
+        <p class="muted">Camarão cinza 400g</p></div>
+        <div style="text-align:right"><b style="font-size:19px">148</b>
+        <p class="muted">US$ 9,00</p></div></div>
+    </div>
+    <div class="card" style="padding:14px 16px">
+      <div class="row"><div>
+        <b class="small">POP-114</b>
+        <p class="muted">Filé de tilápia 1kg</p></div>
+        <div style="text-align:right"><b style="font-size:19px">32</b>
+        <p class="muted">US$ 14,50</p></div></div>
+    </div>
+    <div class="card" style="padding:14px 16px">
+      <div class="row"><div>
+        <b class="small">POP-208</b>
+        <p class="muted">Polvo inteiro 2kg</p></div>
+        <div style="text-align:right"><b style="font-size:19px;color:var(--bad)">0</b>
+        <p class="muted">US$ 26,00</p></div></div>
+    </div>
+
+    <button class="btn fab">Registrar recebimento</button>
+  </div>
+  <div class="tabs">
+    <div class="on"><span>▦</span>Produtos</div><div><span>◎</span>Campo</div>
+    <div><span>☺</span>Clientes</div><div><span>♦</span>Vendas</div>
+  </div>
+</div>
+
+<!-- ============ TELA 2: RECEBIMENTO ============ -->
+<div class="phone"><h1>2 · Recebimento — lote normal</h1>
+  <div class="screen" style="padding-bottom:16px">
+    <div class="topbar"><b>Recebimento</b><span class="chip">R-0007</span></div>
+
+    <div class="field"><label>Fornecedor *</label>
+      <div class="input">Noronha Pescados</div></div>
+    <div class="two">
+      <div class="field"><label>Chegou em *</label><div class="input">30 ago 2026</div></div>
+      <div class="field"><label>Documento</label><div class="input ph">NF 4471</div></div>
+    </div>
+    <div class="field"><label>Observação</label>
+      <div class="input ph">2 caixas avariadas</div></div>
+
+    <p class="muted" style="margin:16px 2px 8px;font-weight:700">Itens · 2</p>
+
+    <div class="line">
+      <div class="row"><div><b class="small">POP-401</b>
+        <p class="muted">Camarão cinza 400g · saldo 148</p></div>
+        <div style="text-align:right"><b>+100</b><p class="muted">US$ 4,50 un</p></div></div>
+    </div>
+    <div class="line">
+      <div class="row"><div><b class="small">POP-114</b>
+        <p class="muted">Filé de tilápia 1kg · saldo 32</p></div>
+        <div style="text-align:right"><b>+40</b><p class="muted">US$ 7,20 un</p></div></div>
+    </div>
+
+    <div class="line" style="border-style:dashed;text-align:center;color:var(--muted-fg);font-size:13px;padding:14px">
+      + adicionar item
+    </div>
+
+    <div class="total"><span class="muted">Custo do lote</span><b>US$ 738,00</b></div>
+    <button class="btn">Registrar entrada</button>
+  </div>
+</div>
+
+<!-- ============ TELA 3: SKU NOVO + REATIVAÇÃO ============ -->
+<div class="phone"><h1>3 · SKU novo e SKU desativado</h1>
+  <div class="screen" style="padding-bottom:16px">
+    <div class="topbar"><b>Recebimento</b><span class="chip">R-0008</span></div>
+
+    <div class="field"><label>Fornecedor *</label>
+      <div class="input">Noronha Pescados</div></div>
+
+    <p class="muted" style="margin:16px 2px 8px;font-weight:700">Itens · 2</p>
+
+    <div class="okbox">
+      <b>POP-922 não existe no cadastro.</b> Vai ser criado agora, com saldo 40 e sem preço
+      de venda. Confira o código antes de salvar.
+    </div>
+    <div class="line newsku">
+      <div class="row"><div><b class="small">POP-922</b>
+        <span class="pill new">novo produto</span></div>
+        <div style="text-align:right"><b>+40</b><p class="muted">US$ 5,10 un</p></div></div>
+      <div class="field" style="margin:10px 0 0"><label>Nome do produto *</label>
+        <div class="input">Camarão rosa 500g</div></div>
+    </div>
+
+    <div class="warnbox">
+      <b>POP-208 está desativado.</b> Registrar esta entrada reativa o produto e ele volta
+      a aparecer na lista.
+    </div>
+    <div class="line react">
+      <div class="row"><div><b class="small">POP-208</b>
+        <span class="pill warn">será reativado</span>
+        <p class="muted">Polvo inteiro 2kg · saldo 0</p></div>
+        <div style="text-align:right"><b>+25</b><p class="muted">US$ 11,00 un</p></div></div>
+    </div>
+
+    <div class="total"><span class="muted">Custo do lote</span><b>US$ 479,00</b></div>
+    <button class="btn">Registrar entrada</button>
+  </div>
+</div>
+
+<!-- ============ TELA 4: PRODUTO (qty só-leitura) ============ -->
+<div class="phone"><h1>4 · Editar produto — saldo travado</h1>
+  <div class="screen" style="padding-bottom:16px">
+    <div class="topbar"><b>Editar produto</b><span class="chip">POP-401</span></div>
+
+    <div class="field"><label>Nome</label><div class="input">Camarão cinza 400g</div></div>
+    <div class="two">
+      <div class="field"><label>SKU</label><div class="input">POP-401</div></div>
+      <div class="field"><label>Preço de venda</label><div class="input">US$ 9,00</div></div>
+    </div>
+
+    <div class="field"><label>Quantidade em estoque</label>
+      <div class="input" style="background:var(--secondary);color:var(--muted-fg);
+        display:flex;justify-content:space-between;align-items:center">
+        <span style="font-weight:700;color:var(--foreground);font-size:16px">148</span>
+        <span style="font-size:11px">só-leitura</span></div>
+      <p class="muted" style="margin-top:6px">O saldo muda por recebimento, venda e amostra —
+      não pela edição do cadastro.</p>
+    </div>
+    <button class="btn ghost" style="margin-bottom:14px">Registrar recebimento deste item</button>
+
+    <div class="two">
+      <div class="field"><label>Local</label><div class="input">Miami</div></div>
+      <div class="field"><label>Onde</label><div class="input">Câmara fria</div></div>
+    </div>
+
+    <button class="btn">Salvar</button>
+  </div>
+</div>
