@@ -11,20 +11,41 @@ const baseInput = {
 	items: [{ sku: 'pop-401', qty: 10, unitCost: 4.5, name: '' }],
 };
 
+// Espelha RECEIPT_ERROR_MESSAGES de receiptService.ts — cobre as 8 chaves,
+// não só as 2 que os testes originais tocavam.
+const ERROR_CASES: [string, string][] = [
+	['not_authenticated', 'Sua sessão expirou. Entre novamente para registrar a entrada.'],
+	['not_authorized', 'Apenas administradores podem registrar recebimentos.'],
+	['receipt_supplier_required', 'Escolha o fornecedor deste recebimento.'],
+	['receipt_items_required', 'Adicione ao menos um item ao recebimento.'],
+	['receipt_qty_invalid', 'A quantidade recebida deve ser um número inteiro maior que zero.'],
+	['receipt_cost_invalid', 'O custo unitário não pode ser negativo.'],
+	['receipt_sku_required', 'Informe o SKU do produto.'],
+	['receipt_product_name_required', 'Informe o nome do produto novo antes de registrar a entrada.'],
+];
+
 describe('registerReceipt', () => {
 	beforeEach(() => {
 		rpc.mockReset();
 		rpc.mockResolvedValue({ data: { id: 'r1', receipt_number: 'R-0001' }, error: null });
 	});
 
-	it('envia o payload com os nomes de parâmetro da RPC', async () => {
-		// mata: renomear p_* — a RPC rejeitaria a chamada inteira
-		await registerReceipt({ ...baseInput, document: 'NF 4471', note: null });
+	it('envia o payload com os 6 parâmetros da RPC, incluindo p_items e p_received_at', async () => {
+		// mata: renomear qualquer um dos 6 p_* (inclusive p_received_at, que
+		// nenhum teste checava antes) — a RPC rejeitaria a chamada inteira
+		await registerReceipt({
+			...baseInput,
+			document: 'NF 4471',
+			note: null,
+			receivedAt: '2026-08-30T12:00:00.000Z',
+		});
 		const [fn, params] = rpc.mock.calls[0];
 		expect(fn).toBe('register_receipt');
 		expect(params).toMatchObject({
 			p_tenant_id: 't1',
 			p_supplier_id: 's1',
+			p_items: [{ sku: 'POP-401', qty: 10, unit_cost: 4.5, name: null }],
+			p_received_at: '2026-08-30T12:00:00.000Z',
 			p_document: 'NF 4471',
 			p_note: null,
 		});
@@ -44,26 +65,75 @@ describe('registerReceipt', () => {
 		]);
 	});
 
-	it('manda name null quando o nome está vazio', async () => {
-		// mata: enviar string vazia — a RPC trata '' e null de formas diferentes
-		await registerReceipt(baseInput);
-		expect(rpc.mock.calls[0][1].p_items[0].name).toBeNull();
+	it('preserva unit_cost 0 (brinde) em vez de tratar como ausência de custo', async () => {
+		// mata: `l.unitCost || null` em vez de `l.unitCost` — 0 é falsy mas é
+		// custo real, não "sem custo" (mesmo contrato de receiptTotal)
+		await registerReceipt({
+			...baseInput,
+			items: [{ sku: 'pop-401', qty: 3, unitCost: 0, name: 'Amostra' }],
+		});
+		expect(rpc.mock.calls[0][1].p_items[0].unit_cost).toBe(0);
 	});
 
-	it('traduz not_authorized para mensagem de permissão', async () => {
-		// mata: vazar o erro cru do Postgres na tela do usuário
-		rpc.mockResolvedValue({ data: null, error: { message: 'not_authorized' } });
-		await expect(registerReceipt(baseInput)).rejects.toThrow(
-			'Apenas administradores podem registrar recebimentos.',
-		);
+	it('rejeita o lote inteiro quando alguma linha tem qty inválida', async () => {
+		// mata: mergeReceiptLines descartar em silêncio a linha com qty <= 0 e
+		// registrar só as linhas restantes sem avisar quem chamou
+		await expect(
+			registerReceipt({
+				...baseInput,
+				items: [
+					{ sku: 'A', qty: 10, unitCost: 1, name: 'Produto A' },
+					{ sku: 'B', qty: -5, unitCost: 1, name: 'Produto B' },
+				],
+			}),
+		).rejects.toThrow('A quantidade recebida deve ser um número inteiro maior que zero.');
+		expect(rpc).not.toHaveBeenCalled();
 	});
 
-	it('traduz receipt_product_name_required', async () => {
-		// mata: deixar o código bruto aparecer quando falta o nome do produto novo
-		rpc.mockResolvedValue({ data: null, error: { message: 'receipt_product_name_required' } });
-		await expect(registerReceipt(baseInput)).rejects.toThrow(
-			'Informe o nome do produto novo antes de registrar a entrada.',
-		);
+	it('rejeita com "quantidade inválida" quando a única linha tem qty 0, não "adicione um item"', async () => {
+		// mata: deixar a linha inválida sumir no merge, mandar p_items: [] e
+		// deixar a RPC responder receipt_items_required — mensagem errada pro
+		// usuário que acabou de digitar uma linha
+		await expect(
+			registerReceipt({ ...baseInput, items: [{ sku: 'pop-401', qty: 0, unitCost: 1, name: '' }] }),
+		).rejects.toThrow('A quantidade recebida deve ser um número inteiro maior que zero.');
+		expect(rpc).not.toHaveBeenCalled();
+	});
+
+	it('rejeita quando alguma linha tem SKU vazio', async () => {
+		// mata: mergeReceiptLines descartar em silêncio a linha sem SKU
+		await expect(
+			registerReceipt({ ...baseInput, items: [{ sku: '   ', qty: 5, unitCost: 1, name: '' }] }),
+		).rejects.toThrow('Informe o SKU do produto.');
+		expect(rpc).not.toHaveBeenCalled();
+	});
+
+	it.each(ERROR_CASES)('traduz o código de erro "%s" para mensagem pt-BR', async (code, message) => {
+		// mata: typo em qualquer uma das 8 chaves do mapa vazando a mensagem
+		// crua do Postgres na tela do usuário
+		rpc.mockResolvedValue({ data: null, error: { message: code } });
+		await expect(registerReceipt(baseInput)).rejects.toThrow(message);
+	});
+
+	it('devolve a mensagem crua quando o código de erro não está mapeado', async () => {
+		// mata: normalizar todo erro desconhecido pra mensagem genérica em vez
+		// de preservar o texto original (perderia informação de debug real)
+		rpc.mockResolvedValue({ data: null, error: { message: 'algum_erro_novo_do_postgres' } });
+		await expect(registerReceipt(baseInput)).rejects.toThrow('algum_erro_novo_do_postgres');
+	});
+
+	it('devolve mensagem genérica quando o erro vem sem texto', async () => {
+		// mata: propagar error.message === '' direto pra UI em vez de cair no
+		// fallback genérico
+		rpc.mockResolvedValue({ data: null, error: { message: '' } });
+		await expect(registerReceipt(baseInput)).rejects.toThrow('Não foi possível registrar a entrada.');
+	});
+
+	it('lança erro genérico quando a RPC devolve sucesso sem dado', async () => {
+		// mata: assumir que "sem erro" implica "com dado" e devolver undefined
+		// pra UI em vez de falhar alto
+		rpc.mockResolvedValue({ data: null, error: null });
+		await expect(registerReceipt(baseInput)).rejects.toThrow('Não foi possível registrar a entrada.');
 	});
 
 	it('devolve a linha criada quando dá certo', async () => {

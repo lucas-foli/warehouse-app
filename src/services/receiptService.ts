@@ -32,6 +32,25 @@ const friendlyReceiptError = (rawMessage: string): string => {
 };
 
 /**
+ * Barra linha inválida antes do merge em vez de deixar `mergeReceiptLines`
+ * descartá-la em silêncio (receiptCart.ts:17-18 usa `continue`, pensado para o
+ * carrinho da UI filtrar rascunho incompleto enquanto o usuário digita — aqui,
+ * no envio, a mesma linha teria que ser um erro alto, não um item que some).
+ * Sem isto: um carrinho [A, B inválido] registraria só A sem avisar; um
+ * carrinho de uma linha só e inválida viraria `p_items: []`, e a RPC
+ * responderia `receipt_items_required` — mensagem errada para o problema real.
+ * Reusa as mesmas mensagens do mapa de erros da RPC (não duplica texto).
+ */
+const validateReceiptLines = (items: ReceiptLine[]): void => {
+	for (const item of items) {
+		if (!item.sku.trim()) throw new Error(RECEIPT_ERROR_MESSAGES.receipt_sku_required);
+		if (!Number.isInteger(item.qty) || item.qty <= 0) {
+			throw new Error(RECEIPT_ERROR_MESSAGES.receipt_qty_invalid);
+		}
+	}
+};
+
+/**
  * Registra um recebimento atomicamente (um receipts + N receipt_items + N
  * créditos de estoque) via register_receipt. O merge client-side repete o que a
  * RPC faz server-side: aqui ele existe para o payload já sair sem SKU repetido.
@@ -39,6 +58,8 @@ const friendlyReceiptError = (rawMessage: string): string => {
  * por conta própria (a RPC devolve o lote, não os produtos).
  */
 export async function registerReceipt(input: RegisterReceiptInput): Promise<Receipt> {
+	validateReceiptLines(input.items);
+
 	const items = mergeReceiptLines(input.items).map((l) => ({
 		sku: l.sku,
 		qty: l.qty,
