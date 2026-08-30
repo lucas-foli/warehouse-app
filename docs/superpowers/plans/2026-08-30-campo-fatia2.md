@@ -993,6 +993,22 @@ registrado como movimento, com autor e motivo. Decidir qual dos dois resolve o
 caso real antes de especificar.
 
 **Escopo:** feature própria, com brainstorming/spec quando priorizada.
+
+## 2026-08-30 — Tipos de recebimento em snake_case (resolver na fatia 3)
+
+**Origem:** revisão da Task 1 da fatia 2. `Receipt` e `ReceiptItem`
+(`src/types/index.ts`) são row shapes do banco exportados como tipo de domínio,
+em snake_case, enquanto os tipos do módulo Campo (`FieldContact`, `Interaction`)
+são camelCase e o `fieldService` mantém o row snake_case como tipo local privado,
+mapeando na fronteira.
+
+**Por que ficou assim:** na fatia 2 o único consumidor é `data as Receipt` no
+`receiptService` — nenhum componente lê os campos, porque a tela de listagem de
+recebimentos foi cortada. Um mapeamento agora não teria o que mapear.
+
+**Quando resolver:** na **fatia 3** (relatório de campo), junto com o primeiro
+consumidor de tela desses tipos — converter para camelCase e mapear na fronteira
+do serviço, como o `fieldService` faz. Anotado também no WAR-4.
 ```
 
 - [ ] **Step 3: Commit**
