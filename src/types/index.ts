@@ -99,3 +99,30 @@ export interface Interaction {
 	nextStepDoneAt: string | null;
 	samples: { sku: string; qty: number }[];
 }
+
+export interface Receipt {
+	id: string;
+	tenant_id: string;
+	receipt_number: string;
+	supplier_id: string;
+	received_at: string;
+	document: string | null;
+	note: string | null;
+	total_cost: number | null;
+	created_by: string | null;
+	created_at: string;
+	updated_at: string;
+}
+
+export interface ReceiptItem {
+	id: string;
+	tenant_id: string;
+	receipt_id: string;
+	receipt_number: string;
+	product_id: string | null;
+	sku: string;
+	qty: number;
+	unit_cost: number | null;
+	total_cost: number | null;
+	created_at: string;
+}
