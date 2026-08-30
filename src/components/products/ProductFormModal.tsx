@@ -153,18 +153,19 @@ const ProductFormModal = ({
 							</div>
 							<div className="grid grid-cols-2 gap-3">
 								<div>
-									<label className="block text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+									<label id="pf-qty-label" className="block text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
 										Qtd
 									</label>
 									{mode === 'create' ? (
 										<input
 											type="number"
+											aria-labelledby="pf-qty-label"
 											value={draft.qty}
 											onChange={(event) => onChange({ qty: event.target.value })}
 											className="mt-2 block w-full rounded-xl border border-input bg-card px-3 py-2 text-sm text-foreground outline-none transition focus:border-ring/60 focus:ring-2 focus:ring-ring/25"
 										/>
 									) : (
-										<>
+										<div aria-labelledby="pf-qty-label">
 											<div className="mt-2 flex items-center justify-between rounded-xl border border-input bg-muted px-3 py-2">
 												<span className="text-sm font-semibold text-foreground">{draft.qty}</span>
 												<span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
@@ -174,7 +175,7 @@ const ProductFormModal = ({
 											<p className="mt-1.5 text-[11px] leading-snug text-muted-foreground">
 												O saldo muda por recebimento, venda e amostra — não pela edição do cadastro.
 											</p>
-										</>
+										</div>
 									)}
 								</div>
 								<div>

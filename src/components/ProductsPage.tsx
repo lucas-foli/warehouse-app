@@ -214,7 +214,6 @@ const ProductsPage = ({
 		setEditSaving(true);
 		setEditError('');
 
-		const qty = parseOptionalInteger(editDraft.qty) ?? 0;
 		const min = parseOptionalInteger(editDraft.min);
 		const price = parseOptionalNumber(editDraft.price);
 		const status = editDraft.status.trim() || 'ESTOQUE';
@@ -230,13 +229,17 @@ const ProductsPage = ({
 			return;
 		}
 
-		const payload = { status, location, qty, min, price, barcode: barcode || null, image: image || null };
+		// qty fica fora do payload compartilhado de propósito: no modo edit ele NUNCA é
+		// escrito (o saldo é dono do recebimento/venda/amostra, não deste form) — só o
+		// caminho de create adiciona qty, ali como saldo de abertura legítimo.
+		const payload = { status, location, min, price, barcode: barcode || null, image: image || null };
 
 		try {
 			if (drawerMode === 'create') {
+				const qty = parseOptionalInteger(editDraft.qty) ?? 0;
 				const { data, error } = await supabase
 					.from('products')
-					.insert({ ...payload, sku, name, tenant_id: tenantId, is_active: true })
+					.insert({ ...payload, qty, sku, name, tenant_id: tenantId, is_active: true })
 					.select()
 					.single();
 				if (error) {
@@ -265,7 +268,6 @@ const ProductsPage = ({
 					...existing,
 					status,
 					location,
-					qty,
 					min: min ?? undefined,
 					price: price ?? undefined,
 					barcode: barcode || undefined,

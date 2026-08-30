@@ -33,8 +33,13 @@ describe('ProductFormModal', () => {
 	});
 
 	it('não deixa editar o saldo na edição de produto', () => {
-		// mata: manter o input editável no modo edit (a porta dos fundos do estoque)
 		render(<ProductFormModal {...base} mode="edit" draft={draft({ qty: '148' })} />);
+		// mata: trocar {draft.qty} por vazio/outro valor no bloco só-leitura
+		expect(screen.getByText('148')).toBeInTheDocument();
 		expect(screen.getByText('só-leitura')).toBeInTheDocument();
+		// mata: renderizar o input editável de Qtd junto com o bloco só-leitura no modo edit
+		// (selecionado por nome acessível "Qtd" para não colidir com os spinbuttons de
+		// Mínimo/Preço, que continuam editáveis no modo edit)
+		expect(screen.queryByRole('spinbutton', { name: /^qtd$/i })).not.toBeInTheDocument();
 	});
 });
