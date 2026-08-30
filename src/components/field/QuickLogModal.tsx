@@ -197,7 +197,7 @@ export const QuickLogModal = ({ open, tenantId, contacts, products, presetContac
 				samples,
 			});
 			if (result.negativeSkus.length > 0) {
-				setWarning(`Estoque ficou negativo: ${result.negativeSkus.join(', ')}. A visita foi registrada.`);
+				setWarning(`Estoque ficou negativo: ${result.negativeSkus.join(', ')}.`);
 				onSaved();
 				return;
 			}
@@ -406,22 +406,17 @@ export const QuickLogModal = ({ open, tenantId, contacts, products, presetContac
 					{error && <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
 					{warning && (
 						<div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
-							<p className="text-sm text-amber-700">{warning}</p>
-							<button
-								type="button"
-								onClick={onClose}
-								className="mt-2 min-h-11 text-xs font-semibold text-amber-700 underline">
-								Entendi, fechar
-							</button>
+							<p className="text-sm font-semibold text-amber-800">Visita registrada.</p>
+							<p className="mt-1 text-sm text-amber-700">{warning}</p>
 						</div>
 					)}
 
 					<button
 						type="button"
-						disabled={saving || !!warning}
-						onClick={() => void handleSave()}
-						className="w-full min-h-11 rounded-2xl bg-primary py-3 text-sm font-bold text-primary-foreground disabled:opacity-50">
-						{saving ? 'Salvando…' : warning ? 'Visita registrada' : 'Salvar visita'}
+						disabled={saving}
+						onClick={warning ? onClose : () => void handleSave()}
+						className="min-h-11 w-full rounded-2xl bg-primary py-3 text-sm font-bold text-primary-foreground disabled:opacity-50">
+						{saving ? 'Salvando…' : warning ? 'Entendi, fechar' : 'Salvar visita'}
 					</button>
 				</div>
 			</div>
