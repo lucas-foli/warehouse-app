@@ -66,7 +66,8 @@ export const QuickLogModal = ({ open, tenantId, contacts, products, presetContac
 	const [kind, setKind] = useState<InteractionKind>('visit');
 	const [outcome, setOutcome] = useState<InteractionOutcome | null>(null);
 	const [samples, setSamples] = useState<SampleInput[]>([]);
-	const [sampleSku, setSampleSku] = useState('');
+	const [sampleQuery, setSampleQuery] = useState('');
+	const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 	const [sampleQty, setSampleQty] = useState('1');
 	const [nextStep, setNextStep] = useState('');
 	const [dueAt, setDueAt] = useState<string | null>(null);
@@ -88,7 +89,8 @@ export const QuickLogModal = ({ open, tenantId, contacts, products, presetContac
 		setKind('visit');
 		setOutcome(null);
 		setSamples([]);
-		setSampleSku('');
+		setSampleQuery('');
+		setSelectedProduct(null);
 		setSampleQty('1');
 		setNextStep('');
 		setDueAt(null);
@@ -123,6 +125,14 @@ export const QuickLogModal = ({ open, tenantId, contacts, products, presetContac
 		return contacts.filter((c) => c.name.toLowerCase().includes(q)).slice(0, 6);
 	}, [contacts, search]);
 
+	const productMatches = useMemo(() => {
+		const q = sampleQuery.trim().toLowerCase();
+		if (!q) return [];
+		return products
+			.filter((p) => p.sku.toLowerCase().includes(q) || p.name.toLowerCase().includes(q))
+			.slice(0, 6);
+	}, [products, sampleQuery]);
+
 	const merged = useMemo(() => mergeSamples(samples), [samples]);
 	const lowStock = merged
 		.filter((s) => {
@@ -139,14 +149,15 @@ export const QuickLogModal = ({ open, tenantId, contacts, products, presetContac
 
 	const addSample = () => {
 		const qty = Number(sampleQty);
-		if (!sampleSku.trim()) return;
+		if (!selectedProduct) return;
 		if (!Number.isInteger(qty) || qty <= 0) {
 			setError('A quantidade da amostra deve ser um número inteiro maior que zero.');
 			return;
 		}
 		setError('');
-		setSamples((current) => [...current, { sku: sampleSku, qty }]);
-		setSampleSku('');
+		setSamples((current) => [...current, { sku: selectedProduct.sku, qty }]);
+		setSelectedProduct(null);
+		setSampleQuery('');
 		setSampleQty('1');
 	};
 
@@ -338,31 +349,56 @@ export const QuickLogModal = ({ open, tenantId, contacts, products, presetContac
 								Estoque insuficiente no app: {lowStock.join(', ')} — o registro segue mesmo assim.
 							</p>
 						)}
-						<div className="mt-2 flex gap-2">
-							<input
-								className={`${fieldBase} min-w-0 flex-1`}
-								placeholder="SKU"
-								list="field-skus"
-								value={sampleSku}
-								onChange={(e) => setSampleSku(e.target.value)}
-							/>
-							<datalist id="field-skus">
-								{products.map((p) => (
-									<option key={p.id} value={p.sku}>{p.name}</option>
+						{selectedProduct ? (
+							<div className="mt-2 flex items-center gap-2">
+								<div className="min-w-0 flex-1 rounded-xl border border-border bg-card px-3 py-2">
+									<p className="truncate text-sm font-medium text-foreground">{selectedProduct.name}</p>
+									<p className="text-xs text-muted-foreground">
+										{selectedProduct.sku} · {selectedProduct.qty} em estoque
+									</p>
+								</div>
+								<input
+									className={`${fieldBase} w-20 shrink-0 text-center`}
+									type="number"
+									inputMode="numeric"
+									min={1}
+									step={1}
+									value={sampleQty}
+									onChange={(e) => setSampleQty(e.target.value)}
+								/>
+								<button
+									type="button"
+									onClick={addSample}
+									className="shrink-0 min-h-11 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground">
+									Adicionar
+								</button>
+							</div>
+						) : (
+							<div className="mt-2">
+								<input
+									className={`${fieldBase} w-full`}
+									placeholder="Buscar produto por nome ou SKU…"
+									value={sampleQuery}
+									onChange={(e) => setSampleQuery(e.target.value)}
+								/>
+								{productMatches.map((p) => (
+									<button
+										key={p.id}
+										type="button"
+										onClick={() => setSelectedProduct(p)}
+										className="mt-1 flex w-full items-center justify-between gap-3 rounded-xl border border-border bg-card px-3 py-2 text-left">
+										<span className="min-w-0">
+											<span className="block truncate text-sm text-foreground">{p.name}</span>
+											<span className="block text-xs text-muted-foreground">{p.sku}</span>
+										</span>
+										<span className="shrink-0 text-xs text-muted-foreground">{p.qty} em estoque</span>
+									</button>
 								))}
-							</datalist>
-							<input
-								className={`${fieldBase} w-20 shrink-0 text-center`}
-								type="number"
-								min={1}
-								step={1}
-								value={sampleQty}
-								onChange={(e) => setSampleQty(e.target.value)}
-							/>
-							<button type="button" onClick={addSample} className="shrink-0 min-h-11 rounded-xl border border-border px-3 text-sm">
-								+
-							</button>
-						</div>
+								{sampleQuery.trim() && productMatches.length === 0 && (
+									<p className="mt-1 text-xs text-muted-foreground">Nenhum produto encontrado.</p>
+								)}
+							</div>
+						)}
 					</div>
 
 					<div>
