@@ -384,6 +384,7 @@ const Dashboard = ({
 					{page === 'overview' && surface === 'products' && (
 						<ProductsPage
 							products={visibleProducts}
+							allProducts={products}
 							clients={clientes}
 							sellers={vendedores}
 							lastSaleBySku={lastSaleBySku}

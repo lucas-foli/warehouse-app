@@ -26,6 +26,8 @@ export const ReceiptModal = ({ open, products, tenantId, onClose, onRegistered }
 	// merge only happens at read time (display / total / submit), never at write time.
 	const [lines, setLines] = useState<ReceiptLine[]>([]);
 	const [suppliers, setSuppliers] = useState<SupplierOption[]>([]);
+	const [suppliersLoaded, setSuppliersLoaded] = useState(false);
+	const [suppliersError, setSuppliersError] = useState('');
 	const [supplierId, setSupplierId] = useState('');
 	const [receivedAt, setReceivedAt] = useState(todayISODate());
 	const [documentNo, setDocumentNo] = useState('');
@@ -52,21 +54,32 @@ export const ReceiptModal = ({ open, products, tenantId, onClose, onRegistered }
 		[suppliers],
 	);
 
+	// Keyed on `open` too (not just `tenantId`): a supplier registered mid-session
+	// (Task 1's Campo tab) must show up next time this modal opens, not only on
+	// the tenant's first mount.
 	useEffect(() => {
-		if (!tenantId) return;
+		if (!open || !tenantId) return;
 		let cancelled = false;
+		setSuppliersLoaded(false);
+		setSuppliersError('');
 		(async () => {
 			const { data, error: fetchError } = await supabase
 				.from('suppliers')
 				.select('id, name')
 				.eq('tenant_id', tenantId);
-			if (cancelled || fetchError || !data) return;
-			setSuppliers(data as SupplierOption[]);
+			if (cancelled) return;
+			if (fetchError) {
+				setSuppliersError('Não foi possível carregar os fornecedores. Tente novamente.');
+				setSuppliersLoaded(true);
+				return;
+			}
+			setSuppliers((data ?? []) as SupplierOption[]);
+			setSuppliersLoaded(true);
 		})();
 		return () => {
 			cancelled = true;
 		};
-	}, [tenantId]);
+	}, [tenantId, open]);
 
 	// Reset the whole draft whenever the modal opens.
 	useEffect(() => {
@@ -127,7 +140,18 @@ export const ReceiptModal = ({ open, products, tenantId, onClose, onRegistered }
 	const needingName = useMemo(() => linesNeedingName(lines, knownSkus), [lines, knownSkus]);
 	const batchTotal = useMemo(() => receiptTotal(displayLines), [displayLines]);
 
-	const canSubmit = !!tenantId && !!supplierId && lines.length > 0 && needingName.length === 0 && !submitting;
+	// An empty/cleared date field would otherwise reach `new Date(...)` in submit()
+	// and throw a RangeError the user would see as an untranslated "Invalid time
+	// value" — block it here instead, alongside the other required-field gates.
+	const receivedAtValid = receivedAt.trim() !== '' && !Number.isNaN(new Date(`${receivedAt}T12:00:00`).getTime());
+
+	const canSubmit =
+		!!tenantId &&
+		!!supplierId &&
+		receivedAtValid &&
+		lines.length > 0 &&
+		needingName.length === 0 &&
+		!submitting;
 
 	const submit = async () => {
 		if (!canSubmit || !tenantId) return;
@@ -176,8 +200,11 @@ export const ReceiptModal = ({ open, products, tenantId, onClose, onRegistered }
 				<div className="mt-6 grid gap-4 overflow-y-auto pr-1">
 					{/* Header fields */}
 					<div>
-						<label className={labelClass}>Fornecedor *</label>
+						<label className={labelClass} htmlFor="receipt-supplier">
+							Fornecedor *
+						</label>
 						<select
+							id="receipt-supplier"
 							value={supplierId}
 							onChange={(e) => setSupplierId(e.target.value)}
 							className={`${fieldClass} cursor-pointer`}>
@@ -188,11 +215,21 @@ export const ReceiptModal = ({ open, products, tenantId, onClose, onRegistered }
 								</option>
 							))}
 						</select>
+						{suppliersError && <p className="mt-1 text-[11px] text-rose-500">{suppliersError}</p>}
+						{!suppliersError && suppliersLoaded && suppliers.length === 0 && (
+							<p className="mt-1 text-[11px] text-muted-foreground">
+								Nenhum fornecedor cadastrado. Cadastre um fornecedor na aba Campo antes de registrar
+								uma entrada.
+							</p>
+						)}
 					</div>
 					<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
 						<div>
-							<label className={labelClass}>Chegou em *</label>
+							<label className={labelClass} htmlFor="receipt-received-at">
+								Chegou em *
+							</label>
 							<input
+								id="receipt-received-at"
 								type="date"
 								value={receivedAt}
 								onChange={(e) => setReceivedAt(e.target.value)}
@@ -200,8 +237,11 @@ export const ReceiptModal = ({ open, products, tenantId, onClose, onRegistered }
 							/>
 						</div>
 						<div>
-							<label className={labelClass}>Documento</label>
+							<label className={labelClass} htmlFor="receipt-document">
+								Documento
+							</label>
 							<input
+								id="receipt-document"
 								value={documentNo}
 								onChange={(e) => setDocumentNo(e.target.value)}
 								placeholder="NF 4471"
@@ -210,8 +250,11 @@ export const ReceiptModal = ({ open, products, tenantId, onClose, onRegistered }
 						</div>
 					</div>
 					<div>
-						<label className={labelClass}>Observação</label>
+						<label className={labelClass} htmlFor="receipt-note">
+							Observação
+						</label>
 						<input
+							id="receipt-note"
 							value={note}
 							onChange={(e) => setNote(e.target.value)}
 							placeholder="Opcional"
@@ -252,7 +295,7 @@ export const ReceiptModal = ({ open, products, tenantId, onClose, onRegistered }
 												<div className="min-w-0 flex-1">
 													<p className="truncate text-sm font-semibold text-foreground">
 														{l.sku}
-														{product ? ` — ${product.name}` : isNew ? ` — ${l.name}` : ''}
+														{product ? ` — ${product.name}` : ` — ${l.name}`}
 													</p>
 													<p className="text-[11px] text-muted-foreground">
 														{product ? `saldo ${product.qty}` : 'novo produto'}
@@ -282,8 +325,11 @@ export const ReceiptModal = ({ open, products, tenantId, onClose, onRegistered }
 					{/* Add-item block */}
 					<div className="grid gap-3 rounded-2xl border border-border/40 bg-muted/40 p-4">
 						<div>
-							<label className={labelClass}>SKU</label>
+							<label className={labelClass} htmlFor="receipt-sku">
+								SKU
+							</label>
 							<input
+								id="receipt-sku"
 								value={sku}
 								onChange={(e) => setSku(e.target.value)}
 								placeholder="Digite o SKU"
@@ -301,8 +347,11 @@ export const ReceiptModal = ({ open, products, tenantId, onClose, onRegistered }
 						</div>
 						{isNewSku && (
 							<div>
-								<label className={labelClass}>Nome do produto *</label>
+								<label className={labelClass} htmlFor="receipt-name">
+									Nome do produto *
+								</label>
 								<input
+									id="receipt-name"
 									value={name}
 									onChange={(e) => setName(e.target.value)}
 									placeholder="Nome do novo produto"
@@ -312,8 +361,11 @@ export const ReceiptModal = ({ open, products, tenantId, onClose, onRegistered }
 						)}
 						<div className="grid grid-cols-[1fr_1fr_auto] items-end gap-3">
 							<div>
-								<label className={labelClass}>Quantidade</label>
+								<label className={labelClass} htmlFor="receipt-qty">
+									Quantidade
+								</label>
 								<input
+									id="receipt-qty"
 									type="number"
 									min={1}
 									value={qty}
@@ -322,9 +374,13 @@ export const ReceiptModal = ({ open, products, tenantId, onClose, onRegistered }
 								/>
 							</div>
 							<div>
-								<label className={labelClass}>Custo unitário</label>
+								<label className={labelClass} htmlFor="receipt-cost">
+									Custo unitário
+								</label>
 								<input
+									id="receipt-cost"
 									type="number"
+									min={0}
 									step="0.01"
 									value={unitCost}
 									onChange={(e) => setUnitCost(e.target.value)}

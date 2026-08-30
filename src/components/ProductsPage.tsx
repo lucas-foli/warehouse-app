@@ -22,6 +22,7 @@ const EMPTY_LAST_SALE_BY_SKU: Map<string, string> = new Map();
 
 const ProductsPage = ({
 	products,
+	allProducts,
 	clients = [],
 	sellers = [],
 	lastSaleBySku = EMPTY_LAST_SALE_BY_SKU,
@@ -32,6 +33,14 @@ const ProductsPage = ({
 	onSaleRegistered,
 }: {
 	products: Product[];
+	// Tenant-wide catalog, unfiltered by the store selector — `products` above is
+	// scoped to the active store (Dashboard's `visibleProducts`). ReceiptModal
+	// needs the full catalog: a SKU that lives in another store must resolve as
+	// "existing" here, or the RPC (which checks the whole tenant) reactivates it
+	// while the modal's UI insisted it was brand new and demanded a name that
+	// then gets silently dropped. Falls back to `products` when the caller
+	// doesn't split the two (e.g. a future standalone render/test).
+	allProducts?: Product[];
 	clients?: Client[];
 	sellers?: Seller[];
 	lastSaleBySku?: Map<string, string>;
@@ -41,6 +50,7 @@ const ProductsPage = ({
 	onProductUpdated?: (product: Product) => void;
 	onSaleRegistered?: () => void;
 }) => {
+	const receiptCatalog = allProducts ?? products;
 	const [productQuery, setProductQuery] = useState('');
 	const [productStatusFilter, setProductStatusFilter] = useState<'all' | 'critical' | 'no-photo' | 'zero-stock'>(
 		'all',
@@ -796,7 +806,7 @@ const ProductsPage = ({
 		/>
 		<ReceiptModal
 			open={receiptModalOpen}
-			products={products}
+			products={receiptCatalog}
 			tenantId={tenantId}
 			onClose={() => setReceiptModalOpen(false)}
 			onRegistered={handleOrderRegistered}
