@@ -33,8 +33,17 @@ describe('mergeReceiptLines', () => {
 		expect(merged.name).toBe('Camarão rosa 500g');
 	});
 
+	it('não deixa um SEGUNDO nome não-vazio sobrescrever o primeiro', () => {
+		// mata: remover a guarda !existing.name e virar "último não-vazio vence"
+		const [merged] = mergeReceiptLines([
+			line({ qty: 1, name: 'Camarão rosa 500g' }),
+			line({ qty: 1, name: 'Camarão G' }),
+		]);
+		expect(merged.name).toBe('Camarão rosa 500g');
+	});
+
 	it('mantém a ordem da primeira aparição de cada SKU', () => {
-		// mata: ordenar alfabeticamente ou usar a ordem do Map de saída
+		// mata: ordenar alfabeticamente
 		expect(mergeReceiptLines([
 			line({ sku: 'B', qty: 1 }), line({ sku: 'A', qty: 1 }), line({ sku: 'B', qty: 1 }),
 		]).map((l) => l.sku)).toEqual(['B', 'A']);
@@ -77,6 +86,11 @@ describe('receiptTotal', () => {
 		// mata: devolver 0 e exibir "US$ 0,00" num lote sem itens
 		expect(receiptTotal([])).toBeNull();
 	});
+
+	it('arredonda ruído de ponto flutuante para 2 casas', () => {
+		// mata: remover o Number(...toFixed(2)) — 3 * 0.1 sem arredondar dá 0.30000000000000004
+		expect(receiptTotal([line({ qty: 3, unitCost: 0.1 })])).toBe(0.3);
+	});
 });
 
 describe('linesNeedingName', () => {
@@ -109,6 +123,14 @@ describe('linesNeedingName', () => {
 		expect(linesNeedingName(
 			[line({ sku: ' pop-401 ', qty: 10, name: '' })],
 			new Set(['POP-401']),
+		)).toEqual([]);
+	});
+
+	it('normaliza o catálogo recebido, não só o SKU da linha', () => {
+		// mata: normalizar só o SKU da linha e comparar contra o Set cru do chamador
+		expect(linesNeedingName(
+			[line({ sku: 'POP-401', qty: 10, name: '' })],
+			new Set(['pop-401']),
 		)).toEqual([]);
 	});
 });

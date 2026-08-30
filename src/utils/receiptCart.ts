@@ -43,9 +43,13 @@ export const receiptTotal = (lines: ReceiptLine[]): number | null => {
 /**
  * SKUs que a RPC vai CRIAR como produto novo e ainda estão sem nome. A UI usa
  * isso para exigir o nome na própria linha, em vez de deixar a RPC responder
- * `receipt_product_name_required` depois do envio.
+ * `receipt_product_name_required` depois do envio. `knownSkus` é normalizado
+ * aqui dentro (não confia no chamador) porque o SKU do catálogo não chega
+ * garantidamente upper-case.
  */
-export const linesNeedingName = (lines: ReceiptLine[], knownSkus: Set<string>): string[] =>
-	mergeReceiptLines(lines)
-		.filter((l) => !knownSkus.has(l.sku) && !l.name)
+export const linesNeedingName = (lines: ReceiptLine[], knownSkus: Set<string>): string[] => {
+	const known = new Set([...knownSkus].map(normalizeSku));
+	return mergeReceiptLines(lines)
+		.filter((l) => !known.has(l.sku) && !l.name)
 		.map((l) => l.sku);
+};
