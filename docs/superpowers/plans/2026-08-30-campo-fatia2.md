@@ -1031,6 +1031,140 @@ gh pr close 70 --comment "Decidido e implementado na fatia 2 do Campo (PR #74, T
 
 ---
 
+### Task 9: Local de destino do lote (Emenda 1 da spec)
+
+**Files:**
+- Create: `supabase/migrations/20260830000300_receipt_location.sql`
+- Modify: `src/services/receiptService.ts` + `src/services/receiptService.test.ts`
+- Modify: `src/components/products/ReceiptModal.tsx` + `src/components/products/ReceiptModal.test.tsx`
+
+**Por que esta task existe:** a decisão original da spec (produto novo nasce com
+`location = ''`) não sobrevive ao app. O fallback `|| 'Loja principal'` em
+`dashboardService.ts:111`, `ProductsPage.tsx:145` e `:220` desfaz o vazio na
+leitura e o materializa no banco na primeira edição — o produto novo aparece
+numa loja que ninguém escolheu, que é justamente o que a decisão evitava. Ver
+Emenda 1 da spec. **Não toque nesses três fallbacks**: são app-wide e têm
+entrada própria no backlog.
+
+**Interfaces:**
+- Consumes: `register_receipt` (Task 2), `registerReceipt` (Task 4), `ReceiptModal` (Task 5), `listProductOptions(tenantId, 'local')` de `src/services/productOptions.ts`.
+- Produces: `register_receipt` com um 7º parâmetro `p_location text default null`; `RegisterReceiptInput` com `location?: string | null`; nova exceção `receipt_location_required`.
+
+- [ ] **Step 1: Migration que substitui a RPC**
+
+Criar `supabase/migrations/20260830000300_receipt_location.sql` com um
+`create or replace function public.register_receipt(...)` completo — copie a
+função inteira de `20260830000200_register_receipt.sql` e aplique só estas
+mudanças, mantendo todo o resto idêntico:
+
+1. Assinatura ganha, como ÚLTIMO parâmetro: `p_location text default null`
+2. Logo após a validação de `p_items` (antes do advisory lock), nada muda — a
+   exigência de local é condicional e só pode ser avaliada depois de saber se
+   há SKU novo, então NÃO valide aqui.
+3. No ramo de produto inexistente, antes do `insert into products`:
+
+```sql
+		if v_item.name is null then
+			raise exception using message = 'receipt_product_name_required';
+		end if;
+
+		if nullif(trim(coalesce(p_location, '')), '') is null then
+			raise exception using message = 'receipt_location_required';
+		end if;
+
+		insert into public.products (tenant_id, sku, name, qty, price, location, is_active)
+		values (p_tenant_id, v_item.sku, v_item.name, v_item.qty, null, trim(p_location), true)
+		returning id into v_product_id;
+```
+
+4. Ao final, o `revoke`/`grant` tem que usar a assinatura NOVA (7 parâmetros).
+   Acrescente também um `drop function if exists public.register_receipt(uuid, uuid, jsonb, timestamptz, text, text);`
+   ANTES do `create or replace`, para a versão de 6 parâmetros não ficar
+   pendurada como sobrecarga — duas sobrecargas fariam o PostgREST errar a
+   resolução.
+
+Cabeçalho da migration explicando que ela substitui a anterior e por quê.
+
+- [ ] **Step 2: Testes do serviço primeiro**
+
+Em `src/services/receiptService.test.ts`, acrescentar:
+
+```ts
+	it('envia p_location quando informado', async () => {
+		// mata: esquecer de repassar o local ao adicionar o parâmetro na RPC
+		await registerReceipt({ ...baseInput, location: 'Miami' });
+		expect(rpc.mock.calls[0][1].p_location).toBe('Miami');
+	});
+
+	it('envia p_location null quando não informado', async () => {
+		// mata: mandar string vazia, que a RPC trataria diferente de ausente
+		await registerReceipt(baseInput);
+		expect(rpc.mock.calls[0][1].p_location).toBeNull();
+	});
+
+	it('traduz receipt_location_required', async () => {
+		// mata: exceção nova sem entrada no mapa, vazando texto cru do Postgres
+		rpc.mockResolvedValue({ data: null, error: { message: 'receipt_location_required' } });
+		await expect(registerReceipt(baseInput)).rejects.toThrow(
+			'Escolha o local de destino: o lote cria um produto novo.',
+		);
+	});
+```
+
+Rode e confirme que falham.
+
+- [ ] **Step 3: Serviço**
+
+Em `src/services/receiptService.ts`: acrescentar `location?: string | null` a
+`RegisterReceiptInput`; acrescentar ao mapa de erros
+`receipt_location_required: 'Escolha o local de destino: o lote cria um produto novo.'`;
+e passar `p_location: input.location?.trim() || null` na chamada.
+
+Rode e confirme que passam.
+
+- [ ] **Step 4: Modal**
+
+Em `src/components/products/ReceiptModal.tsx`:
+
+- Carregar as opções com `listProductOptions(tenantId, 'local')` no mesmo efeito
+  que já carrega fornecedores (o `SaleOrderModal:74` é o precedente exato).
+- Um `<select>` "Local de destino" no cabeçalho, ao lado de "Chegou em".
+- O campo **só aparece quando o lote tem ao menos um SKU novo** — reuse
+  `linesNeedingName`? NÃO: essa função só devolve os que estão sem nome. Derive
+  a condição de "há SKU novo" da mesma comparação que a linha já faz para
+  decidir se mostra a pílula de produto novo, extraindo-a para um `useMemo`
+  usado nos dois lugares (não duplique a regra).
+- Quando o campo aparece, ele é obrigatório: entra em `canSubmit` junto dos
+  outros gates.
+- Passar `location` no `registerReceipt`.
+- **A caixa verde muda de texto.** Hoje ela promete "Ele também nasce sem local
+  definido — vai aparecer só em 'Todos os locais' até você editar o cadastro e
+  escolher uma loja", o que é falso. Substituir por uma frase que diga em que
+  loja o produto vai nascer, usando o local escolhido. Se nenhum local foi
+  escolhido ainda, a frase pede que se escolha o local de destino.
+
+- [ ] **Step 5: Testes do modal**
+
+Em `src/components/products/ReceiptModal.test.tsx`, acrescentar dois casos com
+anotação `// mata:`:
+- o select de local NÃO aparece num lote só de SKUs conhecidos (mata: tornar o
+  campo sempre visível, reintroduzindo a decisão a cada recebimento que a
+  Emenda 1 evita)
+- com um SKU novo no lote e nenhum local escolhido, o botão de salvar fica
+  desabilitado (mata: remover o gate do local)
+
+- [ ] **Step 6: Verificar e commitar**
+
+Run: `npx tsc -b && npx vitest run --dir src --exclude '**/.claude/**'`
+Expected: tudo verde.
+
+```bash
+git add supabase/migrations/20260830000300_receipt_location.sql src/services/receiptService.ts src/services/receiptService.test.ts src/components/products/ReceiptModal.tsx src/components/products/ReceiptModal.test.tsx
+git commit -m "feat(campo): local de destino do lote (emenda 1)"
+```
+
+---
+
 ## Ordem e dependências
 
 Tasks 1 → 2 → 3 → 4 → 5 são uma corrente (cada uma consome a anterior). Tasks 6, 7 e 8 são independentes entre si e podem vir em qualquer ordem depois da 5 — a 7 (navegação) não depende de nada do recebimento e poderia até vir primeiro, mas fica no fim para o PR contar a história na ordem em que ela foi decidida.
