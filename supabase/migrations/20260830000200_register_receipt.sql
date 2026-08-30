@@ -63,11 +63,19 @@ begin
 		raise exception using message = 'receipt_qty_invalid';
 	end if;
 
+	-- unit_cost é OPCIONAL (ausente ou JSON null = linha sem custo, válido).
+	-- Quando presente e não-null, tem que ser jsonb 'number' e >= 0; qualquer
+	-- outra coisa (string, bool, objeto, número negativo) vira exceção nomeada.
+	-- Mesmo padrão NULL-seguro do gate de qty: o cast só roda depois que o
+	-- typeof já garantiu 'number', então nunca estoura SQLSTATE 22P02.
 	if exists (
 		select 1 from jsonb_array_elements(p_items) as elem
 		where (elem ? 'unit_cost')
-			and jsonb_typeof(elem->'unit_cost') = 'number'
-			and (elem->>'unit_cost')::numeric < 0
+			and jsonb_typeof(elem->'unit_cost') <> 'null'
+			and (
+				jsonb_typeof(elem->'unit_cost') <> 'number'
+				or (elem->>'unit_cost')::numeric < 0
+			)
 	) then
 		raise exception using message = 'receipt_cost_invalid';
 	end if;
