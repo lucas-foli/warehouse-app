@@ -81,6 +81,13 @@ Registrado como decisão consciente da fatia 1 (não é bug a reportar).
 20. Rastro do override: marcar um contato como "Perdido" e conferir que a
     timeline ganha o card "Estágio marcado à mão · Perdido" na data de hoje,
     SEM fechar e reabrir a ficha.
-21. Escopo do override: no mesmo contato (que já tinha amostra entregue
-    antes), registrar uma visita nova SEM amostra e conferir que ele vai
+21. Escopo do override — **use o MESMO contato do passo 20** (o que você
+    acabou de marcar como "Perdido" e que já tinha amostra entregue antes
+    disso). Registrar nele uma visita nova SEM amostra e conferir que ele vai
     para "Contatado" — e NÃO volta para "Amostra entregue".
+
+    ⚠ Só vale nesse contato. Num contato SEM override, "Amostra entregue" é o
+    resultado CORRETO: sem `stage_overridden_at` o escopo é inerte e todos os
+    fatos contam, inclusive amostras antigas. O jeito rápido de saber se um
+    contato tem override é a timeline: se não há card "Estágio marcado à mão",
+    não há override e não há escopo.
