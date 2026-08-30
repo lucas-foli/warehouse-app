@@ -227,20 +227,29 @@ cadastro" e o botão "Registrar recebimento deste item".
   - linha sem custo zera o total do lote (null, não 0) — `mata:` `coalesce(cost,0)`
   - total do lote soma qty×custo por linha — `mata:` somar só o custo unitário
   - SKU vazio/qty ≤ 0/decimal é rejeitado antes do envio — `mata:` remover a validação
-- Testes de RPC (`test:db`, com **gate de where superuser** — regra que a Fase 3
-  do sanAI ensinou: sob superuser a RLS não é rede):
-  - lote válido sobe `qty` de todos os SKUs — `mata:` trocar `+` por `-`, ou
-    atualizar só a primeira linha
-  - SKU inválido na linha N aborta as N-1 anteriores — `mata:` remover a
-    transação / commit por linha
-  - SKU novo cria produto com `price` null — `mata:` `price` = 0 ou = unit_cost
-  - SKU novo cria produto com `location` vazio — `mata:` omitir a coluna no
-    insert e deixar o default `'Brasília Shopping'` entrar
-  - SKU novo sem nome ⇒ `receipt_product_name_required` — `mata:` criar com nome vazio
-  - SKU desativado é reativado e somado — `mata:` update sem `is_active = true`
-  - membro não-admin ⇒ `not_authorized` — `mata:` trocar o gate por `is_tenant_member`
-  - dois recebimentos no mesmo tenant geram `R-0001` e `R-0002` — `mata:` remover
-    o advisory lock / numeração global em vez de por tenant
+- **A RPC não tem teste automatizado, e isso é uma lacuna conhecida.** O
+  warehouse-app não tem infra de teste de banco (não há `test:db`, pgTAP nem
+  runner SQL) — a fatia 1 cobriu `register_interaction` do mesmo jeito: unidade
+  em TS no que é lógica pura, e e2e manual roteirizado no que é SQL. Esta fatia
+  mantém o padrão em vez de inventar infra no meio da obra; criar o runner é
+  candidato a fatia própria (registrar no backlog).
+- Runbook de e2e manual (obrigatório antes do merge, roteiro versionado junto
+  ao PR). Cada caso existe para matar uma mutação específica da RPC:
+  - lote de 2 SKUs sobe o saldo dos dois — `mata:` `+` virar `-`, ou só a
+    primeira linha ser atualizada
+  - lote com SKU inválido na 2ª linha: nada é gravado, saldo da 1ª intacto,
+    nenhum `receipts` órfão — `mata:` remover a transação / commit por linha
+  - SKU novo: produto criado com preço vazio e local vazio (não
+    "Brasília Shopping") — `mata:` `price` = 0 / `price` = unit_cost / deixar o
+    default de `location` agir
+  - SKU novo sem nome preenchido: erro na tela, nada gravado — `mata:` criar
+    produto com nome vazio
+  - SKU desativado: produto volta à lista com o saldo somado — `mata:` update
+    sem `is_active = true`
+  - usuário membro não-admin: erro de permissão — `mata:` gate trocado por
+    `is_tenant_member`
+  - dois recebimentos seguidos: `R-0001` e `R-0002` — `mata:` numeração global
+    em vez de por tenant
 - Gate de typecheck: `npx tsc -b` (nunca `tsc --noEmit` — o tsconfig raiz tem
   `files: []`).
 - E2e manual roteirizado antes do merge (runbook no PR), com dados da Global.
