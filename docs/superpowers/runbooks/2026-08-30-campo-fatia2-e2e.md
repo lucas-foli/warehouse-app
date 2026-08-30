@@ -1,9 +1,15 @@
 # E2E manual — Campo fatia 2 (recebimento de mercadoria)
 
-**Fix round 1/5.** Reescrito depois de revisão que reprovou a v1 com 3
-Critical e 5 Important — o motivo comum era caso que não distingue código
-correto de código quebrado (falsa confiança, pior que caso nenhum, dado que
-esta é a ÚNICA cobertura da RPC). Ver rodapé de cada caso corrigido.
+**Fix round 2/5.** Round 1 corrigiu 3 Critical + 5 Important (caso que não
+distingue código correto de código quebrado — falsa confiança, pior que
+caso nenhum, dado que esta é a ÚNICA cobertura da RPC). A revisão do round
+1 confirmou os 14 casos corretos, mas achou 2 achados novos na própria
+reescrita: ordem errada de um passo no caso 3 (o campo que o Critical 1 do
+round 1 corrigiu só aparece DEPOIS de adicionar a linha, não antes) e
+consultas de `receipts` sem escopo de tenant nos casos 1, 2, 5, 7 e 14—
+risco deixou de ser hipotético desde que o caso 6 passou a criar
+recebimentos num segundo tenant de propósito. Mais 6 minors no mesmo
+arquivo. Ver rodapé de cada caso corrigido.
 
 **Pré-requisito, antes de qualquer caso:** aplicar as TRÊS migrations no
 Supabase do app (SQL Editor), em ordem numérica —
@@ -28,19 +34,36 @@ caminho de ERRO do recebimento e o caminho de SALVAR EDIÇÃO de produto
 memória, sem refetch — nesses dois caminhos a tela mostra a mesma coisa com
 o bug presente ou ausente, e só SQL (ou um F5 na página) prova algo.
 
-**Convenção das consultas SQL abaixo:** filtram por `sku`/`receipt_number`
-em vez de pedir o UUID do tenant, para não exigir que quem executa saiba
-achar esse UUID. Use SKUs de teste com prefixo bem distinto (`TESTE-`) para
-não colidir com outro tenant no mesmo projeto Supabase. Se precisar mesmo
-escopar por tenant (caso 6), a consulta usa
-`(select tenant_id from suppliers where name = '<fornecedor do tenant>' limit 1)`
-— reaproveita um dado que os outros casos já cadastraram, em vez de pedir o
-UUID cru.
+**Convenção das consultas SQL abaixo:** rodam no SQL Editor como
+`postgres`, com RLS bypassada — enxergam TODOS os tenants do projeto
+Supabase, não só o de teste. Consultas em `products` filtram por `sku` com
+prefixo bem distinto (`TESTE-`) e isso basta na prática. Consultas em
+`receipts` (e em `receipt_items`, via subconsulta em `receipts`) são mais
+arriscadas: o caso 6 registra recebimentos num SEGUNDO tenant de
+propósito, então um `receipt_number` ou um `order by created_at desc limit 1`
+sem filtro pode pegar a linha do tenant errado e produzir uma asserção
+vazia que passa mesmo com a RPC quebrada. Por isso TODA consulta em
+`receipts` abaixo (casos 1, 2, 5, 6, 7 e 14) inclui
+`and tenant_id = (select tenant_id from suppliers where name = '<fornecedor do tenant de teste>' limit 1)`
+— reaproveita um fornecedor que os outros casos já cadastraram, em vez de
+pedir o UUID cru do tenant.
+
+**Notação da numeração dos recebimentos.** `receipt_number` é sempre
+`'R-'` + 4 dígitos com zero à esquerda (`lpad(n::text, 4, '0')`) — não dá
+pra calcular "o próximo" trocando o último dígito de um molde tipo
+`R-000N`: quebra a partir do décimo recebimento do tenant
+(`lpad('10', 4, '0')` = `'0010'`, ou seja `R-0010`, não `R-00010`). Onde
+este runbook precisa do "número seguinte", os passos pedem para: ler o
+`receipt_number` atual (texto, ex. `R-0007`) e chamá-lo de **R_ATUAL**;
+extrair o número (7), somar 1 (8), remontar como `'R-' || lpad('8', 4, '0')`
+= `R-0008`, e chamar isso de **R_PROX** (ou **R_PROX2**, quando dois
+recebimentos seguidos entram no mesmo caso).
 
 **Ordem de execução:** rode os casos NA ORDEM listada. Vários dependem do
 estado deixado pelos anteriores — em especial a numeração dos recebimentos
-(`R-000N`) é cumulativa dentro do tenant, e o caso 1 assume que é o
-PRIMEIRO recebimento já registrado nesse tenant.
+(ver "Notação da numeração dos recebimentos" acima) é cumulativa dentro do
+tenant, e o caso 1 assume que é o PRIMEIRO recebimento já registrado nesse
+tenant.
 
 **Execução em desktop.** O seletor de loja do topo (dropdown ao lado da
 logo, usado nos casos 3, 10 e 13) é `hidden sm:block` — some em viewport
@@ -60,8 +83,15 @@ mobile. Rode este runbook inteiro numa janela desktop.
   selecionada no filtro (caso 10). Se não tiver, edite um produto existente
   e mude o `Local` antes de começar.
 - **Opcional, só para o caso 6:** acesso a um SEGUNDO tenant, com
-  fornecedor cadastrado nele. Sem isso, o caso 6 é registrado como não
-  executável neste ambiente (ver o próprio caso).
+  fornecedor cadastrado nele, com um NOME DIFERENTE do fornecedor do
+  tenant de teste (as consultas do caso 6 resolvem o tenant pelo nome do
+  fornecedor — nomes homônimos entre os dois tenants apontam pro tenant
+  errado, em silêncio). Sem o segundo tenant, o caso 6 é registrado como
+  não executável neste ambiente (ver o próprio caso).
+- **Só para o caso 12:** um TERCEIRO tenant, sem nenhum fornecedor
+  cadastrado — não pode ser o tenant de teste (já tem fornecedor dos
+  outros casos) nem o segundo tenant do caso 6 (esse precisa ter
+  fornecedor, para o caso 6 funcionar).
 
 **Como preencher o resultado:** cada caso termina com uma linha
 `**Resultado:**`. Marque `passou`, `falhou` (e descreva o que aconteceu de
@@ -83,7 +113,11 @@ Definition of Done da fatia exige.
 5. Mude "Chegou em" para ONTEM (não hoje — de propósito, para o passo 8
    pegar um bug de fuso que colaria a data errada).
 6. No campo "Documento", digite `  NF 4471  ` (com espaços antes e depois,
-   de propósito). Deixe "Observação" em branco (de propósito).
+   de propósito). No campo "Observação", digite só espaços — `   ` (3
+   espaços; NÃO deixe o campo vazio de verdade: vazio de verdade já vira
+   `null` no cliente antes de chegar na RPC — `note: note || null` em
+   `ReceiptModal.tsx:196` — e não testaria o `nullif(trim(...), '')` do
+   lado do servidor).
 7. Adicione item: SKU-A, quantidade 5, custo unitário 10,00 → "Adicionar
    item".
 8. Adicione item: SKU-B, quantidade 3, custo unitário 4,50 → "Adicionar
@@ -96,21 +130,34 @@ Definition of Done da fatia exige.
 - Produtos: SKU-A com saldo X+5; SKU-B com saldo Y+3 — soma exata, não
   substituição. (Checagem de tela válida aqui: o sucesso do recebimento
   dispara `fetchProducts` real via `handleOrderRegistered`.)
-- No banco (SQL Editor):
-  `select receipt_number, total_cost, received_at::date, document, note from receipts order by created_at desc limit 1;`
-  → `receipt_number = 'R-0001'`, `total_cost = 63.50`, `received_at::date`
-  = a data de ONTEM escolhida no passo 5 (não hoje — prova que não caiu na
-  armadilha de fuso do `T12:00:00`), `document = 'NF 4471'` (sem os
-  espaços — prova o `nullif(trim(...), '')` da RPC), `note` = `NULL` (não
-  string vazia).
-- `select sku, qty, unit_cost, product_id from receipt_items where receipt_id = (select id from receipts order by created_at desc limit 1);`
+- No banco (SQL Editor), já escopado no tenant de teste (ver "Convenção
+  das consultas SQL" na introdução):
+  `select receipt_number, total_cost, received_at::date, document, note from receipts where tenant_id = (select tenant_id from suppliers where name = '<fornecedor do tenant de teste>' limit 1) order by created_at desc limit 1;`
+  → `receipt_number = 'R-0001'`, `total_cost = 63.50`.
+  `received_at::date` = a data de ONTEM escolhida no passo 5 (não hoje) —
+  prova que a RPC grava o `p_received_at` enviado, não `now()`/o default
+  (isso NÃO isola, sozinho, a armadilha de fuso do `T12:00:00`: numa
+  sessão SQL em UTC, tanto o parse certo quanto um parse ingênuo caem no
+  mesmo dia).
+  `document = 'NF 4471'` (sem os espaços — prova o `nullif(trim(...), '')`
+  da RPC do lado de `document`).
+  `note = NULL` — prova o mesmo `nullif(trim(...), '')` do lado de `note`,
+  porque o passo 6 mandou 3 espaços, não um campo vazio de verdade (que já
+  viraria `null` no cliente, sem testar nada do servidor).
+- `select sku, qty, unit_cost, product_id from receipt_items where receipt_id = (select id from receipts where tenant_id = (select tenant_id from suppliers where name = '<fornecedor do tenant de teste>' limit 1) order by created_at desc limit 1);`
   → 2 linhas, uma por SKU, `qty`/`unit_cost` exatos aos digitados, e
   `product_id` preenchido (não `NULL`) nas duas — a linha ficou de fato
   ligada ao produto existente, não órfã.
 
 **mata:** `+` virar `-` no update de saldo; só a 1ª linha do lote ser
-gravada; `coalesce`/sem `trim` mascarando fuso ou espaços em
-`received_at`/`document`; `receipt_items` sem `product_id`.
+gravada; RPC ignorar `p_received_at` e usar sempre `now()`; falta de
+`trim` mascarando espaços em `document`; falta de `nullif`/`trim` tratando
+`note` só-espaço como valor real; `receipt_items` sem `product_id`.
+
+**Corrigido na revisão (round 2 — Important/Minors):** a consulta de
+`receipts` ganhou escopo de tenant; `note = NULL` passou a testar o
+`nullif` de verdade (3 espaços, não campo vazio); a frase sobre "armadilha
+de fuso" parou de reivindicar mais do que o passo prova.
 
 **Resultado:**
 
@@ -127,9 +174,11 @@ então este caso força a inconsistência entre duas abas, para que o SERVIDOR
    `select qty from products where upper(trim(sku)) = '<SKU-EXCLUIR>';`
 2. Escolha um segundo SKU conhecido, SKU-A, e anote seu saldo atual
    também por SQL, do mesmo jeito.
-3. Ainda por SQL, anote o `receipt_number` mais recente do tenant:
-   `select receipt_number from receipts order by created_at desc limit 1;`
-   (chame-o de R-000N; o próximo esperado é R-000(N+1)).
+3. Ainda por SQL, anote o `receipt_number` mais recente do tenant, já
+   escopado (ver "Convenção das consultas SQL" na introdução):
+   `select receipt_number from receipts where tenant_id = (select tenant_id from suppliers where name = '<fornecedor do tenant de teste>' limit 1) order by created_at desc limit 1;`
+   (chame-o de R_ATUAL; o próximo esperado, R_PROX — ver "Notação da
+   numeração dos recebimentos" na introdução).
 4. Aba 1: Produtos → "Registrar recebimento" → selecione um fornecedor.
 5. Adicione item: SKU-A, quantidade 5 → "Adicionar item".
 6. Adicione item: SKU-EXCLUIR, quantidade 2 → "Adicionar item" (SKU já
@@ -155,9 +204,9 @@ então este caso força a inconsistência entre duas abas, para que o SERVIDOR
   quebrada; não prova nada.
   `select qty from products where upper(trim(sku)) = '<SKU-A>';` → igual
   ao valor anotado no passo 2 (não subiu 5).
-  `select count(*) from receipts where receipt_number = 'R-000(N+1)';` (o
-  número anotado no passo 3, +1) → `0`. Nenhum cabeçalho de recebimento foi
-  criado por esta tentativa.
+  `select count(*) from receipts where tenant_id = (select tenant_id from suppliers where name = '<fornecedor do tenant de teste>' limit 1) and receipt_number = '<R_PROX>';`
+  (R_PROX = o número anotado no passo 3, +1, calculado como na introdução)
+  → `0`. Nenhum cabeçalho de recebimento foi criado por esta tentativa.
 
 **Nota sobre "a 1ª linha não foi gravada":** não dá pra observar isso de
 forma confiável de forma isolada — o `for v_item in ... group by r.sku` da
@@ -174,7 +223,10 @@ falhando).
 **Corrigido na revisão (Critical 3 / Important 1):** a v1 conferia "saldo
 de SKU-A permanece o mesmo" olhando a tela, que nunca é atualizada nesse
 caminho de erro — a asserção era vazia (passava igual com o bug). Agora
-fecha por SQL, com a contagem de `receipts` como kill principal.
+fecha por SQL, com a contagem de `receipts` como kill principal. (Round 2:
+a consulta de `receipts` também ganhou escopo de tenant — sem isso, o caso
+6 criando recebimentos num segundo tenant podia fazer R_ATUAL vir do
+tenant errado e o `count(*) = 0` passar mesmo com a RPC quebrada.)
 
 **Resultado:**
 
@@ -190,16 +242,24 @@ primeira edição. Foi exatamente esse defeito que motivou a Task 9 (Emenda
 1): o recebimento agora exige um "Local de destino" quando cria SKU novo, e
 o produto nasce NAQUELA loja.
 
+**Corrigido na revisão (round 2 — Important):** a v1 mandava conferir o
+campo "Local de destino" ANTES de clicar "Adicionar item". Ele não aparece
+nesse momento — `hasNewSku` (`ReceiptModal.tsx:166-169`) deriva de
+`displayLines`, ou seja, das linhas JÁ ADICIONADAS, não do que está sendo
+digitado no editor. Quem seguisse a v1 reportaria uma falha que não
+existe. Passos reordenados abaixo: adicionar a linha primeiro, só depois
+conferir o campo — mesma ordem que o caso 13 já usava.
+
 1. Escolha um SKU que não existe em nenhum produto do tenant — ex.
    `TESTE-NOVO-001`.
 2. "Registrar recebimento" → selecione um fornecedor.
 3. No campo SKU do lote, digite `TESTE-NOVO-001`. Preencha "Nome do
-   produto" = "Produto Teste Fatia 2", quantidade 4, custo unitário 12,00.
-   ANTES de clicar "Adicionar item", confira que o campo "Local de destino
-   *" já apareceu no cabeçalho do modal (aparece assim que há SKU novo no
-   lote) — deixe-o vazio por enquanto → "Adicionar item".
-4. Confira que a caixa verde acima da linha diz "Escolha o local de destino
-   acima para definir em que loja ele nasce." (local ainda vazio).
+   produto" = "Produto Teste Fatia 2", quantidade 4, custo unitário 12,00
+   → "Adicionar item".
+4. SÓ DEPOIS de adicionar a linha, confira que o campo "Local de destino
+   *" apareceu no cabeçalho do modal. Confira também que a caixa verde
+   acima da linha diz "Escolha o local de destino acima para definir em
+   que loja ele nasce." (local ainda vazio).
 5. No campo "Local de destino", escolha uma das lojas do dropdown — chame-a
    de LOJA-X.
 6. Confira que a caixa verde mudou para "... Ele nasce na loja LOJA-X.".
@@ -255,9 +315,10 @@ produto continuaria escondido das vendas).
 
 1. Por SQL, antes de tentar: anote o saldo do SKU que vai usar
    (`select qty from products where upper(trim(sku)) = '<SKU>';`) e o
-   `receipt_number` mais recente do tenant
-   (`select receipt_number from receipts order by created_at desc limit 1;`,
-   chame-o de R-000N).
+   `receipt_number` mais recente do tenant, já escopado (ver "Convenção
+   das consultas SQL" na introdução):
+   `select receipt_number from receipts where tenant_id = (select tenant_id from suppliers where name = '<fornecedor do tenant de teste>' limit 1) order by created_at desc limit 1;`
+   (chame-o de R_ATUAL; o próximo esperado, R_PROX).
 2. Login como o usuário membro NÃO-admin do tenant de teste.
 3. Aba Produtos → "Registrar recebimento" → selecione um fornecedor,
    adicione um item válido (o mesmo SKU do passo 1, quantidade qualquer) →
@@ -268,7 +329,8 @@ produto continuaria escondido das vendas).
   em texto vermelho no modal; modal continua aberto.
 - **Por SQL, não pela tela** (mesmo caminho de erro sem refetch do caso 2):
   `select qty from products where upper(trim(sku)) = '<SKU>';` → igual ao
-  anotado no passo 1. `select count(*) from receipts where receipt_number = 'R-000(N+1)';`
+  anotado no passo 1.
+  `select count(*) from receipts where tenant_id = (select tenant_id from suppliers where name = '<fornecedor do tenant de teste>' limit 1) and receipt_number = '<R_PROX>';`
   → `0`.
 
 **mata:** gate trocado por `is_tenant_member` (deixaria o membro registrar
@@ -276,7 +338,9 @@ de verdade, e saldo/numeração mudariam de fato).
 
 **Corrigido na revisão (minor):** a v1 dizia "nenhuma linha nova em
 `receipts`" sem dar a query. Agora tem a query, e a asserção de saldo virou
-SQL pelo mesmo motivo do caso 2 (caminho de erro não refaz fetch).
+SQL pelo mesmo motivo do caso 2 (caminho de erro não refaz fetch). (Round
+2: a query de `receipts` ganhou escopo de tenant, pelo mesmo motivo do
+caso 2.)
 
 **Resultado:**
 
@@ -299,21 +363,25 @@ Passos (precisa de acesso a dois tenants, cada um com fornecedor
 cadastrado):
 
 1. Descubra o `tenant_id` do tenant de teste sem digitar um UUID cru,
-   reaproveitando um fornecedor já cadastrado nele:
+   reaproveitando um fornecedor já cadastrado nele (com nome DIFERENTE do
+   fornecedor do segundo tenant — ver "Dados de teste" na introdução):
    `select receipt_number from receipts where tenant_id = (select tenant_id from suppliers where name = '<fornecedor do tenant de teste>' limit 1) order by created_at desc limit 1;`
-   — anote (R-000N; se vier vazio, N = 0).
+   — anote (chame-o de R_ATUAL; se vier vazio, trate como se o próximo
+   fosse `R-0001`).
 2. Logado como admin do tenant de teste, registre um recebimento
    (fornecedor + 1 item válido) → "Registrar entrada".
-3. Repita a query do passo 1 → confirme `receipt_number = 'R-000(N+1)'`.
+3. Repita a query do passo 1 → confirme `receipt_number = '<R_PROX>'`
+   (R_PROX calculado como na introdução).
 4. Logado como admin do SEGUNDO tenant, registre um recebimento válido
    nesse outro tenant (fornecedor + 1 item dele).
 5. Volte a logar/trocar para o tenant de teste e registre outro
    recebimento válido → "Registrar entrada".
 6. Repita a query do passo 1 (ainda filtrando pelo `tenant_id` do tenant de
-   TESTE) → confirme `receipt_number = 'R-000(N+2)'` — sem pular, sem
-   repetir, mesmo com o recebimento do passo 4 tendo acontecido no meio.
+   TESTE) → confirme `receipt_number = '<R_PROX2>'` (o inteiro de R_ATUAL
+   somado 2, mesmo cálculo) — sem pular, sem repetir, mesmo com o
+   recebimento do passo 4 tendo acontecido no meio.
 
-**Esperado:** a sequência do tenant de teste é R-000(N+1), R-000(N+2) —
+**Esperado:** a sequência do tenant de teste é R_PROX, R_PROX2 —
 consecutiva — independentemente do recebimento do outro tenant no passo 4.
 O recebimento do passo 4 tem sua PRÓPRIA sequência, isolada.
 
@@ -339,11 +407,16 @@ disfarçado.
 
 **Esperado:**
 - Modal fecha sem erro.
-- No banco: `select total_cost from receipts order by created_at desc limit 1;`
+- No banco, já escopado no tenant de teste (ver "Convenção das consultas
+  SQL" na introdução):
+  `select total_cost from receipts where tenant_id = (select tenant_id from suppliers where name = '<fornecedor do tenant de teste>' limit 1) order by created_at desc limit 1;`
   → `NULL` — não `0`, não a soma parcial das linhas com custo.
 
 **mata:** `coalesce(custo, 0)` na agregação (trataria ausência de custo
 como zero e somaria um total errado, quando o certo é ausência ≠ zero).
+
+**Corrigido na revisão (round 2 — Important):** a consulta de `receipts`
+ganhou escopo de tenant.
 
 **Resultado:**
 
@@ -411,8 +484,7 @@ digitado.
 **Esperado (é aqui que o bug acontecia):** abaixo do campo aparece
 "`<nome do produto>` · saldo atual `<N>`" — NÃO "SKU novo — o produto será
 criado ao salvar.". O campo "Nome do produto" NÃO aparece (só aparece para
-SKU realmente novo), e o campo "Local de destino" também NÃO aparece (lote
-não tem SKU novo).
+SKU realmente novo).
 
 5. Quantidade 3 → "Adicionar item" → "Registrar entrada".
 
@@ -426,6 +498,11 @@ mesmo SKU: `select count(*) from products where upper(trim(sku)) = '<SKU-OUTRA-L
 por loja e tratando um SKU de outra loja como novo, descartando o `name`
 digitado (a RPC, ao achar o produto pelo tenant inteiro, só soma o saldo e
 ignora o `name` do payload).
+
+**Corrigido na revisão (round 2 — Minor):** a v1 pedia conferir que o
+campo "Local de destino" não aparecia logo no passo 4 (SKU só digitado,
+ainda sem linha adicionada) — vazio nesse ponto com ou sem a regressão
+(`hasNewSku` só olha linhas já adicionadas), removido.
 
 **Resultado:**
 
@@ -545,16 +622,23 @@ exemplo) é ação natural do usuário.
    duas linhas.
 5. "Registrar entrada".
 
-**Esperado:**
-- `select count(*) from receipt_items where receipt_id = (select id from receipts order by created_at desc limit 1) and sku = '<SKU>';`
+**Esperado:** as consultas abaixo comparam com `upper(trim(sku))`, não com
+o SKU cru — a RPC normaliza o `sku` antes de gravar
+(`upper(trim(elem->>'sku'))`, na CTE `merged`). Comparar com o SKU tal
+como foi digitado (ex. em minúsculas) faz as duas consultas voltarem
+vazias, o que pareceria falha sem ser:
+- `select count(*) from receipt_items where receipt_id = (select id from receipts where tenant_id = (select tenant_id from suppliers where name = '<fornecedor do tenant de teste>' limit 1) order by created_at desc limit 1) and upper(trim(sku)) = '<SKU>';`
   → `1` (uma linha só; o índice único não trinca).
-- `select qty, unit_cost from receipt_items where receipt_id = (select id from receipts order by created_at desc limit 1) and sku = '<SKU>';`
+- `select qty, unit_cost from receipt_items where receipt_id = (select id from receipts where tenant_id = (select tenant_id from suppliers where name = '<fornecedor do tenant de teste>' limit 1) order by created_at desc limit 1) and upper(trim(sku)) = '<SKU>';`
   → `qty = 5`, `unit_cost = 12.00` (o último informado, não o primeiro nem
   a média).
 - Saldo do produto sobe exatamente 5 (2+3), não duplica.
 
 **mata:** o merge de SKU duplicado falhar (índice único derrubaria a
 transação inteira) ou pegar o primeiro custo em vez do último.
+
+**Corrigido na revisão (round 2 — Minor):** as consultas ganharam
+`upper(trim(sku))` (em vez de `sku` cru) e escopo de tenant no `receipt_id`.
 
 **Resultado:**
 
