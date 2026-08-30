@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import type { Product } from '../../types';
 
@@ -44,6 +44,14 @@ vi.mock('../../lib/supabaseClient', () => ({
 	supabase: { from: (table: string) => fromMock(table) },
 }));
 
+// Mocked so the submit test can assert on the input registerReceipt receives
+// without going through supabase.rpc (that boundary is receiptService's own
+// test file's job).
+const registerReceiptMock = vi.fn().mockResolvedValue({ id: 'r1', receipt_number: 'R-0001' });
+vi.mock('../../services/receiptService', () => ({
+	registerReceipt: (...args: unknown[]) => registerReceiptMock(...args),
+}));
+
 const { ReceiptModal } = await import('./ReceiptModal');
 
 const product = (over: Partial<Product> = {}): Product => ({
@@ -65,6 +73,10 @@ const settle = async () => {
 };
 
 describe('ReceiptModal', () => {
+	beforeEach(() => {
+		registerReceiptMock.mockClear();
+	});
+
 	it('rodapé "Custo do lote" some quando alguma linha está sem custo', async () => {
 		render(<ReceiptModal {...base} products={[product()]} />);
 		await settle();
@@ -183,5 +195,28 @@ describe('ReceiptModal', () => {
 
 		fireEvent.change(screen.getByLabelText(/local de destino/i), { target: { value: 'Miami' } });
 		expect(screen.getByRole('button', { name: /registrar entrada/i })).toBeEnabled();
+	});
+
+	it('o local escolhido chega em registerReceipt ao registrar um lote com SKU novo', async () => {
+		// mata: `location: null` fixo (ou remover a linha) no submit() do modal —
+		// os 248 testes anteriores continuariam verdes, mas todo recebimento com
+		// SKU novo quebraria em runtime com receipt_location_required.
+		render(<ReceiptModal {...base} products={[product()]} />);
+		await settle();
+
+		fireEvent.change(screen.getByLabelText(/fornecedor/i), { target: { value: 'sup-1' } });
+		fireEvent.change(screen.getByLabelText('SKU'), { target: { value: 'POP-NOVO' } });
+		fireEvent.change(screen.getByLabelText(/nome do produto/i), { target: { value: 'Produto Novo' } });
+		fireEvent.change(screen.getByLabelText('Quantidade'), { target: { value: '4' } });
+		fireEvent.change(screen.getByLabelText('Custo unitário'), { target: { value: '2.5' } });
+		fireEvent.click(screen.getByRole('button', { name: /adicionar item/i }));
+
+		fireEvent.change(screen.getByLabelText(/local de destino/i), { target: { value: 'Miami' } });
+		expect(screen.getByRole('button', { name: /registrar entrada/i })).toBeEnabled();
+
+		fireEvent.click(screen.getByRole('button', { name: /registrar entrada/i }));
+
+		await waitFor(() => expect(registerReceiptMock).toHaveBeenCalledTimes(1));
+		expect(registerReceiptMock.mock.calls[0][0]).toMatchObject({ location: 'Miami' });
 	});
 });

@@ -35,6 +35,8 @@ export const ReceiptModal = ({ open, products, tenantId, onClose, onRegistered }
 	const [note, setNote] = useState('');
 	const [location, setLocation] = useState('');
 	const [localOptions, setLocalOptions] = useState<string[]>([]);
+	const [localOptionsLoaded, setLocalOptionsLoaded] = useState(false);
+	const [localOptionsError, setLocalOptionsError] = useState('');
 	const [sku, setSku] = useState('');
 	const [qty, setQty] = useState('1');
 	const [unitCost, setUnitCost] = useState('');
@@ -79,11 +81,19 @@ export const ReceiptModal = ({ open, products, tenantId, onClose, onRegistered }
 			setSuppliers((data ?? []) as SupplierOption[]);
 			setSuppliersLoaded(true);
 		})();
+		setLocalOptionsLoaded(false);
+		setLocalOptionsError('');
 		void listProductOptions(tenantId, 'local')
 			.then((opts) => {
-				if (!cancelled) setLocalOptions(opts);
+				if (cancelled) return;
+				setLocalOptions(opts);
+				setLocalOptionsLoaded(true);
 			})
-			.catch(() => {});
+			.catch(() => {
+				if (cancelled) return;
+				setLocalOptionsError('Não foi possível carregar os locais. Tente novamente.');
+				setLocalOptionsLoaded(true);
+			});
 		return () => {
 			cancelled = true;
 		};
@@ -273,6 +283,15 @@ export const ReceiptModal = ({ open, products, tenantId, onClose, onRegistered }
 										</option>
 									))}
 								</select>
+								{localOptionsError && (
+									<p className="mt-1 text-[11px] text-rose-500">{localOptionsError}</p>
+								)}
+								{!localOptionsError && localOptionsLoaded && localOptions.length === 0 && (
+									<p className="mt-1 text-[11px] text-muted-foreground">
+										Nenhum local cadastrado. Cadastre um local em Configurações → Opções de
+										produto antes de registrar uma entrada com SKU novo.
+									</p>
+								)}
 							</div>
 						)}
 						<div>

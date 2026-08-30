@@ -13,7 +13,7 @@ export type RegisterReceiptInput = {
 };
 
 // Espelha as exceções nomeadas de register_receipt
-// (20260830000200_register_receipt.sql) em mensagens pt-BR.
+// (20260830000300_receipt_location.sql) em mensagens pt-BR.
 const RECEIPT_ERROR_MESSAGES: Record<string, string> = {
 	not_authenticated: 'Sua sessão expirou. Entre novamente para registrar a entrada.',
 	not_authorized: 'Apenas administradores podem registrar recebimentos.',

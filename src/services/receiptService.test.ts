@@ -153,6 +153,14 @@ describe('registerReceipt', () => {
 		expect(rpc.mock.calls[0][1].p_location).toBeNull();
 	});
 
+	it('envia p_location null quando o local é só espaço em branco', async () => {
+		// mata: `input.location ?? null` sem trim — passaria '  ' direto pra RPC
+		// em vez de tratá-lo como ausente, e `nullif(trim(...))` do lado do banco
+		// já cobre isso lá, então aqui é o client que não pode regredir.
+		await registerReceipt({ ...baseInput, location: '   ' });
+		expect(rpc.mock.calls[0][1].p_location).toBeNull();
+	});
+
 	it('traduz receipt_location_required', async () => {
 		// mata: exceção nova sem entrada no mapa, vazando texto cru do Postgres
 		rpc.mockResolvedValue({ data: null, error: { message: 'receipt_location_required' } });
