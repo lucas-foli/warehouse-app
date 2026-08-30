@@ -229,3 +229,46 @@ e2e — o datalist funciona no desktop, onde o teste está sendo feito. Entra co
 o resto dos achados do e2e, antes do merge.
 
 **Jira:** WAR-2 (não é WAR-8: é funcional, não repaginação).
+
+## 2026-08-30 — Infra de teste de banco (RPC sem cobertura automatizada)
+
+**Origem:** fatia 2 do Campo. O repo não tem runner de teste SQL (sem `test:db`,
+sem pgTAP), então `register_sale_order`, `register_interaction` e agora
+`register_receipt` — as três funções que mexem em saldo de estoque — só são
+verificadas por e2e manual. Cada obra reescreve o mesmo roteiro à mão e a
+regressão de uma RPC só aparece quando alguém repete o roteiro.
+
+**O que implementar:** runner de teste contra um Postgres efêmero (Supabase local
+ou container) que aplique as migrations e exercite as RPCs, com gate de `where`
+superuser (sob superuser a RLS não é rede e o teste passa sem provar nada).
+
+**Escopo:** infra de teste. Fatia própria, com spec quando priorizada.
+
+## 2026-08-30 — Estorno e ajuste de recebimento
+
+**Origem:** fatia 2 do Campo. A venda tem `void_sale_order`; o recebimento
+nasceu sem equivalente. Lote registrado errado fica registrado, e com o saldo
+só-leitura na edição de produto não há caminho no app para corrigir a
+divergência entre o físico e o número.
+
+**O que implementar:** estorno de lote (espelho do void) e/ou ajuste de contagem
+registrado como movimento, com autor e motivo. Decidir qual dos dois resolve o
+caso real antes de especificar.
+
+**Escopo:** feature própria, com brainstorming/spec quando priorizada.
+
+## 2026-08-30 — Tipos de recebimento em snake_case (resolver na fatia 3)
+
+**Origem:** revisão da Task 1 da fatia 2. `Receipt` e `ReceiptItem`
+(`src/types/index.ts`) são row shapes do banco exportados como tipo de domínio,
+em snake_case, enquanto os tipos do módulo Campo (`FieldContact`, `Interaction`)
+são camelCase e o `fieldService` mantém o row snake_case como tipo local privado,
+mapeando na fronteira.
+
+**Por que ficou assim:** na fatia 2 o único consumidor é `data as Receipt` no
+`receiptService` — nenhum componente lê os campos, porque a tela de listagem de
+recebimentos foi cortada. Um mapeamento agora não teria o que mapear.
+
+**Quando resolver:** na **fatia 3** (relatório de campo), junto com o primeiro
+consumidor de tela desses tipos — converter para camelCase e mapear na fronteira
+do serviço, como o `fieldService` faz. Anotado também no WAR-4.
