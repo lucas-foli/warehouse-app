@@ -53,9 +53,11 @@ Registrado como decisão consciente da fatia 1 (não é bug a reportar).
     data → o chip "amanhã" acende sozinho; ao salvar, o item aparece na
     Agenda.
 14. Salvar uma visita que deixa o estoque negativo (amostra maior que o
-    saldo): o modal NÃO fecha sozinho, mostra o aviso âmbar, e o botão salvar
-    fica travado no estado "Visita registrada" até clicar em "Entendi,
-    fechar" — só aí o modal fecha.
+    saldo): o modal NÃO fecha sozinho. A caixa âmbar traz "Visita registrada."
+    em destaque e, abaixo, "Estoque ficou negativo: <SKU>." — as duas como
+    TEXTO, nada clicável. O botão do rodapé vira a ação: "Entendi, fechar",
+    habilitado, e é o único jeito de fechar. Salvar duas vezes é impossível
+    (com o aviso na tela o botão fecha, não salva).
 15. Na ficha aberta pelo Funil (tocar num card): registrar uma visita por ali
     → a timeline atualiza sem fechar a ficha; trocar o estágio → o chip muda
     na hora e passa a marcar "· à mão"; clicar em "voltar ao automático" → o
