@@ -4,16 +4,42 @@ import type { Product } from '../../types';
 
 // Same pattern as receiptService.test.ts: build the mock before importing the
 // module under test, then dynamically import so the mock is in place first.
-const fromMock = vi.fn((table: string) => ({
-	select: () => ({
-		eq: () =>
-			Promise.resolve(
-				table === 'suppliers'
-					? { data: [{ id: 'sup-1', name: 'Fornecedor Um' }], error: null }
-					: { data: [], error: null },
-			),
-	}),
-}));
+// listProductOptions chains .select().eq().eq().order().order() before awaiting
+// (two eq calls: tenant_id + kind), unlike the single .eq() the suppliers fetch
+// uses — `makeQuery` returns one self-referencing, thenable object so any chain
+// length resolves to the same table-keyed result.
+const LOCAL_OPTIONS_ROWS = [
+	{ value: 'Miami', sort_order: 1 },
+	{ value: 'Orlando', sort_order: 2 },
+];
+
+const makeQuery = (result: { data: unknown; error: null }) => {
+	const builder: {
+		select: () => typeof builder;
+		eq: () => typeof builder;
+		order: () => typeof builder;
+		then: (
+			resolve: (value: unknown) => void,
+			reject: (reason: unknown) => void,
+		) => Promise<unknown>;
+	} = {
+		select: () => builder,
+		eq: () => builder,
+		order: () => builder,
+		then: (resolve, reject) => Promise.resolve(result).then(resolve, reject),
+	};
+	return builder;
+};
+
+const fromMock = vi.fn((table: string) =>
+	makeQuery(
+		table === 'suppliers'
+			? { data: [{ id: 'sup-1', name: 'Fornecedor Um' }], error: null }
+			: table === 'tenant_product_options'
+				? { data: LOCAL_OPTIONS_ROWS, error: null }
+				: { data: [], error: null },
+	),
+);
 vi.mock('../../lib/supabaseClient', () => ({
 	supabase: { from: (table: string) => fromMock(table) },
 }));
@@ -120,5 +146,42 @@ describe('ReceiptModal', () => {
 
 		fireEvent.click(screen.getByRole('button', { name: /adicionar item/i }));
 		expect(screen.getByText('Itens · 2')).toBeInTheDocument();
+	});
+
+	it('o select de local de destino não aparece num lote só de SKUs conhecidos', async () => {
+		// mata: tornar o campo sempre visível, reintroduzindo a decisão de local
+		// a cada recebimento — a Emenda 1 existe pra evitar isso quando o lote
+		// não cria produto nenhum.
+		render(<ReceiptModal {...base} products={[product()]} />);
+		await settle();
+
+		fireEvent.change(screen.getByLabelText(/fornecedor/i), { target: { value: 'sup-1' } });
+		fireEvent.change(screen.getByLabelText('SKU'), { target: { value: 'POP-1' } });
+		fireEvent.change(screen.getByLabelText('Custo unitário'), { target: { value: '2.5' } });
+		fireEvent.click(screen.getByRole('button', { name: /adicionar item/i }));
+
+		expect(screen.getByText('Itens · 1')).toBeInTheDocument();
+		expect(screen.queryByLabelText(/local de destino/i)).not.toBeInTheDocument();
+		expect(screen.getByRole('button', { name: /registrar entrada/i })).toBeEnabled();
+	});
+
+	it('com um SKU novo no lote e nenhum local escolhido, "Registrar entrada" fica desabilitado', async () => {
+		// mata: remover o gate do local de `canSubmit` e deixar salvar um
+		// produto novo sem loja escolhida.
+		render(<ReceiptModal {...base} products={[product()]} />);
+		await settle();
+
+		fireEvent.change(screen.getByLabelText(/fornecedor/i), { target: { value: 'sup-1' } });
+		fireEvent.change(screen.getByLabelText('SKU'), { target: { value: 'POP-NOVO' } });
+		fireEvent.change(screen.getByLabelText(/nome do produto/i), { target: { value: 'Produto Novo' } });
+		fireEvent.change(screen.getByLabelText('Custo unitário'), { target: { value: '2.5' } });
+		fireEvent.click(screen.getByRole('button', { name: /adicionar item/i }));
+
+		expect(screen.getByText('Itens · 1')).toBeInTheDocument();
+		expect(screen.getByLabelText(/local de destino/i)).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: /registrar entrada/i })).toBeDisabled();
+
+		fireEvent.change(screen.getByLabelText(/local de destino/i), { target: { value: 'Miami' } });
+		expect(screen.getByRole('button', { name: /registrar entrada/i })).toBeEnabled();
 	});
 });

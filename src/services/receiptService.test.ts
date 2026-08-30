@@ -140,4 +140,24 @@ describe('registerReceipt', () => {
 		// mata: engolir o retorno da RPC (a UI precisa do número do lote)
 		await expect(registerReceipt(baseInput)).resolves.toMatchObject({ receipt_number: 'R-0001' });
 	});
+
+	it('envia p_location quando informado', async () => {
+		// mata: esquecer de repassar o local ao adicionar o parâmetro na RPC
+		await registerReceipt({ ...baseInput, location: 'Miami' });
+		expect(rpc.mock.calls[0][1].p_location).toBe('Miami');
+	});
+
+	it('envia p_location null quando não informado', async () => {
+		// mata: mandar string vazia, que a RPC trataria diferente de ausente
+		await registerReceipt(baseInput);
+		expect(rpc.mock.calls[0][1].p_location).toBeNull();
+	});
+
+	it('traduz receipt_location_required', async () => {
+		// mata: exceção nova sem entrada no mapa, vazando texto cru do Postgres
+		rpc.mockResolvedValue({ data: null, error: { message: 'receipt_location_required' } });
+		await expect(registerReceipt(baseInput)).rejects.toThrow(
+			'Escolha o local de destino: o lote cria um produto novo.',
+		);
+	});
 });

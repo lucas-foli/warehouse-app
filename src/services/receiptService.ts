@@ -9,6 +9,7 @@ export type RegisterReceiptInput = {
 	receivedAt?: string;
 	document?: string | null;
 	note?: string | null;
+	location?: string | null;
 };
 
 // Espelha as exceções nomeadas de register_receipt
@@ -22,6 +23,7 @@ const RECEIPT_ERROR_MESSAGES: Record<string, string> = {
 	receipt_cost_invalid: 'O custo unitário não pode ser negativo.',
 	receipt_sku_required: 'Informe o SKU do produto.',
 	receipt_product_name_required: 'Informe o nome do produto novo antes de registrar a entrada.',
+	receipt_location_required: 'Escolha o local de destino: o lote cria um produto novo.',
 };
 
 const friendlyReceiptError = (rawMessage: string): string => {
@@ -74,6 +76,7 @@ export async function registerReceipt(input: RegisterReceiptInput): Promise<Rece
 		p_received_at: input.receivedAt ?? new Date().toISOString(),
 		p_document: input.document ?? null,
 		p_note: input.note ?? null,
+		p_location: input.location?.trim() || null,
 	});
 
 	if (error) throw new Error(friendlyReceiptError(error.message));

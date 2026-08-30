@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import type { Product } from '../../types';
 import { registerReceipt } from '../../services/receiptService';
+import { listProductOptions } from '../../services/productOptions';
 import { mergeReceiptLines, receiptTotal, linesNeedingName, type ReceiptLine } from '../../utils/receiptCart';
 import { formatCurrency } from '../../utils/currency';
 import { Modal } from '../ui/Modal';
@@ -32,6 +33,8 @@ export const ReceiptModal = ({ open, products, tenantId, onClose, onRegistered }
 	const [receivedAt, setReceivedAt] = useState(todayISODate());
 	const [documentNo, setDocumentNo] = useState('');
 	const [note, setNote] = useState('');
+	const [location, setLocation] = useState('');
+	const [localOptions, setLocalOptions] = useState<string[]>([]);
 	const [sku, setSku] = useState('');
 	const [qty, setQty] = useState('1');
 	const [unitCost, setUnitCost] = useState('');
@@ -76,6 +79,11 @@ export const ReceiptModal = ({ open, products, tenantId, onClose, onRegistered }
 			setSuppliers((data ?? []) as SupplierOption[]);
 			setSuppliersLoaded(true);
 		})();
+		void listProductOptions(tenantId, 'local')
+			.then((opts) => {
+				if (!cancelled) setLocalOptions(opts);
+			})
+			.catch(() => {});
 		return () => {
 			cancelled = true;
 		};
@@ -89,6 +97,7 @@ export const ReceiptModal = ({ open, products, tenantId, onClose, onRegistered }
 		setReceivedAt(todayISODate());
 		setDocumentNo('');
 		setNote('');
+		setLocation('');
 		setSku('');
 		setQty('1');
 		setUnitCost('');
@@ -139,6 +148,15 @@ export const ReceiptModal = ({ open, products, tenantId, onClose, onRegistered }
 	const displayLines = useMemo(() => mergeReceiptLines(lines), [lines]);
 	const needingName = useMemo(() => linesNeedingName(lines, knownSkus), [lines, knownSkus]);
 	const batchTotal = useMemo(() => receiptTotal(displayLines), [displayLines]);
+	// Same comparison the per-line "new product" pill uses (`!productBySku.get(l.sku)`),
+	// lifted here so both the location field's visibility and its required-ness in
+	// `canSubmit` share one definition of "has a new SKU" instead of each computing
+	// it their own way. NOT derived from `linesNeedingName` — that only returns lines
+	// that are new AND still unnamed, which undercounts once a new SKU has a name.
+	const hasNewSku = useMemo(
+		() => displayLines.some((l) => !productBySku.get(l.sku)),
+		[displayLines, productBySku],
+	);
 
 	// An empty/cleared date field would otherwise reach `new Date(...)` in submit()
 	// and throw a RangeError the user would see as an untranslated "Invalid time
@@ -151,6 +169,7 @@ export const ReceiptModal = ({ open, products, tenantId, onClose, onRegistered }
 		receivedAtValid &&
 		lines.length > 0 &&
 		needingName.length === 0 &&
+		(!hasNewSku || location.trim() !== '') &&
 		!submitting;
 
 	const submit = async () => {
@@ -165,6 +184,7 @@ export const ReceiptModal = ({ open, products, tenantId, onClose, onRegistered }
 				receivedAt: new Date(`${receivedAt}T12:00:00`).toISOString(),
 				document: documentNo || null,
 				note: note || null,
+				location: location || null,
 			});
 			onRegistered(displayLines.map((l) => l.sku));
 			onClose();
@@ -236,6 +256,25 @@ export const ReceiptModal = ({ open, products, tenantId, onClose, onRegistered }
 								className={fieldClass}
 							/>
 						</div>
+						{hasNewSku && (
+							<div>
+								<label className={labelClass} htmlFor="receipt-location">
+									Local de destino *
+								</label>
+								<select
+									id="receipt-location"
+									value={location}
+									onChange={(e) => setLocation(e.target.value)}
+									className={`${fieldClass} cursor-pointer`}>
+									<option value="">Selecione um local</option>
+									{localOptions.map((opt) => (
+										<option key={opt} value={opt}>
+											{opt}
+										</option>
+									))}
+								</select>
+							</div>
+						)}
 						<div>
 							<label className={labelClass} htmlFor="receipt-document">
 								Documento
@@ -280,9 +319,14 @@ export const ReceiptModal = ({ open, products, tenantId, onClose, onRegistered }
 											{isNew && (
 												<div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
 													<strong>{l.sku}</strong> não existe no cadastro. Vai ser criado agora, com
-													saldo {l.qty} e sem preço de venda. Confira o código antes de salvar. Ele
-													também nasce sem local definido — vai aparecer só em &quot;Todos os
-													locais&quot; até você editar o cadastro e escolher uma loja.
+													saldo {l.qty} e sem preço de venda. Confira o código antes de salvar.{' '}
+													{location.trim() ? (
+														<>
+															Ele nasce na loja <strong>{location.trim()}</strong>.
+														</>
+													) : (
+														'Escolha o local de destino acima para definir em que loja ele nasce.'
+													)}
 												</div>
 											)}
 											{isReactivation && (
