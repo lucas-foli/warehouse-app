@@ -275,3 +275,22 @@ não pegaram.
 **Fix:** helper de paginação nos três fetches do Campo, espelhando
 `dashboardService.fetchAllRows` (ordenação por `id` na query, reordenação de
 exibição em memória). Dois testes novos cobrem a paginação. Commit 689f902.
+
+## 2026-08-30 — BUG-19: `npm test` varre as worktrees em `.claude/worktrees/` (CONFIRMADO)
+
+- **Atual:** `vite.config.ts` define `test:` sem `exclude`, então o vitest usa o
+  default (`node_modules`, `dist`, …) — que **não** cobre `.claude/worktrees/`.
+  Resultado: `npm test` na raiz roda também os testes de toda worktree viva,
+  com o código e o `node_modules` daquela branch.
+- **Consequência:** medido em 2026-08-30 logo após o merge do PR #73 — `npm test`
+  em `main` reportou **938 testes / 6 falhas** quando `main` de fato tem **202
+  testes, todos verdes**. As 6 falhas vinham de `.claude/worktrees/modal-base/`,
+  uma worktree parada de outra obra, com deps desatualizadas. Um gate assim
+  reprova por causa de branch alheia e aprova sem enxergar a própria.
+- **Esperado:** o gate mede só o checkout em que roda. Acrescentar
+  `exclude: [...configDefaults.exclude, '**/.claude/**']` (ou `dir: 'src'` com
+  o mesmo exclude) na seção `test` do `vite.config.ts`.
+- **Contorno enquanto não entra:** `npx vitest run --dir src --exclude '**/.claude/**'`.
+- **Origem:** descoberto ao verificar a suíte em `main` depois do merge da fatia 1
+  do Campo. Não é regressão de nenhuma obra — é lacuna de config que só aflora
+  com worktree viva no diretório.
