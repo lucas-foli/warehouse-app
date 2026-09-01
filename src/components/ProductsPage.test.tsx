@@ -76,3 +76,22 @@ describe('ProductsPage handleSaveDraft', () => {
 		expect(payload.price).toBe(20);
 	});
 });
+
+describe('ProductsPage — "Registrar recebimento deste item"', () => {
+	it('fecha a edição do produto e abre o recebimento com o SKU já preenchido', async () => {
+		render(<ProductsPage products={[product()]} loading={false} onBack={vi.fn()} tenantId="t1" />);
+
+		fireEvent.click(screen.getAllByText('Produto Um')[0]);
+		const editDialog = screen.getByRole('dialog');
+		fireEvent.click(
+			within(editDialog).getByRole('button', { name: /registrar recebimento deste item/i }),
+		);
+
+		// mata: deixar os dois modais abertos ao mesmo tempo, em vez de fechar a
+		// edição antes de abrir o recebimento
+		expect(screen.queryByText('Edit product')).not.toBeInTheDocument();
+		// mata: abrir o recebimento com o editor de SKU vazio (perder o SKU na
+		// transição entre os dois modais)
+		await waitFor(() => expect(screen.getByLabelText('SKU')).toHaveValue('POP-1'));
+	});
+});

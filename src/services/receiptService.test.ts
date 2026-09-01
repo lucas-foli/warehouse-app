@@ -30,8 +30,8 @@ describe('registerReceipt', () => {
 		rpc.mockResolvedValue({ data: { id: 'r1', receipt_number: 'R-0001' }, error: null });
 	});
 
-	it('envia o payload com os 6 parâmetros da RPC, incluindo p_items e p_received_at', async () => {
-		// mata: renomear qualquer um dos 6 p_* (inclusive p_received_at, que
+	it('envia o payload com os 7 parâmetros da RPC, incluindo p_items e p_received_at', async () => {
+		// mata: renomear qualquer um dos 7 p_* (inclusive p_received_at, que
 		// nenhum teste checava antes) — a RPC rejeitaria a chamada inteira
 		await registerReceipt({
 			...baseInput,

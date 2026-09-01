@@ -16,6 +16,7 @@ type ProductFormModalProps = {
 	onReset: () => void;
 	onClose: () => void;
 	onRequestDelete: () => void;
+	onRequestReceipt: () => void;
 };
 
 const ProductFormModal = ({
@@ -33,6 +34,7 @@ const ProductFormModal = ({
 	onReset,
 	onClose,
 	onRequestDelete,
+	onRequestReceipt,
 }: ProductFormModalProps) => {
 	return (
 		<Modal open={open} onClose={onClose} size="lg" labelledById="product-form-title">
@@ -175,6 +177,12 @@ const ProductFormModal = ({
 											<p className="mt-1.5 text-[11px] leading-snug text-muted-foreground">
 												O saldo muda por recebimento, venda e amostra — não pela edição do cadastro.
 											</p>
+											<button
+												type="button"
+												onClick={onRequestReceipt}
+												className="mt-2 rounded-full border border-border/60 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-foreground transition hover:bg-muted">
+												Registrar recebimento deste item
+											</button>
 										</div>
 									)}
 								</div>

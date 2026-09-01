@@ -26,3 +26,5 @@ dist-ssr
 .env
 # Claude Code worktrees
 .claude/worktrees/
+# Local dev-server config for the Claude Code browser preview tool (per-machine)
+.claude/launch.json

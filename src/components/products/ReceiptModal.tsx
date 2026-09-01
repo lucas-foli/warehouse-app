@@ -13,6 +13,11 @@ type Props = {
 	open: boolean;
 	products: Product[];
 	tenantId?: string;
+	// Seeds the SKU editor (not an already-added line) when the modal opens — same
+	// pattern as SaleOrderModal's `initialProductId`. Lets "Registrar recebimento
+	// deste item" (ProductFormModal, edit mode) hand off a SKU without assuming
+	// qty/cost, which only the user can supply.
+	initialSku?: string;
 	onClose: () => void;
 	// The RPC returns the receipt, not products; the page refetches these SKUs' stock.
 	onRegistered: (affectedSkus: string[]) => void;
@@ -20,7 +25,7 @@ type Props = {
 
 const todayISODate = () => new Date().toISOString().slice(0, 10);
 
-export const ReceiptModal = ({ open, products, tenantId, onClose, onRegistered }: Props) => {
+export const ReceiptModal = ({ open, products, tenantId, initialSku, onClose, onRegistered }: Props) => {
 	// Raw, unmerged pushes — one entry per "Adicionar item" click. Merging this
 	// into state on every add (the way `mergeCartLines` does for the sale cart)
 	// would tie the merged shape to whatever's mid-edit in the add-item block;
@@ -108,13 +113,13 @@ export const ReceiptModal = ({ open, products, tenantId, onClose, onRegistered }
 		setDocumentNo('');
 		setNote('');
 		setLocation('');
-		setSku('');
+		setSku(initialSku ?? '');
 		setQty('1');
 		setUnitCost('');
 		setName('');
 		setError('');
 		setSubmitting(false);
-	}, [open]);
+	}, [open, initialSku]);
 
 	const labelClass = 'block text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground';
 	const fieldClass =

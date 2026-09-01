@@ -73,6 +73,10 @@ const ProductsPage = ({
 	const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
 	const [saleOrderModalOpen, setSaleOrderModalOpen] = useState(false);
 	const [receiptModalOpen, setReceiptModalOpen] = useState(false);
+	// SKU handed off from ProductFormModal's "Registrar recebimento deste item"
+	// (edit mode) to seed ReceiptModal's SKU editor. Cleared on close so the next
+	// "Registrar recebimento" from the page header opens with a blank editor.
+	const [receiptInitialSku, setReceiptInitialSku] = useState('');
 	const [ondeOptions, setOndeOptions] = useState<string[]>([]);
 	const [localOptions, setLocalOptions] = useState<string[]>([]);
 
@@ -193,6 +197,16 @@ const ProductsPage = ({
 		setEditDirty(false);
 		setEditError('');
 		setDrawerMode(null);
+	};
+
+	// "Registrar recebimento deste item" (ProductFormModal, edit mode): close the
+	// product form and open ReceiptModal seeded with this SKU, instead of the two
+	// modals ever being open at once.
+	const openReceiptForCurrentProduct = () => {
+		if (!editDraft) return;
+		setReceiptInitialSku(editDraft.sku);
+		closeEditPanel();
+		setReceiptModalOpen(true);
 	};
 
 	const parseOptionalNumber = (value: string) => {
@@ -759,6 +773,7 @@ const ProductsPage = ({
 					onReset={resetDraft}
 					onClose={closeEditPanel}
 					onRequestDelete={() => setDeleteConfirmOpen(true)}
+					onRequestReceipt={openReceiptForCurrentProduct}
 				/>
 			</div>
 		<ConfirmDialog
@@ -810,7 +825,11 @@ const ProductsPage = ({
 			open={receiptModalOpen}
 			products={receiptCatalog}
 			tenantId={tenantId}
-			onClose={() => setReceiptModalOpen(false)}
+			initialSku={receiptInitialSku}
+			onClose={() => {
+				setReceiptModalOpen(false);
+				setReceiptInitialSku('');
+			}}
 			onRegistered={handleOrderRegistered}
 		/>
 		<BulkResultDialog

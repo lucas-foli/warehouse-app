@@ -31,15 +31,16 @@ const makeQuery = (result: { data: unknown; error: null }) => {
 	return builder;
 };
 
-const fromMock = vi.fn((table: string) =>
+const defaultFromImpl = (table: string) =>
 	makeQuery(
 		table === 'suppliers'
 			? { data: [{ id: 'sup-1', name: 'Fornecedor Um' }], error: null }
 			: table === 'tenant_product_options'
 				? { data: LOCAL_OPTIONS_ROWS, error: null }
 				: { data: [], error: null },
-	),
-);
+	);
+
+const fromMock = vi.fn(defaultFromImpl);
 vi.mock('../../lib/supabaseClient', () => ({
 	supabase: { from: (table: string) => fromMock(table) },
 }));
@@ -75,6 +76,7 @@ const settle = async () => {
 describe('ReceiptModal', () => {
 	beforeEach(() => {
 		registerReceiptMock.mockClear();
+		fromMock.mockImplementation(defaultFromImpl);
 	});
 
 	it('rodapé "Custo do lote" some quando alguma linha está sem custo', async () => {
@@ -218,5 +220,38 @@ describe('ReceiptModal', () => {
 
 		await waitFor(() => expect(registerReceiptMock).toHaveBeenCalledTimes(1));
 		expect(registerReceiptMock.mock.calls[0][0]).toMatchObject({ location: 'Miami' });
+	});
+
+	it('avisa "Nenhum local cadastrado" quando o tenant não tem nenhuma opção de local', async () => {
+		// Tenant novo no primeiro recebimento: sem opções `local` cadastradas em
+		// Configurações → Opções de produto. Mesmos fornecedores do default, mas
+		// tenant_product_options volta vazio.
+		fromMock.mockImplementation((table: string) =>
+			makeQuery(
+				table === 'suppliers'
+					? { data: [{ id: 'sup-1', name: 'Fornecedor Um' }], error: null }
+					: { data: [], error: null },
+			),
+		);
+
+		render(<ReceiptModal {...base} products={[product()]} />);
+		await settle();
+
+		fireEvent.change(screen.getByLabelText(/fornecedor/i), { target: { value: 'sup-1' } });
+		fireEvent.change(screen.getByLabelText('SKU'), { target: { value: 'POP-NOVO' } });
+		fireEvent.change(screen.getByLabelText(/nome do produto/i), { target: { value: 'Produto Novo' } });
+		fireEvent.click(screen.getByRole('button', { name: /adicionar item/i }));
+
+		// mata: engolir o estado vazio (localOptionsLoaded && localOptions.length
+		// === 0) e nunca avisar o tenant novo que precisa cadastrar um local antes
+		// do primeiro recebimento poder criar um produto.
+		await waitFor(() =>
+			expect(
+				screen.getByText(/nenhum local cadastrado\. cadastre um local em configura/i),
+			).toBeInTheDocument(),
+		);
+		// O campo continua vazio (nada pra escolher) — "Registrar entrada" fica
+		// preso pelo mesmo gate do caso "SKU novo sem local".
+		expect(screen.getByRole('button', { name: /registrar entrada/i })).toBeDisabled();
 	});
 });

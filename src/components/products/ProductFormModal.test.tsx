@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import ProductFormModal from './ProductFormModal';
 import type { ProductDraft } from '../../utils/productForm';
 
@@ -12,6 +12,7 @@ const base = {
 	open: true as const, mode: 'create' as const, saving: false, error: '', dirty: false,
 	hasTenant: true, ondeOptions: ['ESTOQUE'], localOptions: ['Loja principal'],
 	onChange: vi.fn(), onSave: vi.fn(), onReset: vi.fn(), onClose: vi.fn(), onRequestDelete: vi.fn(),
+	onRequestReceipt: vi.fn(),
 };
 
 describe('ProductFormModal', () => {
@@ -41,5 +42,30 @@ describe('ProductFormModal', () => {
 		// (selecionado por nome acessível "Qtd" para não colidir com os spinbuttons de
 		// Mínimo/Preço, que continuam editáveis no modo edit)
 		expect(screen.queryByRole('spinbutton', { name: /^qtd$/i })).not.toBeInTheDocument();
+	});
+
+	it('"Registrar recebimento deste item" só existe no modo edit, e aciona onRequestReceipt', () => {
+		const onRequestReceipt = vi.fn();
+		const { rerender } = render(
+			<ProductFormModal {...base} onRequestReceipt={onRequestReceipt} draft={draft({ sku: 'POP-1' })} />,
+		);
+		// mata: renderizar o botão também no modo create (a spec só pede o atalho
+		// na edição — no create o saldo já é editável direto no formulário)
+		expect(
+			screen.queryByRole('button', { name: /registrar recebimento deste item/i }),
+		).not.toBeInTheDocument();
+
+		rerender(
+			<ProductFormModal
+				{...base}
+				mode="edit"
+				onRequestReceipt={onRequestReceipt}
+				draft={draft({ sku: 'POP-1', qty: '148' })}
+			/>,
+		);
+		const button = screen.getByRole('button', { name: /registrar recebimento deste item/i });
+		fireEvent.click(button);
+		// mata: não chamar onRequestReceipt (o botão existiria mas não faria nada)
+		expect(onRequestReceipt).toHaveBeenCalledTimes(1);
 	});
 });

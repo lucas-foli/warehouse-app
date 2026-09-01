@@ -187,7 +187,8 @@ const Dashboard = ({
 							<button
 								type="button"
 								onClick={() => navigate('/')}
-								aria-label="Ir para o dashboard"
+								title={`Ir para o dashboard — ${companyName}`}
+								aria-label={`Ir para o dashboard — ${companyName}`}
 								className="cursor-pointer">
 								{brandLogoSrc ? (
 									<img
@@ -201,7 +202,7 @@ const Dashboard = ({
 										}}
 									/>
 								) : (
-									<h1 className="text-xl font-bold tracking-tight text-foreground">{companyName}</h1>
+									<span className="text-xl font-bold tracking-tight text-foreground">{companyName}</span>
 								)}
 							</button>
 								<select
