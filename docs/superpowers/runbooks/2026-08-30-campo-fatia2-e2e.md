@@ -59,8 +59,9 @@ extrair o número (7), somar 1 (8), remontar como `'R-' || lpad('8', 4, '0')`
 = `R-0008`, e chamar isso de **R_PROX** (ou **R_PROX2**, quando dois
 recebimentos seguidos entram no mesmo caso).
 
-**Ordem de execução:** rode os casos NA ORDEM listada. Vários dependem do
-estado deixado pelos anteriores — em especial a numeração dos recebimentos
+**Ordem de execução:** rode o **Caso 0** primeiro — é um pré-voo de dados, não
+um caso de e2e — e só então os casos 1-14, NA ORDEM listada. Vários dependem
+do estado deixado pelos anteriores — em especial a numeração dos recebimentos
 (ver "Notação da numeração dos recebimentos" acima) é cumulativa dentro do
 tenant, e o caso 1 assume que é o PRIMEIRO recebimento já registrado nesse
 tenant.
@@ -92,12 +93,61 @@ mobile. Rode este runbook inteiro numa janela desktop.
   cadastrado — não pode ser o tenant de teste (já tem fornecedor dos
   outros casos) nem o segundo tenant do caso 6 (esse precisa ter
   fornecedor, para o caso 6 funcionar).
+- **Só para o caso 15:** um tenant com PELO MENOS 1 fornecedor cadastrado mas
+  SEM nenhuma opção de local (kind `local`) em Configurações → Opções de
+  produto. Pode ser o mesmo terceiro tenant do caso 12 — cadastre um
+  fornecedor nele (sem cadastrar nenhum local) e ele serve para os dois
+  casos.
 
 **Como preencher o resultado:** cada caso termina com uma linha
 `**Resultado:**`. Marque `passou`, `falhou` (e descreva o que aconteceu de
 diferente do esperado) ou, só no caso 6, `não executável neste ambiente`.
 Cole o roteiro inteiro com os resultados preenchidos no PR — é isso que o
 Definition of Done da fatia exige.
+
+---
+
+## Caso 0 — Pré-voo: SKU duplicado por caixa nos dados reais
+
+**Novo caso (registrado no backlog, "SKU duplicado por caixa (case) credita a
+linha errada no recebimento").** O índice único de `products` é
+`(tenant_id, sku)` — case-sensitive. O `DataImport` pode ter criado, em
+importações passadas, dois produtos que só diferem na caixa do SKU (ex.
+`dup-1` e `DUP-1`) via `upsert onConflict 'tenant_id,sku'`. Se isso já
+aconteceu no tenant de teste, `productBySku` do `ReceiptModal` (um `Map`
+chaveado por `sku.trim().toUpperCase()`) mostra o saldo de **uma** das duas
+linhas por last-write-wins, enquanto um recebimento daquele SKU pode creditar
+a outra — silenciosamente, sem erro. Isso contaminaria os casos 1-14 abaixo
+(o saldo "antes" anotado na tela não seria o saldo real que a RPC vai
+atualizar), então precisa ser descartado ANTES de começar.
+
+**Não é um caso de e2e da RPC — é um gate de dados.** Não mude código da RPC
+por causa deste caso; se ele falhar, PARE e reporte (ver "Esperado" abaixo).
+
+1. Antes de qualquer outro caso, rode no SQL Editor, como `postgres`:
+   ```sql
+   select upper(trim(sku)) as sku_normalizado, count(*)
+   from products
+   where tenant_id = (select tenant_id from suppliers where name = '<fornecedor do tenant de teste>' limit 1)
+   group by 1
+   having count(*) > 1;
+   ```
+   (troque `<fornecedor do tenant de teste>` pelo fornecedor que os outros
+   casos vão cadastrar/usar — se ainda não existir nenhum fornecedor no tenant
+   de teste, cadastre um primeiro em Campo → Fornecedores só para resolver o
+   `tenant_id`, antes de rodar esta query.)
+
+**Esperado:** zero linhas.
+
+**Se voltar alguma linha:** PARE. Não prossiga para o caso 1 — os SKUs
+normalizados que aparecerem aqui têm saldo ambíguo, e qualquer caso abaixo que
+os use pode parecer passar ou falhar por motivo errado (a RPC credita uma
+linha real, mas não necessariamente a que a tela mostra). Reporte as
+duplicatas encontradas (não são bug desta fatia — são dado pré-existente do
+import) e, se possível, escolha SKUs diferentes (sem duplicata) para os casos
+1-14 em vez de tentar rodar o roteiro inteiro em cima do dado ambíguo.
+
+**Resultado:**
 
 ---
 
@@ -644,6 +694,37 @@ transação inteira) ou pegar o primeiro custo em vez do último.
 
 ---
 
+### 15. Tenant sem nenhum local cadastrado (primeiro recebimento)
+
+**Novo caso (revisão final).** `ReceiptModal.tsx:289-294` mostra "Nenhum
+local cadastrado..." quando o tenant não tem nenhuma opção `local` — o estado
+que um tenant NOVO encontra no primeiro recebimento, já que o recebimento é
+também a porta do primeiro produto. Sem este caso, essa tela nunca foi vista
+rodando de verdade.
+
+1. Login como admin do tenant separado do caso 15 (ver "Dados de teste" na
+   introdução — com fornecedor, sem nenhum local cadastrado).
+2. "Registrar recebimento" → selecione o fornecedor.
+3. Adicione um item de SKU NOVO (com "Nome do produto" preenchido, exigido
+   para adicionar a linha) → "Adicionar item".
+
+**Esperado:**
+- O campo "Local de destino *" aparece no cabeçalho (lote tem SKU novo).
+- Abaixo do select (vazio, sem opções) aparece: "Nenhum local cadastrado.
+  Cadastre um local em Configurações → Opções de produto antes de registrar
+  uma entrada com SKU novo."
+- O botão "Registrar entrada" continua desabilitado — não há local para
+  escolher, então o gate de `hasNewSku && location.trim() === ''` nunca
+  libera.
+
+**mata:** engolir o estado vazio (não distinguir "carregando" de "carregou e
+não tem nenhuma opção") e nunca avisar o tenant novo que precisa cadastrar um
+local antes do primeiro recebimento poder criar um produto.
+
+**Resultado:**
+
+---
+
 ## Limitação conhecida — antes de pôr na mão do Elcy
 
 **Lote errado registrado não tem desfazer, e o saldo virou só-leitura na
@@ -672,12 +753,17 @@ mesma limitação da fatia 1 para amostras, agora dos dois lados do estoque.
 
 ## Resultado final
 
-Total de casos: **14** (9 do brief original + 3 acrescentados nas revisões
-das tasks 1-9 + 2 acrescentados no fix round 1/5 desta revisão).
+Total de casos: **15** (9 do brief original + 3 acrescentados nas revisões
+das tasks 1-9 + 2 acrescentados no fix round 1/5 desta revisão + 1 acrescentado
+na revisão final — caso 15, estado vazio de local). O **Caso 0** (pré-voo de
+SKU duplicado por caixa) roda antes de todos e não entra nesta contagem — não
+é um caso de e2e da RPC, é um gate de dados.
 
 Preencha ao concluir a execução:
 
-- Passaram: ___ / 14
-- Falharam: ___ / 14 (listar quais e o que foi observado)
-- Não executáveis neste ambiente: ___ / 14 (esperado: no máximo o caso 6,
+- Caso 0 (pré-voo): passou / falhou (se falhou, ver "Se voltar alguma linha"
+  no próprio caso — o restante do roteiro não deve prosseguir sem resolver)
+- Passaram: ___ / 15
+- Falharam: ___ / 15 (listar quais e o que foi observado)
+- Não executáveis neste ambiente: ___ / 15 (esperado: no máximo o caso 6,
   só se não houver segundo tenant disponível)
