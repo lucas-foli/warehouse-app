@@ -94,4 +94,31 @@ describe('ProductsPage — "Registrar recebimento deste item"', () => {
 		// transição entre os dois modais)
 		await waitFor(() => expect(screen.getByLabelText('SKU')).toHaveValue('POP-1'));
 	});
+
+	it('não vaza o SKU do produto anterior pro botão genérico "Registrar recebimento"', async () => {
+		// mata: remover o `setReceiptInitialSku('')` do onClose do ReceiptModal em
+		// ProductsPage.tsx — sem essa limpeza, os 253 testes da suíte continuam
+		// verdes (nenhum outro cobre reabrir pelo botão genérico depois de usar o
+		// atalho por produto), mas o próximo recebimento aberto pelo botão do topo
+		// herdaria o SKU do produto anterior já preenchido, e um lote descuidado
+		// creditaria o SKU errado.
+		render(<ProductsPage products={[product()]} loading={false} onBack={vi.fn()} tenantId="t1" />);
+
+		fireEvent.click(screen.getAllByText('Produto Um')[0]);
+		const editDialog = screen.getByRole('dialog');
+		fireEvent.click(
+			within(editDialog).getByRole('button', { name: /registrar recebimento deste item/i }),
+		);
+		await waitFor(() => expect(screen.getByLabelText('SKU')).toHaveValue('POP-1'));
+
+		// Cancela o recebimento em vez de registrar — o atalho não deveria deixar
+		// rastro nem quando o usuário desiste dele.
+		fireEvent.click(screen.getByRole('button', { name: /^cancelar$/i }));
+		expect(screen.queryByLabelText('SKU')).not.toBeInTheDocument();
+
+		// Reabre pelo botão genérico do topo da página, não pelo atalho do produto.
+		fireEvent.click(screen.getByRole('button', { name: /^registrar recebimento$/i }));
+
+		expect(screen.getByLabelText('SKU')).toHaveValue('');
+	});
 });

@@ -268,26 +268,43 @@ Emenda 1 resolveu na origem (campo "Local de destino", obrigatório quando o
 lote cria produto novo) e prometeu esta entrada para o defeito de fundo que a
 motivou — sem tocá-lo, porque é comportamento app-wide, não desta fatia.
 
-**Os três pontos exatos:**
+**Os pontos exatos** (conferidos abrindo cada arquivo na linha citada — a
+numeração original desta entrada foi escrita contra o código anterior ao
+commit de código desta leva e ficou errada; corrigida na revisão):
 - `src/services/dashboardService.ts:111` —
   `location: str(row, 'location') || 'Loja principal'` (leitura: todo produto
   sem `location` no banco vira "Loja principal" ao montar a lista).
-- `src/components/ProductsPage.tsx:145` — mesmo fallback ao abrir a edição de
+- `src/components/ProductsPage.tsx:149` — mesmo fallback ao abrir a edição de
   um produto (`location: product.location || 'Loja principal'`).
-- `src/components/ProductsPage.tsx:220` — ao **salvar** a edição, o fallback
+- `src/components/ProductsPage.tsx:234` — ao **salvar** a edição, o fallback
   deixa de ser só de leitura e é gravado de verdade
   (`const location = editDraft.location.trim() || 'Loja principal';`).
+- `src/components/ProductsPage.tsx:169` — `startCreateProduct` grava
+  `location: 'Loja principal'` hard-coded já no rascunho de um produto NOVO
+  (não é fallback de leitura de um valor ausente — é o próprio valor inicial
+  do formulário de criação, mas tem o mesmo efeito de nunca deixar "sem
+  local" existir).
+- `src/components/Dashboard.tsx:296` — o seletor de loja do menu mobile do
+  header cai para uma lista hard-coded `['Loja principal']` quando
+  `locations` (a lista de lojas conhecidas) vier vazia:
+  `(locations.length ? locations : ['Loja principal']).map(...)`. Mesma
+  família de problema, forma diferente: aqui não é o valor de um produto que
+  vira "Loja principal", é a PRÓPRIA LISTA de opções do filtro que finge ter
+  uma loja quando não tem nenhuma.
 
 **Efeito:** um produto sem local nunca aparece como "não atribuído" — aparece
 como se já estivesse em "Loja principal", entra no filtro daquela loja (o
 seletor do header é derivado dos valores de `location` presentes via
 `buildStoreFilterOptions`) e, na primeira edição, esse valor é materializado
-no banco mesmo que ninguém tenha escolhido aquela loja.
+no banco mesmo que ninguém tenha escolhido aquela loja. Um produto criado do
+zero já nasce com "Loja principal" pelo mesmo motivo, mesmo num tenant que
+nunca cadastrou essa loja em Configurações.
 
 **A resolver numa spec própria:** se "sem local" deve virar um estado de
 primeira classe na UI (visível como tal, não mascarado); se o default deveria
-vir de configuração do tenant em vez de hard-coded no código; como migrar os
-produtos que já têm `location = ''`/`NULL` gravado hoje.
+vir de configuração do tenant em vez de hard-coded no código (em pelo menos
+cinco lugares agora); como migrar os produtos que já têm
+`location = ''`/`NULL` gravado hoje.
 
 **Achado relacionado, mesma área — duplicatas por caixa no filtro de loja do
 header.** Observado no app real: o dropdown de loja do header (`Dashboard.tsx`,

@@ -286,8 +286,8 @@ tenant errado e o `count(*) = 0` passar mesmo com a RPC quebrada.)
 
 **Corrigido na revisão (Critical 1):** a v1 esperava produto novo com
 `location` vazio. Isso nunca acontece — `dashboardService.ts:111` e
-`ProductsPage.tsx:145` desfazem o vazio com fallback `'Loja principal'` na
-leitura, e `ProductsPage.tsx:220` materializa esse valor no banco na
+`ProductsPage.tsx:149` desfazem o vazio com fallback `'Loja principal'` na
+leitura, e `ProductsPage.tsx:234` materializa esse valor no banco na
 primeira edição. Foi exatamente esse defeito que motivou a Task 9 (Emenda
 1): o recebimento agora exige um "Local de destino" quando cria SKU novo, e
 o produto nasce NAQUELA loja.
@@ -696,7 +696,7 @@ transação inteira) ou pegar o primeiro custo em vez do último.
 
 ### 15. Tenant sem nenhum local cadastrado (primeiro recebimento)
 
-**Novo caso (revisão final).** `ReceiptModal.tsx:289-294` mostra "Nenhum
+**Novo caso (revisão final).** `ReceiptModal.tsx:294-298` mostra "Nenhum
 local cadastrado..." quando o tenant não tem nenhuma opção `local` — o estado
 que um tenant NOVO encontra no primeiro recebimento, já que o recebimento é
 também a porta do primeiro produto. Sem este caso, essa tela nunca foi vista
