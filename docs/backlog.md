@@ -257,6 +257,86 @@ caso real antes de especificar.
 
 **Escopo:** feature própria, com brainstorming/spec quando priorizada.
 
+## 2026-08-30 — Fallback `|| 'Loja principal'` mascara produto sem local (app-wide)
+
+**Origem:** Emenda 1 da fatia 2 do Campo (spec `2026-08-30-campo-fatia2-design.md`).
+A decisão original de `register_receipt` era gravar `location = ''` num produto
+novo sem loja escolhida — "não atribuído, visível em Todos os locais,
+atribuível depois". A revisão do runbook derrubou essa premissa: o app desfaz
+o vazio em três pontos, então a decisão nunca teria o efeito pretendido. A
+Emenda 1 resolveu na origem (campo "Local de destino", obrigatório quando o
+lote cria produto novo) e prometeu esta entrada para o defeito de fundo que a
+motivou — sem tocá-lo, porque é comportamento app-wide, não desta fatia.
+
+**Os três pontos exatos:**
+- `src/services/dashboardService.ts:111` —
+  `location: str(row, 'location') || 'Loja principal'` (leitura: todo produto
+  sem `location` no banco vira "Loja principal" ao montar a lista).
+- `src/components/ProductsPage.tsx:145` — mesmo fallback ao abrir a edição de
+  um produto (`location: product.location || 'Loja principal'`).
+- `src/components/ProductsPage.tsx:220` — ao **salvar** a edição, o fallback
+  deixa de ser só de leitura e é gravado de verdade
+  (`const location = editDraft.location.trim() || 'Loja principal';`).
+
+**Efeito:** um produto sem local nunca aparece como "não atribuído" — aparece
+como se já estivesse em "Loja principal", entra no filtro daquela loja (o
+seletor do header é derivado dos valores de `location` presentes via
+`buildStoreFilterOptions`) e, na primeira edição, esse valor é materializado
+no banco mesmo que ninguém tenha escolhido aquela loja.
+
+**A resolver numa spec própria:** se "sem local" deve virar um estado de
+primeira classe na UI (visível como tal, não mascarado); se o default deveria
+vir de configuração do tenant em vez de hard-coded no código; como migrar os
+produtos que já têm `location = ''`/`NULL` gravado hoje.
+
+**Achado relacionado, mesma área — duplicatas por caixa no filtro de loja do
+header.** Observado no app real: o dropdown de loja do header (`Dashboard.tsx`,
+via `buildStoreFilterOptions`) lista "Brasília Shopping" e
+"BRASÍLIA SHOPPING", "Loja principal" e "LOJA PRINCIPAL" como opções
+**separadas** — `buildStoreFilterOptions` deduplica com `Set<string>` sobre o
+valor cru, sem normalizar caixa. O `select` de filtro de loja dentro da própria
+`ProductsPage` (`locations`, também via `Set` sobre `product.location` cru) não
+mostrou a mesma duplicação nos dados observados — hipótese não confirmada é que
+o header agrega mais fontes (`tenant_product_options` + `sales_orders.location`
++ `products.location`), então pega variantes de caixa que só existem numa
+dessas fontes. Não investigado a fundo; registrar aqui para quando a spec do
+item acima for escrita, já que é o mesmo mecanismo (comparação de `location`
+sem normalização).
+
+## 2026-08-30 — SKU duplicado por caixa (case) credita a linha errada no recebimento
+
+**Origem:** revisão final da fatia 2 do Campo, comprovado em Postgres real: o
+índice único de `products` é `(tenant_id, sku)` — **case-sensitive** — e o
+`DataImport` cria duplicatas assim via `upsert onConflict 'tenant_id,sku'`
+quando o mesmo SKU chega em capitalizações diferentes entre importações
+(`dup-1` numa leva, `DUP-1` noutra: dois produtos, não um upsert).
+
+**O problema:** `productBySku` do `ReceiptModal` é um `Map` chaveado por
+`sku.trim().toUpperCase()` — quando duas linhas do catálogo normalizam para a
+mesma chave, a última da lista vence (last-write-wins), em silêncio. A RPC
+`register_receipt` também busca por `upper(trim(sku))` e credita **uma** linha
+real (não corrompe dado), mas não necessariamente a mesma que a tela estava
+mostrando quando o usuário conferiu o saldo antes de salvar. Nenhum erro,
+nenhum aviso — o recebimento simplesmente pode ter creditado o produto errado.
+
+**Duas saídas possíveis:**
+- **Busca determinística:** quando `upper(trim(sku))` casar mais de um produto
+  do tenant, recusar a operação (recebimento, e possivelmente venda) com um
+  erro explícito em vez de escolher silenciosamente.
+- **Normalização de ponta a ponta:** índice único de `products` sobre
+  `(tenant_id, upper(trim(sku)))`, o que exige primeiro fundir as duplicatas já
+  existentes em produção (decidir qual saldo/preço/nome de cada par prevalece)
+  e ajustar o `DataImport` para normalizar antes do `upsert`.
+
+**Escopo:** fix/feature próprio, com brainstorming/spec quando priorizada —
+decidir qual das duas saídas, e como tratar as duplicatas que já existem hoje.
+
+**Enquanto isso:** o runbook de e2e da fatia 2
+(`docs/superpowers/runbooks/2026-08-30-campo-fatia2-e2e.md`, Caso 0 — pré-voo)
+roda a query que detecta duplicatas por caixa nos dados do tenant de teste
+antes de liberar a fatia; achar alguma linha é motivo de parar e reportar, não
+de seguir o roteiro.
+
 ## 2026-08-30 — Tipos de recebimento em snake_case (resolver na fatia 3)
 
 **Origem:** revisão da Task 1 da fatia 2. `Receipt` e `ReceiptItem`
