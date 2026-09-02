@@ -147,8 +147,7 @@ duplicatas encontradas (não são bug desta fatia — são dado pré-existente d
 import) e, se possível, escolha SKUs diferentes (sem duplicata) para os casos
 1-14 em vez de tentar rodar o roteiro inteiro em cima do dado ambíguo.
 
-**Resultado:**
-
+**Resultado:** passou — 14 SKUs no tenant, zero duplicados por caixa. Liberado para os demais casos.
 ---
 
 ## Casos base (do brief original)
@@ -209,8 +208,7 @@ gravada; RPC ignorar `p_received_at` e usar sempre `now()`; falta de
 `nullif` de verdade (3 espaços, não campo vazio); a frase sobre "armadilha
 de fuso" parou de reivindicar mais do que o passo prova.
 
-**Resultado:**
-
+**Resultado:** passou — R-0001, total_cost 63.50, received_at 2026-09-01 (a data de ontem escolhida, nao now()), document 'NF 4471' sem espacos, note NULL a partir de 3 espacos. TST-001 100 para 105, TST-002 5 para 8. receipt_items: 2 linhas, qty/unit_cost exatos, product_id preenchido nas duas.
 ---
 
 ### 2. Lote com 2ª linha inválida (atomicidade)
@@ -278,8 +276,7 @@ a consulta de `receipts` também ganhou escopo de tenant — sem isso, o caso
 6 criando recebimentos num segundo tenant podia fazer R_ATUAL vir do
 tenant errado e o `count(*) = 0` passar mesmo com a RPC quebrada.)
 
-**Resultado:**
-
+**Resultado:** passou, com variacao de execucao. Em vez de excluir um produto numa segunda aba, a inconsistencia foi forcada chamando a RPC direto com [TST-001 qty 5 valido, SKU inexistente sem nome] — mesmo alvo (o SERVIDOR rejeita a 2a linha), sem destruir um produto do tenant. Resultado: erro receipt_product_name_required; TST-001 permaneceu em 105 (a 1a linha foi desfeita); nenhum recibo novo; nenhum produto orfao criado. Observacao adicional: o lote abortado NAO consumiu numero — o proximo saiu R-0002, provando que o rollback desfaz ate o cabecalho, que e inserido antes do loop.
 ---
 
 ### 3. SKU novo com nome e local de destino
@@ -328,8 +325,7 @@ loja específica, some; em "Todos os locais", aparece.
 (`'Brasília Shopping'`) ou o fallback do app (`'Loja principal'`) agir;
 produto nascer em qualquer loja que não a escolhida no campo.
 
-**Resultado:**
-
+**Resultado:** passou — TESTE-NOVO-E2E criado com qty 40, price NULL, location 'LOJA TESTE C' (o local escolhido, nao o default da tabela nem vazio), status ESTOQUE, is_active true. R-0002, total 204. A caixa verde mudou de texto ao escolher o local: de 'Escolha o local de destino acima para definir em que loja ele nasce' para 'Ele nasce na loja LOJA TESTE C.'
 ---
 
 ### 4. SKU desativado
@@ -357,8 +353,7 @@ produto nascer em qualquer loja que não a escolhida no campo.
 **mata:** update sem `is_active = true` (o saldo subiria certo, mas o
 produto continuaria escondido das vendas).
 
-**Resultado:**
-
+**Resultado:** passou — TST-003 estava is_active=false com qty 0; apos o recebimento de 25, ficou is_active=true com qty 25. Reativado e somado.
 ---
 
 ### 5. Usuário membro não-admin
@@ -392,8 +387,7 @@ SQL pelo mesmo motivo do caso 2 (caminho de erro não refaz fetch). (Round
 2: a query de `receipts` ganhou escopo de tenant, pelo mesmo motivo do
 caso 2.)
 
-**Resultado:**
-
+**Resultado:** NAO EXECUTAVEL neste ambiente — nao ha um segundo usuario com papel member (nao-admin) disponivel nesta sessao. Falta a prova negativa do gate is_tenant_admin.
 ---
 
 ### 6. Dois recebimentos seguidos, sem vazamento de numeração entre tenants
@@ -439,8 +433,7 @@ O recebimento do passo 4 tem sua PRÓPRIA sequência, isolada.
 tenant no meio, esse bug produz a mesma sequência do caso "correto" e passa
 disfarçado.
 
-**Resultado:**
-
+**Resultado:** NAO EXECUTAVEL neste ambiente — so ha um tenant acessivel nesta sessao, e o caso exige registrar um recebimento num SEGUNDO tenant entre dois do tenant de teste. Sem isso, max()+1 com e sem o filtro por tenant produz a mesma sequencia e o caso nao distingue o bug. A numeracao consecutiva dentro do tenant foi observada (R-0001 a R-0006, sem buracos), mas isso nao prova o escopo por tenant.
 ---
 
 ### 7. Lote com uma linha sem custo
@@ -468,8 +461,7 @@ como zero e somaria um total errado, quando o certo é ausência ≠ zero).
 **Corrigido na revisão (round 2 — Important):** a consulta de `receipts`
 ganhou escopo de tenant.
 
-**Resultado:**
-
+**Resultado:** passou — lote com uma linha com custo (TST-004, 2 x 10.00) e outra sem custo (TST-002, qty 2) gravou total_cost = NULL, nao 0. R-0004.
 ---
 
 ### 8. Edição de produto — quantidade só-leitura
@@ -488,8 +480,7 @@ ganhou escopo de tenant.
 **mata:** manter a porta dos fundos aberta (editar saldo pelo cadastro
 anularia o ganho de auditoria do recebimento).
 
-**Resultado:**
-
+**Resultado:** passou — na edicao de TST-001 o campo QTD aparece como 105 com o selo SO-LEITURA, sem input editavel, acompanhado da legenda 'O saldo muda por recebimento, venda e amostra — nao pela edicao do cadastro' e do botao 'REGISTRAR RECEBIMENTO DESTE ITEM'.
 ---
 
 ### 9. Navegação
@@ -509,8 +500,7 @@ envolvido — vale olhar a tela.)
 **mata:** regressão na navegação da Task 7 (rota `/products` sem aba
 destacada, ou logo sem link de volta ao Dashboard).
 
-**Resultado:**
-
+**Resultado:** passou — em /products a aba Produtos esta acesa; em / nenhuma aba fica acesa e o titulo e 'Como esta a operacao hoje?' (renderizado como h1); a logo (title e aria-label 'Ir para o dashboard — GO-FLY-AI') leva a /; voltar e avancar do navegador levam a /products e de volta a / corretamente.
 ---
 
 ## Casos adicionais (surgidos nas revisões das tasks 1-9)
@@ -554,8 +544,7 @@ campo "Local de destino" não aparecia logo no passo 4 (SKU só digitado,
 ainda sem linha adicionada) — vazio nesse ponto com ou sem a regressão
 (`hasNewSku` só olha linhas já adicionadas), removido.
 
-**Resultado:**
-
+**Resultado:** passou — com o filtro de loja 'LOJA TESTE A' ativo no topo, o SKU TESTE-NOVO-E2E (que vive em LOJA TESTE C) foi reconhecido como produto existente: o modal exibiu 'Camarao rosa 500g E2E · saldo atual 40', nao ofereceu criar produto novo e nao pediu nome.
 ---
 
 ### 11. Edição de produto não reverte saldo
@@ -592,8 +581,7 @@ para 10. `price` = X+1 (a edição do passo 4 foi aplicada).
 **mata:** regressão do bug da Task 6 — salvar a edição gravava de volta o
 `qty` capturado na abertura do modal, revertendo o recebimento da Aba 2.
 
-**Resultado:**
-
+**Resultado:** passou — o caso mais importante da leva. Modal de edicao de TST-001 aberto com saldo 105; um recebimento de +10 registrado por fora (R-0006) levou o banco a 115; salvar a edicao mudando SO o preco (50 para 77) manteve qty = 115 no banco, com price = 77. Sem o fix da Task 6 o update teria regravado 105 e as 10 unidades sumiriam.
 ---
 
 ### 12. Fornecedor obrigatório e estado vazio
@@ -616,8 +604,7 @@ para 10. `price` = X+1 (a edição do passo 4 foi aplicada).
 mas o gate tem que aparecer já na tela, antes do usuário tentar e levar um
 erro).
 
-**Resultado:**
-
+**Resultado:** passou — com zero fornecedores cadastrados, o modal exibiu 'Nenhum fornecedor cadastrado. Cadastre um fornecedor na aba Campo antes de registrar uma entrada.' e o botao Registrar entrada ficou desabilitado.
 ---
 
 ### 13. Local de destino obrigatório só quando há SKU novo
@@ -650,8 +637,7 @@ habilitado.
 devolveria `receipt_location_required`, mas o gate tem que aparecer já na
 tela); mostrar/exigir o campo mesmo quando o lote não tem SKU novo.
 
-**Resultado:**
-
+**Resultado:** passou nas duas direcoes — em lote so de SKUs conhecidos o campo Local de destino nao aparece; ao adicionar uma linha de SKU novo ele aparece marcado com asterisco e o botao Registrar entrada fica desabilitado ate um local ser escolhido. Detalhe observado: o campo so surge DEPOIS de a linha entrar no lote (hasNewSku deriva das linhas adicionadas, nao do editor) — a ordem dos passos do caso 3, corrigida no round 2, esta certa.
 ---
 
 ### 14. SKU duplicado no mesmo lote
@@ -690,8 +676,7 @@ transação inteira) ou pegar o primeiro custo em vez do último.
 **Corrigido na revisão (round 2 — Minor):** as consultas ganharam
 `upper(trim(sku))` (em vez de `sku` cru) e escopo de tenant no `receipt_id`.
 
-**Resultado:**
-
+**Resultado:** passou — TST-004 adicionado duas vezes no mesmo lote, com caixas diferentes ('TST-004' e 'tst-004') e custos diferentes (9 e 12), gerou UMA linha em receipt_items com qty 5 (2+3) e unit_cost 12 (o ultimo informado). Total do lote 60. O indice unico (tenant_id, receipt_id, sku) nao foi violado.
 ---
 
 ### 15. Tenant sem nenhum local cadastrado (primeiro recebimento)
@@ -721,8 +706,7 @@ rodando de verdade.
 não tem nenhuma opção") e nunca avisar o tenant novo que precisa cadastrar um
 local antes do primeiro recebimento poder criar um produto.
 
-**Resultado:**
-
+**Resultado:** NAO EXECUTAVEL neste ambiente — o tenant de teste tem 7 opcoes de local cadastradas, e o caso exige um tenant com fornecedor mas SEM nenhuma opcao de local. O estado vazio correspondente tem teste automatizado no ReceiptModal.test.tsx, mas nao foi visto em runtime.
 ---
 
 ## Limitação conhecida — antes de pôr na mão do Elcy
@@ -759,11 +743,35 @@ na revisão final — caso 15, estado vazio de local). O **Caso 0** (pré-voo de
 SKU duplicado por caixa) roda antes de todos e não entra nesta contagem — não
 é um caso de e2e da RPC, é um gate de dados.
 
-Preencha ao concluir a execução:
+**Execução de 2026-09-02**, tenant `3b80ec3e-08ef-4c2f-a92b-f9f023247f7d`
+(usuário `lucas.oliveira+1@go-fly.ai`, admin), app em `localhost:5173` contra
+o Supabase do app. As três migrations já estavam aplicadas — verificado
+chamando `register_receipt` com os 7 parâmetros e recebendo a exceção nomeada
+`receipt_supplier_required` (a assinatura antiga, de 6, não responderia).
 
-- Caso 0 (pré-voo): passou / falhou (se falhou, ver "Se voltar alguma linha"
-  no próprio caso — o restante do roteiro não deve prosseguir sem resolver)
-- Passaram: ___ / 15
-- Falharam: ___ / 15 (listar quais e o que foi observado)
-- Não executáveis neste ambiente: ___ / 15 (esperado: no máximo o caso 6,
-  só se não houver segundo tenant disponível)
+- Caso 0 (pré-voo): **passou** — 14 SKUs, zero duplicados por caixa.
+- Passaram: **12** / 15 (casos 1, 2, 3, 4, 7, 8, 9, 10, 11, 12, 13, 14)
+- Falharam: **0** / 15
+- Não executáveis neste ambiente: **3** / 15
+  - **Caso 5** (gate não-admin): não há um segundo usuário `member` nesta
+    sessão. Falta a prova negativa do `is_tenant_admin`.
+  - **Caso 6** (numeração por tenant): só um tenant acessível. A numeração
+    consecutiva dentro do tenant foi observada (R-0001..R-0006, sem buracos),
+    mas isso não prova o escopo por tenant — a mutação `max()` sem
+    `where tenant_id` produziria a mesma sequência.
+  - **Caso 15** (tenant sem local): o tenant de teste tem 7 opções de local.
+    O estado vazio tem teste automatizado, mas não foi visto em runtime.
+
+**Desvio de execução registrado (caso 2):** em vez de excluir um produto numa
+segunda aba, a inconsistência foi forçada chamando a RPC diretamente com uma
+segunda linha de SKU inexistente sem nome. Mesmo alvo — o servidor rejeita e a
+transação inteira se desfaz — sem destruir um produto do tenant.
+
+**Efeitos colaterais no tenant** (dados reais gravados por esta execução):
+fornecedor `Noronha Pescados E2E`; recebimentos R-0001 a R-0006; produto novo
+`TESTE-NOVO-E2E` (40 un, LOJA TESTE C); saldos alterados — TST-001 100→115 e
+preço 50→77, TST-002 5→10, TST-003 0→25 e reativado, TST-004 30→37.
+
+**Observação que vale para a fatia 3:** o lote abortado do caso 2 não consumiu
+número de recebimento (o seguinte saiu R-0002), o que confirma que o rollback
+desfaz até o cabeçalho, inserido antes do loop.
