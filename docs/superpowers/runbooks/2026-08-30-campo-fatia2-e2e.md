@@ -452,7 +452,25 @@ O recebimento do passo 4 tem sua PRÓPRIA sequência, isolada.
 tenant no meio, esse bug produz a mesma sequência do caso "correto" e passa
 disfarçado.
 
-**Resultado:** NAO EXECUTAVEL neste ambiente — so ha um tenant acessivel nesta sessao, e o caso exige registrar um recebimento num SEGUNDO tenant entre dois do tenant de teste. Sem isso, max()+1 com e sem o filtro por tenant produz a mesma sequencia e o caso nao distingue o bug. A numeracao consecutiva dentro do tenant foi observada (R-0001 a R-0006, sem buracos), mas isso nao prova o escopo por tenant.
+**Resultado:** passou (executado em 2026-09-04 no preview do Vercel da branch,
+`warehouse-app-git-feat-campo-fatia2-fa5fb0-lucas-folis-projects.vercel.app`,
+que apontou o segundo tenant). Sequencia observada:
+
+1. Tenant A (`3b80ec3e...`, usuario `lucas.oliveira+1@go-fly.ai`) ja tinha
+   R-0001 a R-0006.
+2. Tenant B (`0dd41be9...`, usuario `lucas.defoliveira@gmail.com`, admin de um
+   unico tenant) registrou um lote pela UI: saiu **R-0001**, nao R-0007. Saldo
+   do SKU 7891108080031 foi de 34 para 38.
+3. De volta ao tenant A, o lote seguinte saiu **R-0007** — consecutivo, sem
+   pular o 7.
+
+Mata a mutacao do `max()` sem `where tenant_id`: com numeracao global, o passo 2
+teria produzido R-0007 e o passo 3 teria pulado para R-0008.
+
+**Isolamento verificado de quebra:** o usuario do tenant B nao enxerga nenhum
+dos recibos do tenant A (`select` em `receipts` devolveu lista vazia para ele),
+e o tenant A so enxerga os seus sete. As policies de `select` por
+`is_tenant_member` isolam corretamente nos dois sentidos.
 ---
 
 ### 7. Lote com uma linha sem custo
@@ -769,20 +787,31 @@ chamando `register_receipt` com os 7 parâmetros e recebendo a exceção nomeada
 `receipt_supplier_required` (a assinatura antiga, de 6, não responderia).
 
 - Caso 0 (pré-voo): **passou** — 14 SKUs, zero duplicados por caixa.
-- Passaram: **13** / 15 (casos 1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14)
+- Passaram: **14** / 15 (casos 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14)
 - Falharam: **0** / 15
-- Não executáveis neste ambiente: **2** / 15
-  - **Caso 6** (numeração por tenant): só um tenant acessível. A numeração
-    consecutiva dentro do tenant foi observada (R-0001..R-0006, sem buracos),
-    mas isso não prova o escopo por tenant — a mutação `max()` sem
-    `where tenant_id` produziria a mesma sequência.
+- Não executáveis neste ambiente: **1** / 15
   - **Caso 15** (tenant sem local): o tenant de teste tem 7 opções de local.
     O estado vazio tem teste automatizado, mas não foi visto em runtime.
 
-**Adendo de 2026-09-04:** o caso 5 saiu de "não executável" para **passou** —
-a senha de um membro não-admin ficou disponível. Ver o resultado do próprio
-caso 5 para os dois achados extras (leitura sob `is_tenant_member` funcionando
-e escrita direta barrada por RLS).
+**Adendo de 2026-09-04:** os casos 5 e 6 sairam de "não executável" para
+**passou**. O caso 5 destravou com a senha de um membro não-admin; o caso 6, com
+o preview do Vercel da branch, que deu acesso a um segundo tenant. Ver o
+resultado de cada um para os achados extras — leitura sob `is_tenant_member`
+funcionando, escrita direta barrada por RLS (42501) e isolamento de recibos
+entre tenants nos dois sentidos.
+
+**A execução do caso 6 rodou no build de produção**, não no dev server: o
+preview do Vercel serve o bundle buildado da branch. Isso cobre um risco que a
+execução local não cobria (algo que só quebra sob `vite build`).
+
+**Observação fora do escopo desta fatia, registrada para o dono do repo:** ao
+consultar `tenant_members` sem filtro, com o token de um usuário que é membro de
+UM único tenant, a resposta trouxe linhas cujo `tenant_id` é de outros tenants.
+Se a policy de `select` dessa tabela deveria restringir a linha aos tenants do
+próprio usuário, isso é um vazamento pré-existente — não foi introduzido por
+esta fatia e não envolve `receipts`/`receipt_items` (que isolam corretamente,
+verificado acima). Não foi investigado a fundo de propósito. Vale abrir um
+ticket próprio.
 
 **Desvio de execução registrado (caso 2):** em vez de excluir um produto numa
 segunda aba, a inconsistência foi forçada chamando a RPC diretamente com uma
