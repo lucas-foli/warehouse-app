@@ -387,7 +387,26 @@ SQL pelo mesmo motivo do caso 2 (caminho de erro não refaz fetch). (Round
 2: a query de `receipts` ganhou escopo de tenant, pelo mesmo motivo do
 caso 2.)
 
-**Resultado:** NAO EXECUTAVEL neste ambiente — nao ha um segundo usuario com papel member (nao-admin) disponivel nesta sessao. Falta a prova negativa do gate is_tenant_admin.
+**Resultado:** passou (executado em 2026-09-04, depois que a senha de um membro
+ficou disponivel). Usuario `lucas.oliveira+member_1@go-fly.ai`, papel `member` no
+mesmo tenant. Antes: TST-002 com qty 10, ultimo recibo R-0006. O botao "Registrar
+recebimento" APARECE para o membro (nao e escondido na UI, como o proprio caso
+previa), o lote foi montado normalmente (TST-002, qty 7, custo 3,00, "Custo do
+lote $21.00") e o submit devolveu "Apenas administradores podem registrar
+recebimentos." em vermelho, com o modal aberto. Por SQL: TST-002 seguiu em 10
+(nao foi para 17) e nenhum R-0007 foi criado — os recibos continuam R-0001 a
+R-0006. Mata a mutacao do gate para `is_tenant_member`.
+
+**Dois achados extras desta execucao**, que cobrem o que a revisao final da
+branch listou como "nem o e2e pega":
+- A LEITURA de `receipts` e `receipt_items` funciona para o membro nao-admin
+  (status 200, linhas retornadas) — as policies de `select` por
+  `is_tenant_member` estao corretas, e nao ficaram esperando a fatia 3 para
+  serem exercidas.
+- A ESCRITA direta e barrada: um `insert` em `receipts` por fora da RPC, com o
+  token do membro, devolveu 403 / `42501` ("new row violates row-level security
+  policy"). Confirma o desenho da fatia — nao existe policy de insert, e a
+  escrita so passa pela RPC `security definer`.
 ---
 
 ### 6. Dois recebimentos seguidos, sem vazamento de numeração entre tenants
@@ -750,17 +769,20 @@ chamando `register_receipt` com os 7 parâmetros e recebendo a exceção nomeada
 `receipt_supplier_required` (a assinatura antiga, de 6, não responderia).
 
 - Caso 0 (pré-voo): **passou** — 14 SKUs, zero duplicados por caixa.
-- Passaram: **12** / 15 (casos 1, 2, 3, 4, 7, 8, 9, 10, 11, 12, 13, 14)
+- Passaram: **13** / 15 (casos 1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14)
 - Falharam: **0** / 15
-- Não executáveis neste ambiente: **3** / 15
-  - **Caso 5** (gate não-admin): não há um segundo usuário `member` nesta
-    sessão. Falta a prova negativa do `is_tenant_admin`.
+- Não executáveis neste ambiente: **2** / 15
   - **Caso 6** (numeração por tenant): só um tenant acessível. A numeração
     consecutiva dentro do tenant foi observada (R-0001..R-0006, sem buracos),
     mas isso não prova o escopo por tenant — a mutação `max()` sem
     `where tenant_id` produziria a mesma sequência.
   - **Caso 15** (tenant sem local): o tenant de teste tem 7 opções de local.
     O estado vazio tem teste automatizado, mas não foi visto em runtime.
+
+**Adendo de 2026-09-04:** o caso 5 saiu de "não executável" para **passou** —
+a senha de um membro não-admin ficou disponível. Ver o resultado do próprio
+caso 5 para os dois achados extras (leitura sob `is_tenant_member` funcionando
+e escrita direta barrada por RLS).
 
 **Desvio de execução registrado (caso 2):** em vez de excluir um produto numa
 segunda aba, a inconsistência foi forçada chamando a RPC diretamente com uma
