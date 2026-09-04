@@ -229,3 +229,143 @@ e2e — o datalist funciona no desktop, onde o teste está sendo feito. Entra co
 o resto dos achados do e2e, antes do merge.
 
 **Jira:** WAR-2 (não é WAR-8: é funcional, não repaginação).
+
+## 2026-08-30 — Infra de teste de banco (RPC sem cobertura automatizada)
+
+**Origem:** fatia 2 do Campo. O repo não tem runner de teste SQL (sem `test:db`,
+sem pgTAP), então `register_sale_order`, `register_interaction` e agora
+`register_receipt` — as três funções que mexem em saldo de estoque — só são
+verificadas por e2e manual. Cada obra reescreve o mesmo roteiro à mão e a
+regressão de uma RPC só aparece quando alguém repete o roteiro.
+
+**O que implementar:** runner de teste contra um Postgres efêmero (Supabase local
+ou container) que aplique as migrations e exercite as RPCs, com gate de `where`
+superuser (sob superuser a RLS não é rede e o teste passa sem provar nada).
+
+**Escopo:** infra de teste. Fatia própria, com spec quando priorizada.
+
+## 2026-08-30 — Estorno e ajuste de recebimento
+
+**Origem:** fatia 2 do Campo. A venda tem `void_sale_order`; o recebimento
+nasceu sem equivalente. Lote registrado errado fica registrado, e com o saldo
+só-leitura na edição de produto não há caminho no app para corrigir a
+divergência entre o físico e o número.
+
+**O que implementar:** estorno de lote (espelho do void) e/ou ajuste de contagem
+registrado como movimento, com autor e motivo. Decidir qual dos dois resolve o
+caso real antes de especificar.
+
+**Escopo:** feature própria, com brainstorming/spec quando priorizada.
+
+## 2026-08-30 — Fallback `|| 'Loja principal'` mascara produto sem local (app-wide)
+
+**Origem:** Emenda 1 da fatia 2 do Campo (spec `2026-08-30-campo-fatia2-design.md`).
+A decisão original de `register_receipt` era gravar `location = ''` num produto
+novo sem loja escolhida — "não atribuído, visível em Todos os locais,
+atribuível depois". A revisão do runbook derrubou essa premissa: o app desfaz
+o vazio em três pontos, então a decisão nunca teria o efeito pretendido. A
+Emenda 1 resolveu na origem (campo "Local de destino", obrigatório quando o
+lote cria produto novo) e prometeu esta entrada para o defeito de fundo que a
+motivou — sem tocá-lo, porque é comportamento app-wide, não desta fatia.
+
+**Os pontos exatos** (conferidos abrindo cada arquivo na linha citada — a
+numeração original desta entrada foi escrita contra o código anterior ao
+commit de código desta leva e ficou errada; corrigida na revisão):
+- `src/services/dashboardService.ts:111` —
+  `location: str(row, 'location') || 'Loja principal'` (leitura: todo produto
+  sem `location` no banco vira "Loja principal" ao montar a lista).
+- `src/components/ProductsPage.tsx:149` — mesmo fallback ao abrir a edição de
+  um produto (`location: product.location || 'Loja principal'`).
+- `src/components/ProductsPage.tsx:234` — ao **salvar** a edição, o fallback
+  deixa de ser só de leitura e é gravado de verdade
+  (`const location = editDraft.location.trim() || 'Loja principal';`).
+- `src/components/ProductsPage.tsx:169` — `startCreateProduct` grava
+  `location: 'Loja principal'` hard-coded já no rascunho de um produto NOVO
+  (não é fallback de leitura de um valor ausente — é o próprio valor inicial
+  do formulário de criação, mas tem o mesmo efeito de nunca deixar "sem
+  local" existir).
+- `src/components/Dashboard.tsx:296` — o seletor de loja do menu mobile do
+  header cai para uma lista hard-coded `['Loja principal']` quando
+  `locations` (a lista de lojas conhecidas) vier vazia:
+  `(locations.length ? locations : ['Loja principal']).map(...)`. Mesma
+  família de problema, forma diferente: aqui não é o valor de um produto que
+  vira "Loja principal", é a PRÓPRIA LISTA de opções do filtro que finge ter
+  uma loja quando não tem nenhuma.
+
+**Efeito:** um produto sem local nunca aparece como "não atribuído" — aparece
+como se já estivesse em "Loja principal", entra no filtro daquela loja (o
+seletor do header é derivado dos valores de `location` presentes via
+`buildStoreFilterOptions`) e, na primeira edição, esse valor é materializado
+no banco mesmo que ninguém tenha escolhido aquela loja. Um produto criado do
+zero já nasce com "Loja principal" pelo mesmo motivo, mesmo num tenant que
+nunca cadastrou essa loja em Configurações.
+
+**A resolver numa spec própria:** se "sem local" deve virar um estado de
+primeira classe na UI (visível como tal, não mascarado); se o default deveria
+vir de configuração do tenant em vez de hard-coded no código (em pelo menos
+cinco lugares agora); como migrar os produtos que já têm
+`location = ''`/`NULL` gravado hoje.
+
+**Achado relacionado, mesma área — duplicatas por caixa no filtro de loja do
+header.** Observado no app real: o dropdown de loja do header (`Dashboard.tsx`,
+via `buildStoreFilterOptions`) lista "Brasília Shopping" e
+"BRASÍLIA SHOPPING", "Loja principal" e "LOJA PRINCIPAL" como opções
+**separadas** — `buildStoreFilterOptions` deduplica com `Set<string>` sobre o
+valor cru, sem normalizar caixa. O `select` de filtro de loja dentro da própria
+`ProductsPage` (`locations`, também via `Set` sobre `product.location` cru) não
+mostrou a mesma duplicação nos dados observados — hipótese não confirmada é que
+o header agrega mais fontes (`tenant_product_options` + `sales_orders.location`
++ `products.location`), então pega variantes de caixa que só existem numa
+dessas fontes. Não investigado a fundo; registrar aqui para quando a spec do
+item acima for escrita, já que é o mesmo mecanismo (comparação de `location`
+sem normalização).
+
+## 2026-08-30 — SKU duplicado por caixa (case) credita a linha errada no recebimento
+
+**Origem:** revisão final da fatia 2 do Campo, comprovado em Postgres real: o
+índice único de `products` é `(tenant_id, sku)` — **case-sensitive** — e o
+`DataImport` cria duplicatas assim via `upsert onConflict 'tenant_id,sku'`
+quando o mesmo SKU chega em capitalizações diferentes entre importações
+(`dup-1` numa leva, `DUP-1` noutra: dois produtos, não um upsert).
+
+**O problema:** `productBySku` do `ReceiptModal` é um `Map` chaveado por
+`sku.trim().toUpperCase()` — quando duas linhas do catálogo normalizam para a
+mesma chave, a última da lista vence (last-write-wins), em silêncio. A RPC
+`register_receipt` também busca por `upper(trim(sku))` e credita **uma** linha
+real (não corrompe dado), mas não necessariamente a mesma que a tela estava
+mostrando quando o usuário conferiu o saldo antes de salvar. Nenhum erro,
+nenhum aviso — o recebimento simplesmente pode ter creditado o produto errado.
+
+**Duas saídas possíveis:**
+- **Busca determinística:** quando `upper(trim(sku))` casar mais de um produto
+  do tenant, recusar a operação (recebimento, e possivelmente venda) com um
+  erro explícito em vez de escolher silenciosamente.
+- **Normalização de ponta a ponta:** índice único de `products` sobre
+  `(tenant_id, upper(trim(sku)))`, o que exige primeiro fundir as duplicatas já
+  existentes em produção (decidir qual saldo/preço/nome de cada par prevalece)
+  e ajustar o `DataImport` para normalizar antes do `upsert`.
+
+**Escopo:** fix/feature próprio, com brainstorming/spec quando priorizada —
+decidir qual das duas saídas, e como tratar as duplicatas que já existem hoje.
+
+**Enquanto isso:** o runbook de e2e da fatia 2
+(`docs/superpowers/runbooks/2026-08-30-campo-fatia2-e2e.md`, Caso 0 — pré-voo)
+roda a query que detecta duplicatas por caixa nos dados do tenant de teste
+antes de liberar a fatia; achar alguma linha é motivo de parar e reportar, não
+de seguir o roteiro.
+
+## 2026-08-30 — Tipos de recebimento em snake_case (resolver na fatia 3)
+
+**Origem:** revisão da Task 1 da fatia 2. `Receipt` e `ReceiptItem`
+(`src/types/index.ts`) são row shapes do banco exportados como tipo de domínio,
+em snake_case, enquanto os tipos do módulo Campo (`FieldContact`, `Interaction`)
+são camelCase e o `fieldService` mantém o row snake_case como tipo local privado,
+mapeando na fronteira.
+
+**Por que ficou assim:** na fatia 2 o único consumidor é `data as Receipt` no
+`receiptService` — nenhum componente lê os campos, porque a tela de listagem de
+recebimentos foi cortada. Um mapeamento agora não teria o que mapear.
+
+**Quando resolver:** na **fatia 3** (relatório de campo), junto com o primeiro
+consumidor de tela desses tipos — converter para camelCase e mapear na fronteira
+do serviço, como o `fieldService` faz. Anotado também no WAR-4.

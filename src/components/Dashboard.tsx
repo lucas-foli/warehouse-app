@@ -70,6 +70,11 @@ const Dashboard = ({
 	// surface toggles below simply navigate(); the URL is the single source of
 	// truth for which page/surface is shown.
 	const { page, surface } = resolveDashboardView(location.pathname);
+	// "/" e "/products" compartilham page: 'overview' (só o surface separa),
+	// então o destaque da aba não pode usar page sozinho — senão "Produtos"
+	// acenderia no Dashboard também. O Dashboard saiu da barra: em surface
+	// 'dashboard' nenhuma aba corresponde a activeKey, e nenhuma acende.
+	const activeKey = page === 'overview' && surface === 'products' ? 'produtos' : page;
 
 	const {
 		products,
@@ -179,20 +184,27 @@ const Dashboard = ({
 				<div className="flex w-full flex-col gap-4 px-4 py-5 sm:px-10 lg:px-16">
 					<div className="flex w-full flex-wrap items-center gap-4">
 								<div className="flex items-center gap-5">
-							{brandLogoSrc ? (
-								<img
-									src={brandLogoSrc}
-									alt={companyName}
-									className="h-8 w-auto object-contain sm:h-9"
-									onError={() => {
-										if (brandLogoFallback && brandLogoSrc !== brandLogoFallback) {
-											setBrandLogoSrc(brandLogoFallback);
-										}
-									}}
-								/>
+							<button
+								type="button"
+								onClick={() => navigate('/')}
+								title={`Ir para o dashboard — ${companyName}`}
+								aria-label={`Ir para o dashboard — ${companyName}`}
+								className="cursor-pointer">
+								{brandLogoSrc ? (
+									<img
+										src={brandLogoSrc}
+										alt={companyName}
+										className="h-8 w-auto object-contain sm:h-9"
+										onError={() => {
+											if (brandLogoFallback && brandLogoSrc !== brandLogoFallback) {
+												setBrandLogoSrc(brandLogoFallback);
+											}
+										}}
+									/>
 								) : (
-									<h1 className="text-xl font-bold tracking-tight text-foreground">{companyName}</h1>
+									<span className="text-xl font-bold tracking-tight text-foreground">{companyName}</span>
 								)}
+							</button>
 								<select
 									value={locationFilter}
 									onChange={(e) => setLocationFilter(e.target.value)}
@@ -348,7 +360,7 @@ const Dashboard = ({
 								<div className="inline-flex rounded-full bg-muted p-1 text-xs font-medium uppercase tracking-[0.25em] text-foreground whitespace-nowrap">
 									{(
 										[
-											{ key: 'overview', label: 'Dashboard', path: '/' },
+											{ key: 'produtos', label: 'Produtos', path: '/products' },
 											{ key: 'campo', label: 'Campo', path: '/field' },
 											{ key: 'clientes', label: 'Clientes', path: '/clients' },
 											{ key: 'vendedores', label: 'Vendedores', path: '/sellers' },
@@ -359,7 +371,7 @@ const Dashboard = ({
 											key={tab.key}
 											type="button"
 											onClick={() => navigate(tab.path)}
-											className={`rounded-full px-4 py-2 transition ${page === tab.key ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+											className={`rounded-full px-4 py-2 transition ${activeKey === tab.key ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
 												}`}>
 											{tab.label}
 										</button>
@@ -384,6 +396,7 @@ const Dashboard = ({
 					{page === 'overview' && surface === 'products' && (
 						<ProductsPage
 							products={visibleProducts}
+							allProducts={products}
 							clients={clientes}
 							sellers={vendedores}
 							lastSaleBySku={lastSaleBySku}

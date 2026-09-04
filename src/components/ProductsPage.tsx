@@ -12,6 +12,7 @@ import { BulkEditFieldPopover, type BulkEditableField } from './products/BulkEdi
 import { BulkResultDialog } from './products/BulkResultDialog';
 import { ConfirmDialog } from './products/ConfirmDialog';
 import ProductFormModal from './products/ProductFormModal';
+import { ReceiptModal } from './products/ReceiptModal';
 import { SaleOrderModal } from './products/SaleOrderModal';
 import { Card, Section } from './ui/Primitives';
 
@@ -21,6 +22,7 @@ const EMPTY_LAST_SALE_BY_SKU: Map<string, string> = new Map();
 
 const ProductsPage = ({
 	products,
+	allProducts,
 	clients = [],
 	sellers = [],
 	lastSaleBySku = EMPTY_LAST_SALE_BY_SKU,
@@ -31,6 +33,14 @@ const ProductsPage = ({
 	onSaleRegistered,
 }: {
 	products: Product[];
+	// Tenant-wide catalog, unfiltered by the store selector — `products` above is
+	// scoped to the active store (Dashboard's `visibleProducts`). ReceiptModal
+	// needs the full catalog: a SKU that lives in another store must resolve as
+	// "existing" here, or the RPC (which checks the whole tenant) reactivates it
+	// while the modal's UI insisted it was brand new and demanded a name that
+	// then gets silently dropped. Falls back to `products` when the caller
+	// doesn't split the two (e.g. a future standalone render/test).
+	allProducts?: Product[];
 	clients?: Client[];
 	sellers?: Seller[];
 	lastSaleBySku?: Map<string, string>;
@@ -40,6 +50,7 @@ const ProductsPage = ({
 	onProductUpdated?: (product: Product) => void;
 	onSaleRegistered?: () => void;
 }) => {
+	const receiptCatalog = allProducts ?? products;
 	const [productQuery, setProductQuery] = useState('');
 	const [productStatusFilter, setProductStatusFilter] = useState<'all' | 'critical' | 'no-photo' | 'zero-stock'>(
 		'all',
@@ -61,6 +72,11 @@ const ProductsPage = ({
 	const [bulkBusy, setBulkBusy] = useState(false);
 	const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
 	const [saleOrderModalOpen, setSaleOrderModalOpen] = useState(false);
+	const [receiptModalOpen, setReceiptModalOpen] = useState(false);
+	// SKU handed off from ProductFormModal's "Registrar recebimento deste item"
+	// (edit mode) to seed ReceiptModal's SKU editor. Cleared on close so the next
+	// "Registrar recebimento" from the page header opens with a blank editor.
+	const [receiptInitialSku, setReceiptInitialSku] = useState('');
 	const [ondeOptions, setOndeOptions] = useState<string[]>([]);
 	const [localOptions, setLocalOptions] = useState<string[]>([]);
 
@@ -183,6 +199,16 @@ const ProductsPage = ({
 		setDrawerMode(null);
 	};
 
+	// "Registrar recebimento deste item" (ProductFormModal, edit mode): close the
+	// product form and open ReceiptModal seeded with this SKU, instead of the two
+	// modals ever being open at once.
+	const openReceiptForCurrentProduct = () => {
+		if (!editDraft) return;
+		setReceiptInitialSku(editDraft.sku);
+		closeEditPanel();
+		setReceiptModalOpen(true);
+	};
+
 	const parseOptionalNumber = (value: string) => {
 		const trimmed = value.trim().replace(',', '.');
 		if (!trimmed) return null;
@@ -202,7 +228,6 @@ const ProductsPage = ({
 		setEditSaving(true);
 		setEditError('');
 
-		const qty = parseOptionalInteger(editDraft.qty) ?? 0;
 		const min = parseOptionalInteger(editDraft.min);
 		const price = parseOptionalNumber(editDraft.price);
 		const status = editDraft.status.trim() || 'ESTOQUE';
@@ -218,13 +243,17 @@ const ProductsPage = ({
 			return;
 		}
 
-		const payload = { status, location, qty, min, price, barcode: barcode || null, image: image || null };
+		// qty fica fora do payload compartilhado de propósito: no modo edit ele NUNCA é
+		// escrito (o saldo é dono do recebimento/venda/amostra, não deste form) — só o
+		// caminho de create adiciona qty, ali como saldo de abertura legítimo.
+		const payload = { status, location, min, price, barcode: barcode || null, image: image || null };
 
 		try {
 			if (drawerMode === 'create') {
+				const qty = parseOptionalInteger(editDraft.qty) ?? 0;
 				const { data, error } = await supabase
 					.from('products')
-					.insert({ ...payload, sku, name, tenant_id: tenantId, is_active: true })
+					.insert({ ...payload, qty, sku, name, tenant_id: tenantId, is_active: true })
 					.select()
 					.single();
 				if (error) {
@@ -253,7 +282,6 @@ const ProductsPage = ({
 					...existing,
 					status,
 					location,
-					qty,
 					min: min ?? undefined,
 					price: price ?? undefined,
 					barcode: barcode || undefined,
@@ -458,6 +486,12 @@ const ProductsPage = ({
 							onClick={startCreateProduct}
 							className="rounded-full border border-border/40 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-foreground transition hover:bg-primary hover:text-primary-foreground">
 							Novo produto
+						</button>
+						<button
+							type="button"
+							onClick={() => setReceiptModalOpen(true)}
+							className="rounded-full border border-border/40 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-foreground transition hover:bg-primary hover:text-primary-foreground">
+							Registrar recebimento
 						</button>
 						<button
 							type="button"
@@ -739,6 +773,7 @@ const ProductsPage = ({
 					onReset={resetDraft}
 					onClose={closeEditPanel}
 					onRequestDelete={() => setDeleteConfirmOpen(true)}
+					onRequestReceipt={openReceiptForCurrentProduct}
 				/>
 			</div>
 		<ConfirmDialog
@@ -784,6 +819,17 @@ const ProductsPage = ({
 			initialProductId={selectedProductId}
 			tenantId={tenantId}
 			onClose={() => setSaleOrderModalOpen(false)}
+			onRegistered={handleOrderRegistered}
+		/>
+		<ReceiptModal
+			open={receiptModalOpen}
+			products={receiptCatalog}
+			tenantId={tenantId}
+			initialSku={receiptInitialSku}
+			onClose={() => {
+				setReceiptModalOpen(false);
+				setReceiptInitialSku('');
+			}}
 			onRegistered={handleOrderRegistered}
 		/>
 		<BulkResultDialog
