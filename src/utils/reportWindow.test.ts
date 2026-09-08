@@ -54,4 +54,17 @@ describe('inWindow', () => {
 		// guard `t > to` deixaria passar e o resultado incorreto seria `true`
 		expect(inWindow('não é data', resolveWindow('all', NOW))).toBe(false);
 	});
+
+	it('em "Tudo", inclui data futura (sem teto)', () => {
+		// mata: aplicar o teto `t > to` também quando `from` é null — um
+		// input type="date" sem `max` aceita data futura, e products.qty já
+		// conta o fato; "Tudo" não pode escondê-lo
+		expect(inWindow('2026-12-25T00:00:00.000Z', resolveWindow('all', NOW))).toBe(true);
+	});
+
+	it('em período limitado, mantém o teto mesmo com data futura', () => {
+		// mata: remover o teto de vez (não só em "Tudo") — um fato futuro
+		// passaria a contar em "30 dias" mesmo com from/to definidos
+		expect(inWindow('2026-12-25T00:00:00.000Z', resolveWindow('30d', NOW))).toBe(false);
+	});
 });

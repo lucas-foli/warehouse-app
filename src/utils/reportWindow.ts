@@ -29,7 +29,10 @@ export const inWindow = (at: string | null | undefined, w: ReportWindow): boolea
 	if (!at) return false;
 	const t = new Date(at).getTime();
 	if (Number.isNaN(t)) return false;
-	if (t > new Date(w.to).getTime()) return false;
+	// "Tudo" (from null) não tem teto: um input type="date" sem `max` aceita
+	// data futura, e products.qty já conta esse fato. Só os períodos com piso
+	// (`from` definido) têm teto em `to`.
 	if (!w.from) return true;
+	if (t > new Date(w.to).getTime()) return false;
 	return t >= new Date(w.from).getTime();
 };
