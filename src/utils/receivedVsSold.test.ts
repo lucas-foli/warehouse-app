@@ -101,6 +101,19 @@ describe('buildReceivedVsSold', () => {
 		expect(rows[0]).toMatchObject({ received: 0, sold: 30, supplierName: null });
 	});
 
+	it('descarta receiptItem cujo receiptId não tem recebimento correspondente (órfão)', () => {
+		// mata: cair para qualquer data substituta em vez de descartar a linha —
+		// mesma condição que sampleCost.lastKnownCostBySku agora também descarta,
+		// pela mesma razão: sem o recebimento, não há data de fato conhecida.
+		const rows = buildReceivedVsSold({
+			...base,
+			receipts: [], // 'r-orfao' não existe em `receipts`
+			receiptItems: [rItem('r-orfao', 'CAM-1620', 500)],
+			orders: [], salesItems: [],
+		});
+		expect(rows[0]).toMatchObject({ received: 0, supplierName: null, multipleSuppliers: false });
+	});
+
 	it('casa SKU com caixa e espaço diferentes', () => {
 		// (ver abaixo o describe de buildReceivedBySupplier)
 		// mata: comparar sku cru entre produto, recebimento e venda
@@ -134,8 +147,8 @@ describe('buildReceivedBySupplier', () => {
 			window: W,
 		});
 		expect(rows).toEqual([
-			{ supplierId: 's1', name: 'Noronha Pescados', qty: 100, cost: 200 },
-			{ supplierId: 's2', name: 'Atlântico Sul', qty: 40, cost: 120 },
+			{ supplierId: 's1', name: 'Noronha Pescados', qty: 100, cost: 200, partial: false },
+			{ supplierId: 's2', name: 'Atlântico Sul', qty: 40, cost: 120, partial: false },
 		]);
 	});
 
@@ -148,5 +161,21 @@ describe('buildReceivedBySupplier', () => {
 			window: W,
 		});
 		expect(rows[0]).toMatchObject({ qty: 100, cost: 0 });
+	});
+
+	it('marca o total como parcial quando alguma linha do fornecedor não tem custo', () => {
+		// mata: não marcar `partial` (o card exibiria um total incompleto com
+		// cara de valor fechado — a regra "total parcial sempre que N > 0" vale
+		// aqui como vale para amostras)
+		const rows = buildReceivedBySupplier({
+			receipts: [receipt('r1', 's1', '2026-09-01T00:00:00.000Z')],
+			receiptItems: [
+				{ ...rItem('r1', 'CAM-1620', 100), unitCost: 2 },
+				{ ...rItem('r1', 'TIL-FIL', 40), unitCost: null },
+			],
+			suppliers: base.suppliers,
+			window: W,
+		});
+		expect(rows[0]).toMatchObject({ qty: 140, cost: 200, partial: true });
 	});
 });
