@@ -7,11 +7,26 @@ const rangeMock = vi.fn();
 // além do que o teste configurou.
 let fromPages: Record<string, unknown>[][] = [];
 
+// Instrumentação da query montada pela última chamada a `.select(...)` e a
+// cada filtro (`eq`/`gte`/`lte`) — sem isso um teste não consegue provar que
+// o filtro certo foi ao banco, só que *alguma* query rodou.
+let lastSelect: string | null = null;
+let lastFilters: [string, string, unknown][] = [];
+
 vi.mock('../lib/supabaseClient', () => {
 	const makeBuilder = () => {
 		const builder: Record<string, unknown> = {};
-		builder.select = () => builder;
-		builder.eq = () => builder;
+		builder.select = (sel: string) => {
+			lastSelect = sel;
+			return builder;
+		};
+		const filter = (op: string) => (col: string, val: unknown) => {
+			lastFilters.push([op, col, val]);
+			return builder;
+		};
+		builder.eq = filter('eq');
+		builder.gte = filter('gte');
+		builder.lte = filter('lte');
 		builder.order = () => builder;
 		builder.range = (...args: unknown[]) => {
 			rangeMock(...args);
@@ -148,5 +163,31 @@ describe('fetchFieldContacts paginação', () => {
 
 		expect(result).toHaveLength(3);
 		expect(rangeMock).toHaveBeenCalledTimes(1);
+	});
+});
+
+describe('fetchInteractionsInWindow', () => {
+	beforeEach(() => {
+		rangeMock.mockClear();
+		fromPages = [];
+		lastSelect = null;
+		lastFilters = [];
+	});
+
+	it('pede ao banco só o que está na janela, com as amostras juntas', async () => {
+		// mata: buscar tudo e filtrar no cliente (traria meses de histórico por
+		// página de 1000 linhas), ou esquecer o join de interaction_samples
+		const { fetchInteractionsInWindow } = await import('./fieldService');
+		const w = { from: '2026-09-01T00:00:00.000Z', to: '2026-09-08T00:00:00.000Z' };
+		await fetchInteractionsInWindow('t1', w);
+		expect(lastSelect).toContain('interaction_samples');
+		expect(lastFilters).toContainEqual(['gte', 'occurred_at', w.from]);
+	});
+
+	it('não manda filtro inferior quando a janela é "tudo"', async () => {
+		// mata: mandar `gte occurred_at null`, que o PostgREST rejeita
+		const { fetchInteractionsInWindow } = await import('./fieldService');
+		await fetchInteractionsInWindow('t1', { from: null, to: '2026-09-08T00:00:00.000Z' });
+		expect(lastFilters.some(([op, col]) => op === 'gte' && col === 'occurred_at')).toBe(false);
 	});
 });
