@@ -356,6 +356,15 @@ de seguir o roteiro.
 
 ## 2026-08-30 — Tipos de recebimento em snake_case (resolver na fatia 3)
 
+**RESOLVIDO em 2026-09-08 (Task 7 da fatia 3, commit `eb79700`).** `Receipt` e
+`ReceiptItem` (`src/types/index.ts`) viraram tipo de domínio em camelCase
+(`receivedAt`, `receiptId`, `unitCost`, `createdAt` etc.), com `rowToReceipt`
+e `rowToReceiptItem` mapeando na fronteira do `receiptService`, exatamente
+como o `fieldService` já fazia para `Interaction`. `src/utils/sampleCost.ts`
+(o primeiro consumidor de tela desses tipos, entregue em task posterior da
+mesma fatia) já foi escrito contra os nomes camelCase e não precisou de
+ajuste. Mantendo o registro histórico abaixo.
+
 **Origem:** revisão da Task 1 da fatia 2. `Receipt` e `ReceiptItem`
 (`src/types/index.ts`) são row shapes do banco exportados como tipo de domínio,
 em snake_case, enquanto os tipos do módulo Campo (`FieldContact`, `Interaction`)
@@ -369,3 +378,64 @@ recebimentos foi cortada. Um mapeamento agora não teria o que mapear.
 **Quando resolver:** na **fatia 3** (relatório de campo), junto com o primeiro
 consumidor de tela desses tipos — converter para camelCase e mapear na fronteira
 do serviço, como o `fieldService` faz. Anotado também no WAR-4.
+
+## 2026-09-08 — Vendas somadas por fornecedor
+
+**Origem:** decisão da spec da fatia 3 do Campo
+(`docs/superpowers/specs/2026-09-08-campo-fatia3-design.md`, seção "Recebido
+x vendido: por SKU; fornecedor é procedência, não agregação"). O painel
+mostra "Recebido por fornecedor" (real, porque `receipts`/`receipt_items`
+conhecem o fornecedor de cada lote), mas nunca soma VENDA por fornecedor.
+
+**Por que não dá para fazer hoje, de forma honesta:** `sales_items` só
+conhece `sku`, não procedência. Atribuir a venda ao fornecedor do
+recebimento mais recente daquele SKU produziria um número com cara de
+certeza que envelhece mal — quebra no dia em que o mesmo SKU passar a vir
+de dois fornecedores diferentes, e ninguém saberia olhando a tela que o
+número já estava desatualizado. Rateio proporcional entre fornecedores
+também foi rejeitado na spec: gera fração que ninguém confere contra a
+realidade física do estoque.
+
+**O que implementar:** o vínculo produto→fornecedor como dado de primeira
+classe (não derivado do último recebimento) — decisão de modelo, não
+detalhe de query. Só depois disso "vendas somadas por fornecedor" vira uma
+soma honesta.
+
+**Escopo:** feature própria, com brainstorming/spec quando priorizada —
+decidir a granularidade do vínculo (produto tem UM fornecedor principal? N
+fornecedores possíveis, com um default?) antes de tocar em código.
+
+**Jira:** WAR (epic WAR-1).
+
+## 2026-09-08 — Loja própria no recebimento
+
+**Origem:** decisão da spec da fatia 3 do Campo
+(`docs/superpowers/specs/2026-09-08-campo-fatia3-design.md`, seção "Filtro
+de loja: só onde existe loja de verdade"). No Painel, o filtro de loja do
+header só afeta o "vendido" — "recebido", amostras, atividade e funil ficam
+globais, com um rótulo único no topo avisando disso.
+
+**O problema de modelo:** `receipts` **não tem coluna de loja**. O
+`p_location` de `register_receipt` define a loja do PRODUTO NOVO que o lote
+cria (`products.location`), não o local onde o recebimento em si aconteceu.
+Filtrar "recebido" por loja hoje só seria possível pela loja ATUAL do
+produto, enquanto "vendido" filtra pela loja CONGELADA no pedido
+(`sales_orders.location`) — um produto que mudou de loja depois de receber
+mercadoria teria, na mesma linha da tabela, recebimento contado numa loja e
+venda contada em outra, sem nada na tela avisando a divergência.
+
+**O que implementar:** coluna `location` em `receipts`, preenchida no
+momento do recebimento (não derivada do produto depois). Exige:
+- migration em `receipts`;
+- mexer na RPC `register_receipt` (fatia 2, recém-mergeada) para gravar a
+  loja do recebimento, distinta do `p_location` que hoje só serve para
+  criar produto novo;
+- decidir o que fazer com os recebimentos já gravados sem essa coluna (nulo
+  permanente? backfill pela loja atual do produto, sabendo que pode estar
+  errado para produtos que mudaram de loja desde então?).
+
+**Escopo:** resolve na raiz e serve fatias futuras além desta, mas o custo
+(migration + RPC recém-mergeada + dado histórico órfão) não coube na fatia
+3. Feature própria, com brainstorming/spec quando priorizada.
+
+**Jira:** WAR (epic WAR-1).
