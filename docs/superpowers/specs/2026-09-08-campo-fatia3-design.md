@@ -5,9 +5,12 @@
 **Jira:** WAR-4 (epic WAR-1)
 **Mockup:** `2026-09-08-campo-fatia3-nav-preview.html` (descartável; compara as
 quatro navegações consideradas, com o mesmo conteúdo dentro). O mockup foi feito
-para decidir a navegação e precede duas decisões de conteúdo: nele o primeiro
-KPI é "Visitas" (virou "Interações", com quebra por canal) e não há rótulo de
-alcance do filtro de loja. **Onde mockup e spec divergirem, vale a spec.**
+para decidir a navegação e precede as decisões de conteúdo. Divergências
+conhecidas, todas corrigidas no arquivo depois da decisão: o primeiro KPI era
+"Visitas" (virou "Interações", com quebra por canal); não havia rótulo de
+alcance do filtro de loja; a sub-view se chamava "Relatório" (virou "Painel");
+e a barra inferior tinha quatro itens em vez dos cinco reais do app.
+**Onde mockup e spec divergirem, vale a spec.**
 
 ## Contexto
 
