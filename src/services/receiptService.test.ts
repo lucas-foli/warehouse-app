@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const rpc = vi.fn();
 vi.mock('../lib/supabaseClient', () => ({ supabase: { rpc: (...args: unknown[]) => rpc(...args) } }));
 
-const { registerReceipt } = await import('./receiptService');
+const { registerReceipt, rowToReceipt, rowToReceiptItem } = await import('./receiptService');
 
 const baseInput = {
 	tenantId: 't1',
@@ -138,7 +138,7 @@ describe('registerReceipt', () => {
 
 	it('devolve a linha criada quando dá certo', async () => {
 		// mata: engolir o retorno da RPC (a UI precisa do número do lote)
-		await expect(registerReceipt(baseInput)).resolves.toMatchObject({ receipt_number: 'R-0001' });
+		await expect(registerReceipt(baseInput)).resolves.toMatchObject({ receiptNumber: 'R-0001' });
 	});
 
 	it('envia p_location quando informado', async () => {
@@ -167,5 +167,33 @@ describe('registerReceipt', () => {
 		await expect(registerReceipt(baseInput)).rejects.toThrow(
 			'Escolha o local de destino: o lote cria um produto novo.',
 		);
+	});
+});
+
+describe('rowToReceipt / rowToReceiptItem', () => {
+	it('mapeia o row snake_case do banco para o domínio camelCase', () => {
+		// mata: devolver o row cru (a UI leria receivedAt como undefined e
+		// mostraria "Invalid Date" sem erro nenhum)
+		expect(rowToReceipt({
+			id: 'r1', tenant_id: 't1', receipt_number: 'R-0007', supplier_id: 's1',
+			received_at: '2026-09-01T00:00:00.000Z', document: 'NF 12', note: null,
+			total_cost: 120.5, created_by: 'u1',
+			created_at: '2026-09-01T01:00:00.000Z', updated_at: '2026-09-01T01:00:00.000Z',
+		})).toEqual({
+			id: 'r1', tenantId: 't1', receiptNumber: 'R-0007', supplierId: 's1',
+			receivedAt: '2026-09-01T00:00:00.000Z', document: 'NF 12', note: null,
+			totalCost: 120.5, createdBy: 'u1',
+			createdAt: '2026-09-01T01:00:00.000Z', updatedAt: '2026-09-01T01:00:00.000Z',
+		});
+	});
+
+	it('preserva custo nulo como null, sem virar zero', () => {
+		// mata: `Number(row.unit_cost)` — null viraria 0 e o SKU passaria a ter
+		// custo conhecido igual a zero, quebrando o aviso de cobertura do painel
+		expect(rowToReceiptItem({
+			id: 'i1', tenant_id: 't1', receipt_id: 'r1', receipt_number: 'R-0007',
+			product_id: null, sku: 'CAM-1620', qty: 10, unit_cost: null,
+			total_cost: null, created_at: '2026-09-01T01:00:00.000Z',
+		})).toMatchObject({ unitCost: null, totalCost: null, productId: null });
 	});
 });
