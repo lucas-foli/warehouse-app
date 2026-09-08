@@ -62,10 +62,16 @@ roteiro inteiro com os resultados preenchidos no PR.
     (via "Registrar recebimento", igual ao Caso 3 do runbook da fatia 2, mas
     deixando o campo "Custo unitário" em branco) só para o Caso 3 deste
     roteiro.
-- **Tenant B — vazio.** Um tenant novo, sem nenhuma interação e sem nenhum
-  recebimento gravado — para o Caso 6. Pode ser um tenant recém-criado que
-  ainda não passou pelo onboarding de dados nenhum, ou um tenant de teste
-  reservado só para este caso.
+- **Tenant B — vazio de movimento, não de catálogo.** Um tenant sem nenhuma
+  interação e sem nenhum recebimento gravado — para o Caso 6 — mas que
+  **precisa ter pelo menos 1 produto cadastrado** (aba Produtos). Um tenant
+  também vazio de catálogo passaria no Caso 6 mesmo com o bug que este ciclo
+  corrigiu (`buildReceivedVsSold` cria uma linha por produto; sem produto
+  nenhum, a lista de linhas já nasce vazia e a frase de "Nenhum recebimento
+  nem venda no período" aparece por acidente, não porque a condição da tela
+  está certa). Com pelo menos 1 produto e zero movimento, o Caso 6 exercita
+  de fato a correção: a tabela precisa mostrar a frase de vazio mesmo tendo
+  uma linha (zerada) por produto.
 
 ---
 
@@ -137,7 +143,9 @@ diferentes (ver "Dados de teste").
   negativo" NÃO mudam em nenhuma das 4 pills** — são "foto de agora"
   (Emenda 1 da spec), não recortadas pela janela.
 - O rótulo "Funil por estágio · hoje" está sempre presente, em qualquer
-  pill escolhida.
+  pill escolhida — e o mesmo vale para "Follow-ups vencidos · hoje" (KPI do
+  topo) e "Saldo negativo · hoje" (quando o card aparece): os quatro blocos
+  "foto de agora" da Emenda 1 declaram "hoje", não só o funil.
 
 **Se falhar:** se o funil, o saldo ou a divergência mudarem ao trocar a
 pill, é regressão da Emenda 1 — esses três blocos não têm como reconstruir
@@ -287,10 +295,15 @@ fornecedor").
 
 ---
 
-## Caso 6 — Tenant vazio: cada bloco fala por si, nenhum zero solto
+## Caso 6 — Tenant vazio de movimento: cada bloco fala por si, nenhum zero solto
 
 **Pré-condição:** Caso 0 passou (num tenant que TEM dado — este caso usa
-outro). Tenant B, sem nenhuma interação e sem nenhum recebimento.
+outro). Tenant B, sem nenhuma interação e sem nenhum recebimento, **com
+pelo menos 1 produto cadastrado** (ver "Dados de teste" — é o que faz este
+caso exercitar de verdade a correção do item 4 da revisão final: antes,
+`buildReceivedVsSold` já cria uma linha por produto do catálogo mesmo sem
+nenhum movimento, e a condição de vazio errada — `rows.length === 0` — só
+era verdadeira sem produto nenhum).
 
 **Passos:**
 1. Logado no Tenant B, abra Campo → Painel.
@@ -303,22 +316,28 @@ explicação, e nenhum deve parecer um dado real quando não há dado):**
 - "Amostras entregues" (lista por contato): "Nenhuma amostra entregue no
   período."
 - "Recebido x vendido por produto": "Nenhum recebimento nem venda no
-  período." — não uma tabela vazia sem legenda.
+  período." — não uma tabela com o produto do Tenant B listado e as colunas
+  Receb./Vend./Saldo hoje zeradas.
 - "Recebido por fornecedor": "Nenhum recebimento no período."
 - O card "Saldo negativo" não aparece (nenhum produto com saldo negativo
-  neste tenant vazio).
+  neste tenant).
 - Os 4 KPIs do topo mostram `0` — que aqui é um zero real (o tenant de fato
   não tem nenhuma interação/contato/amostra/follow-up), não um "não
-  conseguimos calcular" disfarçado de zero.
+  conseguimos calcular" disfarçado de zero. O KPI "Amostras entregues" não
+  mostra nenhum valor em US$ abaixo de "0 un" (vazio não é zero).
 
-**Se falhar:** qualquer bloco que mostre uma tabela ou lista em branco sem a
-frase correspondente é regressão do padrão "estados por bloco, não por
-tela" que a spec exige (seção "UI"). Se algum KPI ou consulta disparar erro
-visível na tela (em vez de vazio limpo), verifique se não é o mesmo
-problema do Caso 0 — um tenant genuinamente vazio precisa se comportar
-igual a um tenant com policy de leitura quebrada só na ausência de dado, o
-que pode confundir os dois casos; confira a resposta de rede antes de
-concluir qual é.
+**Se falhar:** se "Recebido x vendido por produto" mostrar uma tabela com o
+produto do Tenant B e todas as colunas zeradas em vez da frase de vazio, é
+regressão do item 4 (a condição voltou a testar `rows.length === 0` em vez
+de "nenhuma linha com `received > 0` ou `sold > 0`"). Qualquer outro bloco
+que mostre uma tabela ou lista em branco sem a frase correspondente é
+regressão do padrão "estados por bloco, não por tela" que a spec exige
+(seção "UI"). Se algum KPI ou consulta disparar erro visível na tela (em
+vez de vazio limpo), verifique se não é o mesmo problema do Caso 0 — um
+tenant genuinamente vazio de movimento precisa se comportar igual a um
+tenant com policy de leitura quebrada só na ausência de dado, o que pode
+confundir os dois casos; confira a resposta de rede antes de concluir qual
+é.
 
 **Resultado:**
 
