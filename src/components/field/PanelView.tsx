@@ -82,11 +82,18 @@ const PanelView = ({
 			<div className={card}>
 				<b className="block text-2xl">{samples.totalQty} un</b>
 				<span className="text-xs text-muted-foreground">Amostras entregues</span>
-				<p className="mt-1 text-xs text-muted-foreground">~{money.format(samples.cost)} (est.)</p>
+				{/* Vazio não é zero: sem nenhuma amostra no período, não há valor a
+				    estimar. Com amostra e cobertura parcial, o valor precisa dizer
+				    que é parcial — nunca aparecer com cara de fato fechado. */}
+				{samples.totalQty > 0 && (
+					<p className="mt-1 text-xs text-muted-foreground">
+						~{money.format(samples.cost)} (est.{samples.skusWithoutCost > 0 ? ', parcial' : ''})
+					</p>
+				)}
 			</div>
 			<div className={card}>
 				<b className="block text-2xl text-red-600">{overdueFollowUps}</b>
-				<span className="text-xs text-muted-foreground">Follow-ups vencidos</span>
+				<span className="text-xs text-muted-foreground">Follow-ups vencidos · hoje</span>
 			</div>
 		</div>
 
@@ -138,6 +145,7 @@ const PanelView = ({
 						<span className="text-sm">{row.name}</span>
 						<span className="text-sm text-muted-foreground">
 							{row.qty} un · {money.format(row.cost)}
+							{row.partial ? ' (parcial)' : ''}
 						</span>
 					</div>
 				))
@@ -152,7 +160,13 @@ const PanelView = ({
 
 		<section className={card}>
 			<p className="mb-3 text-sm font-semibold">Recebido x vendido por produto</p>
-			{rows.length === 0 ? (
+			{/* buildReceivedVsSold cria uma linha por produto do catálogo, então
+			    `rows.length === 0` só é verdade sem catálogo — um tenant com
+			    produtos e zero movimento no período veria a tabela inteira
+			    zerada em vez desta frase. O vazio de verdade é nenhuma linha com
+			    recebido ou vendido no período (o que também cobre catálogo vazio,
+			    já que `.some` em array vazio é `false`). */}
+			{!rows.some((row) => row.received > 0 || row.sold > 0) ? (
 				<p className="text-sm text-muted-foreground">Nenhum recebimento nem venda no período.</p>
 			) : (
 				<div className="overflow-x-auto">
@@ -201,7 +215,8 @@ const PanelView = ({
 					<div key={row.supplierId} className="mb-1.5 flex items-center justify-between last:mb-0">
 						<span className="text-sm">{row.name}</span>
 						<span className="text-sm text-muted-foreground">
-							{row.qty} un{row.cost !== 0 ? ` · ${money.format(row.cost)}` : ''}
+							{row.qty} un
+							{row.cost !== 0 ? ` · ${money.format(row.cost)}${row.partial ? ' (parcial)' : ''}` : ''}
 						</span>
 					</div>
 				))
@@ -210,7 +225,7 @@ const PanelView = ({
 
 		{negatives.length > 0 && (
 			<section className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4">
-				<p className="text-sm font-bold text-red-700">Saldo negativo</p>
+				<p className="text-sm font-bold text-red-700">Saldo negativo · hoje</p>
 				<p className="mt-1 text-xs text-red-700">
 					Amostra registrada sem estoque deixa o saldo abaixo de zero. Confira a contagem física.
 				</p>
