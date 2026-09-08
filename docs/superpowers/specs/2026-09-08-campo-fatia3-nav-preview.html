@@ -1,0 +1,366 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Campo — mockup fatia 3 (navegação do relatório)</title>
+<style>
+  :root{
+    --background:hsl(36 33% 96%);--foreground:hsl(24 26% 12%);
+    --card:hsl(0 0% 100%);--border:hsl(30 20% 88%);--input:hsl(30 20% 92%);
+    --primary:hsl(24 26% 12%);--primary-fg:hsl(0 0% 100%);
+    --secondary:hsl(34 25% 93%);--muted-fg:hsl(24 12% 42%);
+    --accent:hsl(36 90% 60%);--ring:hsl(20 90% 48%);
+    --radius-card:24px;--shadow-card:0 24px 60px rgba(0,0,0,.14);
+    --ok:#46b280;--warn:#d97706;--bad:#dc2626;
+  }
+  *{box-sizing:border-box;margin:0}
+  body{background:var(--background);color:var(--foreground);
+    font-family:'Plus Jakarta Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+    padding:32px 16px;display:flex;flex-wrap:wrap;gap:28px;justify-content:center}
+  .phone{width:375px;flex:0 0 375px;background:var(--background);border:1px solid var(--border);
+    border-radius:36px;box-shadow:var(--shadow-card);overflow:hidden;display:flex;flex-direction:column;height:740px}
+  .phone h1{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-fg);
+    text-align:center;padding:10px 6px 0}
+  .screen{flex:1;overflow-y:auto;padding:16px 16px 14px}
+  .topbar{display:flex;align-items:center;justify-content:space-between;padding:8px 2px 14px}
+  .topbar b{font-size:20px}
+  .subhead{display:flex;align-items:center;justify-content:space-between;padding:2px 2px 12px}
+  .subhead b{font-size:15px}
+  .chip{font-size:11px;background:var(--secondary);border:1px solid var(--border);
+    padding:4px 10px;border-radius:999px;color:var(--muted-fg)}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-card);
+    padding:16px;margin-bottom:12px}
+  .row{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .muted{color:var(--muted-fg);font-size:12.5px}
+  .small{font-size:13px}
+  .pill{display:inline-block;font-size:11px;font-weight:600;padding:3px 10px;border-radius:999px}
+  .pill.late{background:#fef2f2;color:var(--bad)}
+  .pill.today{background:#fffbeb;color:var(--warn)}
+  .pill.sup{background:#eef6f2;color:var(--ok)}
+  .pill.cli{background:var(--secondary);color:var(--foreground)}
+  .tabs{display:flex;border-top:1px solid var(--border);background:var(--card)}
+  .tabs div{flex:1;text-align:center;font-size:10.5px;padding:10px 0 14px;color:var(--muted-fg)}
+  .tabs div.on{color:var(--foreground);font-weight:700}
+  .tabs span{display:block;font-size:17px;margin-bottom:2px}
+  .seg{display:flex;background:var(--secondary);border-radius:14px;padding:3px;margin-bottom:14px}
+  .seg div{flex:1;text-align:center;font-size:12.5px;padding:7px 0;border-radius:11px;color:var(--muted-fg)}
+  .seg div.on{background:var(--card);color:var(--foreground);font-weight:700;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+  .mini{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:11px 13px;margin-bottom:7px}
+  .opts{display:flex;flex-wrap:wrap;gap:7px}
+  .opt{font-size:12.5px;padding:8px 12px;border-radius:999px;border:1px solid var(--border);
+    background:var(--card);color:var(--muted-fg)}
+  .opt.on{background:var(--primary);color:var(--primary-fg);border-color:var(--primary);font-weight:600}
+  .count{font-size:11px;background:var(--secondary);border-radius:999px;padding:2px 9px;font-weight:700}
+
+  /* --- classes novas desta fatia --- */
+  .kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+  .kpi{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:14px}
+  .kpi b{display:block;font-size:24px;line-height:1.15}
+  .kpi b.bad{color:var(--bad)}
+  .kpi .lbl{font-size:12px;color:var(--muted-fg);margin-top:2px}
+  .kpi .sub{font-size:11px;color:var(--muted-fg);margin-top:4px}
+  .cardlabel{font-weight:700;margin-bottom:10px}
+  .funnel-row{margin-bottom:10px}
+  .funnel-row:last-child{margin-bottom:0}
+  .funnel-row .row{margin-bottom:5px}
+  .bar-track{background:var(--secondary);border-radius:999px;height:7px;overflow:hidden}
+  .bar-fill{background:var(--accent);height:100%;border-radius:999px}
+  .rtable-wrap{overflow-x:auto}
+  .rtable{width:100%;border-collapse:collapse;font-size:12px}
+  .rtable th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.04em;
+    color:var(--muted-fg);font-weight:600;padding:0 6px 8px;border-bottom:1px solid var(--border);white-space:nowrap}
+  .rtable td{padding:9px 6px;border-bottom:1px solid var(--border);vertical-align:top;white-space:nowrap}
+  .rtable tr:last-child td{border-bottom:none}
+  .rtable .prod{white-space:normal}
+  .rtable .sku{display:block;font-size:10.5px;color:var(--muted-fg);font-weight:400}
+  .rtable .neg{color:var(--bad);font-weight:700}
+  .supchip{font-size:10px;background:var(--secondary);border-radius:999px;padding:2px 7px;color:var(--muted-fg)}
+  .alertbox{background:#fef2f2;border:1px solid #fecaca;border-radius:16px;padding:13px 14px;margin-bottom:12px}
+  .alertbox b{color:var(--bad);display:block;margin-bottom:4px;font-size:13.5px}
+  .alertbox p{font-size:12.5px;color:var(--foreground);margin-bottom:6px}
+  .alertbox .line{font-size:12.5px;color:var(--bad);font-weight:700}
+  .ov-card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:13px 15px;margin-bottom:10px}
+  .logo-row{display:flex;align-items:center;gap:7px;padding:2px 2px 10px}
+  .logo-dot{width:20px;height:20px;border-radius:7px;background:var(--primary);flex:0 0 20px}
+  .logo-row span{font-size:12.5px;font-weight:700;color:var(--muted-fg)}
+</style>
+
+<!-- ============ VARIANTE A ============ -->
+<div class="phone"><h1>A — Relatório como 4ª sub-view do Campo</h1>
+  <div class="screen">
+    <div class="topbar"><b>Campo</b><span class="chip">Global Foods</span></div>
+    <div class="seg"><div>Agenda</div><div>Funil</div><div>Fornecedores</div><div class="on">Relatório</div></div>
+
+    <div class="subhead"><b>Relatório</b><span class="chip">atualizado agora</span></div>
+    <div class="opts" style="margin-bottom:14px">
+      <span class="opt">7 dias</span><span class="opt on">30 dias</span><span class="opt">90 dias</span><span class="opt">Tudo</span>
+    </div>
+
+    <div class="kpi-grid">
+      <div class="kpi"><b>18</b><div class="lbl">Visitas</div></div>
+      <div class="kpi"><b>5</b><div class="lbl">Contatos novos</div></div>
+      <div class="kpi"><b>42 un</b><div class="lbl">Amostras entregues</div><div class="sub">~US$ 380 (est.)</div></div>
+      <div class="kpi"><b class="bad">3</b><div class="lbl">Follow-ups vencidos</div></div>
+    </div>
+
+    <div class="card">
+      <p class="muted cardlabel">Funil por estágio</p>
+      <div class="funnel-row"><div class="row"><span class="small">Negociando</span><span class="count">6</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:60%"></div></div></div>
+      <div class="funnel-row"><div class="row"><span class="small">Amostra entregue</span><span class="count">8</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:80%"></div></div></div>
+      <div class="funnel-row"><div class="row"><span class="small">Ativo</span><span class="count">10</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:100%"></div></div></div>
+      <div class="funnel-row"><div class="row"><span class="small">Contatado</span><span class="count">5</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:50%"></div></div></div>
+      <div class="funnel-row"><div class="row"><span class="small">Novo</span><span class="count">3</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:30%"></div></div></div>
+      <div class="funnel-row"><div class="row"><span class="small">Perdido</span><span class="count">2</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:20%"></div></div></div>
+    </div>
+
+    <div class="card">
+      <p class="muted cardlabel">Amostras por mercado</p>
+      <div class="mini row"><span class="small">Ocean Fresh Market</span><span class="small">14 un · US$ 132</span></div>
+      <div class="mini row"><span class="small">Popeye Seafood</span><span class="small">12 un · US$ 118</span></div>
+      <div class="mini row"><span class="small">Sedano's #12</span><span class="small">10 un · US$ 92</span></div>
+      <div class="mini row" style="margin-bottom:0"><span class="small">Mercado La Placita</span><span class="small">6 un · US$ 38</span></div>
+      <p class="muted" style="margin-top:9px">custo estimado pelo último recebimento — 3 de 10 SKUs sem custo conhecido</p>
+    </div>
+
+    <div class="card">
+      <p class="muted cardlabel">Recebido x vendido por produto</p>
+      <div class="rtable-wrap"><table class="rtable">
+        <tr><th>Produto</th><th>Procedência</th><th>Receb.</th><th>Vend.</th><th>Saldo</th></tr>
+        <tr><td class="prod">Camarão 16/20<span class="sku">CAM-1620</span></td><td>Noronha</td><td>120</td><td>95</td><td>25</td></tr>
+        <tr><td class="prod">Tilápia filé<span class="sku">TIL-FIL</span></td><td>Noronha <span class="supchip">+1</span></td><td>80</td><td>88</td><td class="neg">-8</td></tr>
+        <tr><td class="prod">Lagosta cauda<span class="sku">LAG-CDA</span></td><td>Atlântico Sul</td><td>40</td><td>34</td><td>6</td></tr>
+        <tr><td class="prod">Pargo inteiro<span class="sku">PAR-INT</span></td><td>Noronha</td><td>60</td><td>57</td><td>3</td></tr>
+      </table></div>
+    </div>
+
+    <div class="card">
+      <p class="muted cardlabel">Recebido por fornecedor</p>
+      <div class="mini row"><span class="small">Noronha Pescados</span><span class="small">240 un · US$ 2.150</span></div>
+      <div class="mini row" style="margin-bottom:0"><span class="small">Atlântico Sul</span><span class="small">75 un · US$ 610</span></div>
+    </div>
+
+    <div class="alertbox">
+      <b>Saldo negativo</b>
+      <p>Amostra registrada sem estoque deixa o saldo do produto negativo no app — antes disso, isso não aparecia em nenhum lugar.</p>
+      <div class="line">Tilápia filé (TIL-FIL): -8 un</div>
+    </div>
+  </div>
+  <div class="tabs"><div><span>▦</span>Produtos</div>
+    <div class="on"><span>◎</span>Campo</div><div><span>☺</span>Clientes</div><div><span>☻</span>Vendedores</div><div><span>♦</span>Vendas</div></div>
+</div>
+
+<!-- ============ VARIANTE B ============ -->
+<div class="phone"><h1>B — Sub-view do Campo, e é o default</h1>
+  <div class="screen">
+    <div class="topbar"><b>Campo</b><span class="chip">Global Foods</span></div>
+    <div class="seg"><div class="on">Relatório</div><div>Agenda</div><div>Funil</div><div>Fornecedores</div></div>
+
+    <div class="subhead"><b>Relatório</b><span class="chip">atualizado agora</span></div>
+    <div class="opts" style="margin-bottom:14px">
+      <span class="opt">7 dias</span><span class="opt on">30 dias</span><span class="opt">90 dias</span><span class="opt">Tudo</span>
+    </div>
+
+    <div class="kpi-grid">
+      <div class="kpi"><b>18</b><div class="lbl">Visitas</div></div>
+      <div class="kpi"><b>5</b><div class="lbl">Contatos novos</div></div>
+      <div class="kpi"><b>42 un</b><div class="lbl">Amostras entregues</div><div class="sub">~US$ 380 (est.)</div></div>
+      <div class="kpi"><b class="bad">3</b><div class="lbl">Follow-ups vencidos</div></div>
+    </div>
+
+    <div class="card">
+      <p class="muted cardlabel">Funil por estágio</p>
+      <div class="funnel-row"><div class="row"><span class="small">Negociando</span><span class="count">6</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:60%"></div></div></div>
+      <div class="funnel-row"><div class="row"><span class="small">Amostra entregue</span><span class="count">8</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:80%"></div></div></div>
+      <div class="funnel-row"><div class="row"><span class="small">Ativo</span><span class="count">10</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:100%"></div></div></div>
+      <div class="funnel-row"><div class="row"><span class="small">Contatado</span><span class="count">5</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:50%"></div></div></div>
+      <div class="funnel-row"><div class="row"><span class="small">Novo</span><span class="count">3</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:30%"></div></div></div>
+      <div class="funnel-row"><div class="row"><span class="small">Perdido</span><span class="count">2</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:20%"></div></div></div>
+    </div>
+
+    <div class="card">
+      <p class="muted cardlabel">Amostras por mercado</p>
+      <div class="mini row"><span class="small">Ocean Fresh Market</span><span class="small">14 un · US$ 132</span></div>
+      <div class="mini row"><span class="small">Popeye Seafood</span><span class="small">12 un · US$ 118</span></div>
+      <div class="mini row"><span class="small">Sedano's #12</span><span class="small">10 un · US$ 92</span></div>
+      <div class="mini row" style="margin-bottom:0"><span class="small">Mercado La Placita</span><span class="small">6 un · US$ 38</span></div>
+      <p class="muted" style="margin-top:9px">custo estimado pelo último recebimento — 3 de 10 SKUs sem custo conhecido</p>
+    </div>
+
+    <div class="card">
+      <p class="muted cardlabel">Recebido x vendido por produto</p>
+      <div class="rtable-wrap"><table class="rtable">
+        <tr><th>Produto</th><th>Procedência</th><th>Receb.</th><th>Vend.</th><th>Saldo</th></tr>
+        <tr><td class="prod">Camarão 16/20<span class="sku">CAM-1620</span></td><td>Noronha</td><td>120</td><td>95</td><td>25</td></tr>
+        <tr><td class="prod">Tilápia filé<span class="sku">TIL-FIL</span></td><td>Noronha <span class="supchip">+1</span></td><td>80</td><td>88</td><td class="neg">-8</td></tr>
+        <tr><td class="prod">Lagosta cauda<span class="sku">LAG-CDA</span></td><td>Atlântico Sul</td><td>40</td><td>34</td><td>6</td></tr>
+        <tr><td class="prod">Pargo inteiro<span class="sku">PAR-INT</span></td><td>Noronha</td><td>60</td><td>57</td><td>3</td></tr>
+      </table></div>
+    </div>
+
+    <div class="card">
+      <p class="muted cardlabel">Recebido por fornecedor</p>
+      <div class="mini row"><span class="small">Noronha Pescados</span><span class="small">240 un · US$ 2.150</span></div>
+      <div class="mini row" style="margin-bottom:0"><span class="small">Atlântico Sul</span><span class="small">75 un · US$ 610</span></div>
+    </div>
+
+    <div class="alertbox">
+      <b>Saldo negativo</b>
+      <p>Amostra registrada sem estoque deixa o saldo do produto negativo no app — antes disso, isso não aparecia em nenhum lugar.</p>
+      <div class="line">Tilápia filé (TIL-FIL): -8 un</div>
+    </div>
+  </div>
+  <div class="tabs"><div><span>▦</span>Produtos</div>
+    <div class="on"><span>◎</span>Campo</div><div><span>☺</span>Clientes</div><div><span>☻</span>Vendedores</div><div><span>♦</span>Vendas</div></div>
+</div>
+
+<!-- ============ VARIANTE C ============ -->
+<div class="phone"><h1>C — Aba própria na barra inferior</h1>
+  <div class="screen">
+    <div class="topbar"><b>Relatório</b><span class="chip">atualizado agora</span></div>
+    <div class="opts" style="margin-bottom:14px">
+      <span class="opt">7 dias</span><span class="opt on">30 dias</span><span class="opt">90 dias</span><span class="opt">Tudo</span>
+    </div>
+
+    <div class="kpi-grid">
+      <div class="kpi"><b>18</b><div class="lbl">Visitas</div></div>
+      <div class="kpi"><b>5</b><div class="lbl">Contatos novos</div></div>
+      <div class="kpi"><b>42 un</b><div class="lbl">Amostras entregues</div><div class="sub">~US$ 380 (est.)</div></div>
+      <div class="kpi"><b class="bad">3</b><div class="lbl">Follow-ups vencidos</div></div>
+    </div>
+
+    <div class="card">
+      <p class="muted cardlabel">Funil por estágio</p>
+      <div class="funnel-row"><div class="row"><span class="small">Negociando</span><span class="count">6</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:60%"></div></div></div>
+      <div class="funnel-row"><div class="row"><span class="small">Amostra entregue</span><span class="count">8</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:80%"></div></div></div>
+      <div class="funnel-row"><div class="row"><span class="small">Ativo</span><span class="count">10</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:100%"></div></div></div>
+      <div class="funnel-row"><div class="row"><span class="small">Contatado</span><span class="count">5</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:50%"></div></div></div>
+      <div class="funnel-row"><div class="row"><span class="small">Novo</span><span class="count">3</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:30%"></div></div></div>
+      <div class="funnel-row"><div class="row"><span class="small">Perdido</span><span class="count">2</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:20%"></div></div></div>
+    </div>
+
+    <div class="card">
+      <p class="muted cardlabel">Amostras por mercado</p>
+      <div class="mini row"><span class="small">Ocean Fresh Market</span><span class="small">14 un · US$ 132</span></div>
+      <div class="mini row"><span class="small">Popeye Seafood</span><span class="small">12 un · US$ 118</span></div>
+      <div class="mini row"><span class="small">Sedano's #12</span><span class="small">10 un · US$ 92</span></div>
+      <div class="mini row" style="margin-bottom:0"><span class="small">Mercado La Placita</span><span class="small">6 un · US$ 38</span></div>
+      <p class="muted" style="margin-top:9px">custo estimado pelo último recebimento — 3 de 10 SKUs sem custo conhecido</p>
+    </div>
+
+    <div class="card">
+      <p class="muted cardlabel">Recebido x vendido por produto</p>
+      <div class="rtable-wrap"><table class="rtable">
+        <tr><th>Produto</th><th>Procedência</th><th>Receb.</th><th>Vend.</th><th>Saldo</th></tr>
+        <tr><td class="prod">Camarão 16/20<span class="sku">CAM-1620</span></td><td>Noronha</td><td>120</td><td>95</td><td>25</td></tr>
+        <tr><td class="prod">Tilápia filé<span class="sku">TIL-FIL</span></td><td>Noronha <span class="supchip">+1</span></td><td>80</td><td>88</td><td class="neg">-8</td></tr>
+        <tr><td class="prod">Lagosta cauda<span class="sku">LAG-CDA</span></td><td>Atlântico Sul</td><td>40</td><td>34</td><td>6</td></tr>
+        <tr><td class="prod">Pargo inteiro<span class="sku">PAR-INT</span></td><td>Noronha</td><td>60</td><td>57</td><td>3</td></tr>
+      </table></div>
+    </div>
+
+    <div class="card">
+      <p class="muted cardlabel">Recebido por fornecedor</p>
+      <div class="mini row"><span class="small">Noronha Pescados</span><span class="small">240 un · US$ 2.150</span></div>
+      <div class="mini row" style="margin-bottom:0"><span class="small">Atlântico Sul</span><span class="small">75 un · US$ 610</span></div>
+    </div>
+
+    <div class="alertbox">
+      <b>Saldo negativo</b>
+      <p>Amostra registrada sem estoque deixa o saldo do produto negativo no app — antes disso, isso não aparecia em nenhum lugar.</p>
+      <div class="line">Tilápia filé (TIL-FIL): -8 un</div>
+    </div>
+  </div>
+  <div class="tabs"><div><span>▦</span>Produtos</div><div><span>◎</span>Campo</div>
+    <div class="on"><span>▤</span>Relatório</div><div><span>☺</span>Clientes</div><div><span>☻</span>Vendedores</div><div><span>♦</span>Vendas</div></div>
+</div>
+
+<!-- ============ VARIANTE D ============ -->
+<div class="phone"><h1>D — Seção dentro do Dashboard/Overview</h1>
+  <div class="screen">
+    <div class="logo-row"><div class="logo-dot"></div><span>Global Foods</span></div>
+    <div class="topbar" style="padding-top:0"><b style="font-size:17px">Como está a operação hoje?</b></div>
+
+    <div class="ov-card"><div class="row"><b class="small">Vendas (30 dias)</b><span class="muted">ver tudo ›</span></div>
+      <p class="muted" style="margin-top:4px">US$ 8.240 · 61 pedidos</p></div>
+    <div class="ov-card" style="margin-bottom:18px"><div class="row"><b class="small">Produtos</b><span class="muted">ver tudo ›</span></div>
+      <p class="muted" style="margin-top:4px">312 itens ativos · 4 com estoque baixo</p></div>
+
+    <div class="subhead"><b>Campo — últimos 30 dias</b><span class="chip">atualizado agora</span></div>
+    <div class="opts" style="margin-bottom:14px">
+      <span class="opt">7 dias</span><span class="opt on">30 dias</span><span class="opt">90 dias</span><span class="opt">Tudo</span>
+    </div>
+
+    <div class="kpi-grid">
+      <div class="kpi"><b>18</b><div class="lbl">Visitas</div></div>
+      <div class="kpi"><b>5</b><div class="lbl">Contatos novos</div></div>
+      <div class="kpi"><b>42 un</b><div class="lbl">Amostras entregues</div><div class="sub">~US$ 380 (est.)</div></div>
+      <div class="kpi"><b class="bad">3</b><div class="lbl">Follow-ups vencidos</div></div>
+    </div>
+
+    <div class="card">
+      <p class="muted cardlabel">Funil por estágio</p>
+      <div class="funnel-row"><div class="row"><span class="small">Negociando</span><span class="count">6</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:60%"></div></div></div>
+      <div class="funnel-row"><div class="row"><span class="small">Amostra entregue</span><span class="count">8</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:80%"></div></div></div>
+      <div class="funnel-row"><div class="row"><span class="small">Ativo</span><span class="count">10</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:100%"></div></div></div>
+      <div class="funnel-row"><div class="row"><span class="small">Contatado</span><span class="count">5</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:50%"></div></div></div>
+      <div class="funnel-row"><div class="row"><span class="small">Novo</span><span class="count">3</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:30%"></div></div></div>
+      <div class="funnel-row"><div class="row"><span class="small">Perdido</span><span class="count">2</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:20%"></div></div></div>
+    </div>
+
+    <div class="card">
+      <p class="muted cardlabel">Amostras por mercado</p>
+      <div class="mini row"><span class="small">Ocean Fresh Market</span><span class="small">14 un · US$ 132</span></div>
+      <div class="mini row"><span class="small">Popeye Seafood</span><span class="small">12 un · US$ 118</span></div>
+      <div class="mini row"><span class="small">Sedano's #12</span><span class="small">10 un · US$ 92</span></div>
+      <div class="mini row" style="margin-bottom:0"><span class="small">Mercado La Placita</span><span class="small">6 un · US$ 38</span></div>
+      <p class="muted" style="margin-top:9px">custo estimado pelo último recebimento — 3 de 10 SKUs sem custo conhecido</p>
+    </div>
+
+    <div class="card">
+      <p class="muted cardlabel">Recebido x vendido por produto</p>
+      <div class="rtable-wrap"><table class="rtable">
+        <tr><th>Produto</th><th>Procedência</th><th>Receb.</th><th>Vend.</th><th>Saldo</th></tr>
+        <tr><td class="prod">Camarão 16/20<span class="sku">CAM-1620</span></td><td>Noronha</td><td>120</td><td>95</td><td>25</td></tr>
+        <tr><td class="prod">Tilápia filé<span class="sku">TIL-FIL</span></td><td>Noronha <span class="supchip">+1</span></td><td>80</td><td>88</td><td class="neg">-8</td></tr>
+        <tr><td class="prod">Lagosta cauda<span class="sku">LAG-CDA</span></td><td>Atlântico Sul</td><td>40</td><td>34</td><td>6</td></tr>
+        <tr><td class="prod">Pargo inteiro<span class="sku">PAR-INT</span></td><td>Noronha</td><td>60</td><td>57</td><td>3</td></tr>
+      </table></div>
+    </div>
+
+    <div class="card">
+      <p class="muted cardlabel">Recebido por fornecedor</p>
+      <div class="mini row"><span class="small">Noronha Pescados</span><span class="small">240 un · US$ 2.150</span></div>
+      <div class="mini row" style="margin-bottom:0"><span class="small">Atlântico Sul</span><span class="small">75 un · US$ 610</span></div>
+    </div>
+
+    <div class="alertbox">
+      <b>Saldo negativo</b>
+      <p>Amostra registrada sem estoque deixa o saldo do produto negativo no app — antes disso, isso não aparecia em nenhum lugar.</p>
+      <div class="line">Tilápia filé (TIL-FIL): -8 un</div>
+    </div>
+  </div>
+  <div class="tabs"><div><span>▦</span>Produtos</div><div><span>◎</span>Campo</div>
+    <div><span>☺</span>Clientes</div><div><span>☻</span>Vendedores</div><div><span>♦</span>Vendas</div></div>
+</div>
