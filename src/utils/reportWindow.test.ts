@@ -35,4 +35,23 @@ describe('inWindow', () => {
 		// mata: `null` virar epoch 0 e passar a contar como dentro de "tudo"
 		expect(inWindow(null, resolveWindow('all', NOW))).toBe(false);
 	});
+
+	it('inclui a borda superior', () => {
+		// mata: trocar >= por > (ou remover o guard) no limite superior — um instante
+		// igual a `w.to` passaria a ficar fora da janela
+		expect(inWindow('2026-09-08T12:00:00.000Z', w)).toBe(true);
+	});
+
+	it('exclui o instante posterior à borda superior', () => {
+		// mata: remover o guard `t > to` (ou trocar por `t >= to`) — um instante
+		// depois de `w.to` passaria a contar como dentro da janela
+		expect(inWindow('2026-09-08T12:00:00.001Z', w)).toBe(false);
+	});
+
+	it('trata data inválida como fora, mesmo em "tudo"', () => {
+		// mata: remover o guard `Number.isNaN(t)` — uma string não parseável
+		// viraria `NaN`, e comparações com NaN são sempre `false`, então o
+		// guard `t > to` deixaria passar e o resultado incorreto seria `true`
+		expect(inWindow('não é data', resolveWindow('all', NOW))).toBe(false);
+	});
 });
