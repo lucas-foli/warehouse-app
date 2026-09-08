@@ -13,6 +13,10 @@ let fromPages: Record<string, unknown>[][] = [];
 let lastSelect: string | null = null;
 let lastFilters: [string, string, unknown][] = [];
 
+// Nome de cada tabela passada a `supabase.from(...)`, na ordem das chamadas —
+// sem isso nenhum teste provava QUAL tabela foi consultada, só que alguma foi.
+let fromCalls: string[] = [];
+
 vi.mock('../lib/supabaseClient', () => {
 	const makeBuilder = () => {
 		const builder: Record<string, unknown> = {};
@@ -38,7 +42,10 @@ vi.mock('../lib/supabaseClient', () => {
 	return {
 		supabase: {
 			rpc: (...args: unknown[]) => rpcMock(...args),
-			from: () => makeBuilder(),
+			from: (table: string) => {
+				fromCalls.push(table);
+				return makeBuilder();
+			},
 		},
 	};
 });
@@ -189,5 +196,44 @@ describe('fetchInteractionsInWindow', () => {
 		const { fetchInteractionsInWindow } = await import('./fieldService');
 		await fetchInteractionsInWindow('t1', { from: null, to: '2026-09-08T00:00:00.000Z' });
 		expect(lastFilters.some(([op, col]) => op === 'gte' && col === 'occurred_at')).toBe(false);
+	});
+});
+
+describe('fetchContactCreatedAts', () => {
+	beforeEach(() => {
+		rangeMock.mockClear();
+		fromPages = [];
+		fromCalls = [];
+	});
+
+	it('lê clients e suppliers e junta as datas de cadastro das duas', async () => {
+		// mata: apagar a leitura de `suppliers` (ou de `clients`) do Promise.all —
+		// o KPI "contatos novos" mostraria um número menor, sem erro nenhum
+		fromPages = [
+			[{ id: 'c1', created_at: '2026-09-01T00:00:00.000Z' }],
+			[{ id: 's1', created_at: '2026-09-02T00:00:00.000Z' }],
+		];
+		const { fetchContactCreatedAts } = await import('./fieldService');
+		const result = await fetchContactCreatedAts('t1');
+		expect(fromCalls).toEqual(expect.arrayContaining(['clients', 'suppliers']));
+		expect(result).toEqual(
+			expect.arrayContaining(['2026-09-01T00:00:00.000Z', '2026-09-02T00:00:00.000Z']),
+		);
+		expect(result).toHaveLength(2);
+	});
+
+	it('descarta created_at nulo em vez de incluir null/vazio na lista', async () => {
+		// mata: remover o `.filter((at): at is string => Boolean(at))` — um
+		// created_at nulo viraria `null` ou string vazia na lista de datas
+		fromPages = [
+			[
+				{ id: 'c1', created_at: '2026-09-01T00:00:00.000Z' },
+				{ id: 'c2', created_at: null },
+			],
+			[],
+		];
+		const { fetchContactCreatedAts } = await import('./fieldService');
+		const result = await fetchContactCreatedAts('t1');
+		expect(result).toEqual(['2026-09-01T00:00:00.000Z']);
 	});
 });
