@@ -146,6 +146,24 @@ nenhuma — e a view foi mexida pela última vez na emenda 2 da fatia 1, com
 custo de leitura já medido e registrado no backlog. Não é hora de tocá-la por
 um KPI.
 
+## Emenda 1 — o que a janela não alcança (2026-09-08, ao escrever o plano)
+
+A spec dizia "todo número da tela respeita a escolha" da janela. Ao detalhar os
+módulos ficou claro que **dois blocos não têm janela possível**, pelo mesmo
+motivo: são estado presente, e o app não guarda histórico que permita
+reconstruí-los numa data.
+
+- **Funil por estágio.** `deriveStage` responde "em que pé está este contato
+  agora". Não existe histórico de mudança de estágio; um "funil dos últimos 7
+  dias" teria de ser inventado.
+- **Saldo** na tabela de recebido x vendido, como já registrado acima.
+- **Divergências de saldo**, pela mesma razão.
+
+Esses três blocos carregam o rótulo **"hoje"**; os demais (atividade por canal,
+contatos novos, amostras, recebido, vendido) respeitam a janela e a declaram.
+A regra geral passa a ser: **todo bloco declara a sua janela**, e "hoje" é uma
+janela legítima desde que dita.
+
 ## Arquitetura
 
 ### Sem migration
