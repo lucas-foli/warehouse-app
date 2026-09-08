@@ -54,6 +54,11 @@ const FieldPage = ({ tenantId, products, onReload, locationFilter, orders, sales
 	const [period, setPeriod] = useState<ReportPeriod>('30d');
 	const [panelData, setPanelData] = useState<PanelData | null>(null);
 	const [panelLoading, setPanelLoading] = useState(false);
+	const [panelError, setPanelError] = useState('');
+	// Incrementar isto é o único jeito de refazer os quatro fetches do painel
+	// sem depender de `view`/`tenantId`/`windowRef` mudarem — é o que dá ao
+	// "Tentar de novo" do painel uma ação que de fato tenta de novo.
+	const [panelRetry, setPanelRetry] = useState(0);
 	const windowRef = useMemo(() => resolveWindow(period, new Date()), [period]);
 
 	const reloadField = useCallback(async (opts?: { silent?: boolean }): Promise<boolean> => {
@@ -114,6 +119,7 @@ const FieldPage = ({ tenantId, products, onReload, locationFilter, orders, sales
 		if (view !== 'panel' || !tenantId) return;
 		let alive = true;
 		setPanelLoading(true);
+		setPanelError('');
 		Promise.all([
 			fetchInteractionsInWindow(tenantId, windowRef),
 			fetchReceipts(tenantId),
@@ -127,7 +133,12 @@ const FieldPage = ({ tenantId, products, onReload, locationFilter, orders, sales
 			.catch((err) => {
 				if (!alive) return;
 				console.error('[campo] falha ao carregar o painel', err);
-				setError('Não foi possível carregar o painel.');
+				// Estado de erro próprio: sem ele, `panelData` fica null para
+				// sempre e a tela mostra "Carregando…" indefinidamente — a pior
+				// versão do risco que a spec nomeia (a policy de receipts falhando
+				// em silêncio). Aqui a falha é de rede/RPC, não de policy, mas o
+				// sintoma na tela seria o mesmo se não fosse dito.
+				setPanelError('Não foi possível carregar o painel.');
 			})
 			.finally(() => {
 				if (alive) setPanelLoading(false);
@@ -135,7 +146,7 @@ const FieldPage = ({ tenantId, products, onReload, locationFilter, orders, sales
 		return () => {
 			alive = false;
 		};
-	}, [view, tenantId, windowRef]);
+	}, [view, tenantId, windowRef, panelRetry]);
 
 	// Mesma fonte que a sub-view Agenda usa para "Atrasados": duas contagens de
 	// atraso divergindo dentro da mesma aba seria defeito, não detalhe.
@@ -188,7 +199,17 @@ const FieldPage = ({ tenantId, products, onReload, locationFilter, orders, sales
 			{!loading &&
 				(!error || loadedOnce) &&
 				view === 'panel' &&
-				(panelLoading || !panelData ? (
+				(panelError ? (
+					<div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3">
+						<p className="text-sm text-red-700">{panelError}</p>
+						<button
+							type="button"
+							onClick={() => setPanelRetry((n) => n + 1)}
+							className="mt-2 text-xs font-semibold text-red-700 underline">
+							Tentar de novo
+						</button>
+					</div>
+				) : panelLoading || !panelData ? (
 					<p className="text-sm text-muted-foreground">Carregando…</p>
 				) : (
 					<PanelView
