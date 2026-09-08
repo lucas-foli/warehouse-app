@@ -64,6 +64,17 @@ describe('lastKnownCostBySku', () => {
 		const map = lastKnownCostBySku([receipt('r1', '2026-08-01T00:00:00.000Z')], [item('r1', ' cam-1620 ', 7)]);
 		expect(map.get('CAM-1620')).toBe(7);
 	});
+
+	it('descarta item cujo receiptId não tem recebimento correspondente (órfão)', () => {
+		// mata: cair para item.createdAt quando o recebimento não é encontrado
+		// (`receivedAt.get(item.receiptId) ?? item.createdAt`) — inventaria uma
+		// data de fato que não se conhece, igual ao que receivedVsSold recusa
+		const map = lastKnownCostBySku(
+			[], // nenhum recebimento cadastrado: 'r-orfao' não existe em `receipts`
+			[item('r-orfao', 'CAM-1620', 9)],
+		);
+		expect(map.has('CAM-1620')).toBe(false);
+	});
 });
 
 describe('summarizeSamples', () => {

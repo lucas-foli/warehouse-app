@@ -11,7 +11,12 @@ export const lastKnownCostBySku = (receipts: Receipt[], items: ReceiptItem[]): M
 	const best = new Map<string, { at: number; cost: number }>();
 	for (const item of items) {
 		if (item.unitCost === null || item.unitCost === undefined) continue;
-		const at = new Date(receivedAt.get(item.receiptId) ?? item.createdAt).getTime();
+		// Recebimento órfão (receiptId sem linha em `receipts`): mesma condição
+		// que receivedVsSold descarta. Cair para item.createdAt inventaria uma
+		// data de fato que não se conhece — descartar é a resposta honesta.
+		const receivedAtRaw = receivedAt.get(item.receiptId);
+		if (receivedAtRaw === undefined) continue;
+		const at = new Date(receivedAtRaw).getTime();
 		if (Number.isNaN(at)) continue;
 		const sku = normalizeSku(item.sku);
 		const current = best.get(sku);
