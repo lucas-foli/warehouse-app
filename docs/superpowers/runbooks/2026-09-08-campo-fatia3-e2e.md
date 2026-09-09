@@ -108,7 +108,13 @@ antes de seguir para qualquer outro caso deste roteiro — os demais casos
 pressupõem que a leitura funciona, e rodá-los sobre uma leitura quebrada só
 produziria resultados sem sentido.
 
-**Resultado:**
+**Resultado:** **passou** (2026-09-09, tenant Stanley, preview da branch,
+sessão real). A tabela "Recebido x vendido por produto" trouxe
+`POTE TERM ADV SS 0,532L STANLEY` com **Receb. 4** e procedência
+**Noronha Pescados**; "Recebido por fornecedor" trouxe
+**Noronha Pescados · 4 un · US$ 32,00**. As policies de `select` de
+`receipts`/`receipt_items` devolvem linha para a tela. Nenhum erro no
+console. **Gate de merge satisfeito.**
 
 ---
 
@@ -155,7 +161,12 @@ KPIs/tabela NÃO mudarem entre janelas bem diferentes ("7 dias" vs. "Tudo"),
 confira primeiro se o tenant de teste realmente tem dado fora da janela mais
 estreita (ver "Dados de teste") antes de reportar como bug.
 
-**Resultado:**
+**Resultado:** **passou**. Trocando 30 dias → 7 dias: Interações 22 → 0,
+Contatos novos 6 → 0, Amostras 22 un → 0 un. Não mudaram, como esperado:
+"Follow-ups vencidos · hoje" (4 nas duas janelas) e "Funil por estágio ·
+hoje" (1 / 2 / 4 / 6 / 1417 / 1, idêntico). "Por canal" trocou a lista pela
+frase "Nenhuma interação no período." — nenhum zero solto. Com 0 amostras o
+KPI **omitiu o valor em US$** (o zero solto que a wave de revisão corrigiu).
 
 ---
 
@@ -188,7 +199,13 @@ negativo (confira `products.qty` por SQL, já que o aviso da RPC de
 `negativeBalances`/`PanelView`. Se o card aparecer mesmo com todo saldo ≥ 0,
 mesma coisa, na direção contrária.
 
-**Resultado:**
+**Resultado:** **não executado** — o card já estava provado por dado real
+preexistente do tenant: "Saldo negativo · hoje" listou três produtos
+(`PTA LATAS TERM EVRDY STAN BLCK 2.0 0,29L · -5`,
+`QUENCHER TERM 2.0 STANLEY ROSE QTZ 1,18L · -2`, `Test sem preco · -1`).
+Registrar uma amostra nova só acrescentaria lixo ao tenant sem informação
+nova, e não há estorno de amostra no app. Executar quando houver tenant
+descartável.
 
 ---
 
@@ -220,7 +237,11 @@ conhecido do SKU"). Se o rótulo de cobertura não aparecer/não subir,
 confira se o rótulo só aparece quando `skusWithoutCost > 0` (comportamento
 esperado quando NENHUM SKU está sem custo) antes de reportar.
 
-**Resultado:**
+**Resultado:** **não executado** pelo mesmo motivo do Caso 2 — a condição
+já existia no tenant: o rodapé do card de amostras mostrou
+"Custo estimado pelo último recebimento — 4 de 4 SKUs sem custo conhecido",
+e as seis linhas de contato vieram marcadas `(parcial)`. A cobertura parcial
+está provada; falta só o delta de registrar uma amostra nova.
 
 ---
 
@@ -258,7 +279,13 @@ que o lote cria, não a loja do recebimento em si). Se o rótulo não
 atualizar com a loja escolhida, é regressão do aviso que evita o sócio ler
 um número global como número da loja.
 
-**Resultado:**
+**Resultado:** **passou**. Com o filtro em "Loja principal",
+`MUG TER CAFE GO TRAVEL STAN LILAC 0,23L` foi de **Vend. 2 → 0** (a venda
+estava em outra loja) enquanto o **Saldo seguiu 473**, e
+`POTE TERM ADV SS 0,532L STANLEY` manteve **Receb. 4** com a procedência
+Noronha Pescados — recebimento não filtra por loja, como a spec decidiu. O
+rótulo do topo exibiu "Loja: Loja principal · o filtro de loja afeta apenas
+as vendas". Filtro devolvido a "Todos os locais" ao fim.
 
 ---
 
@@ -291,7 +318,10 @@ violada — vendas nunca são somadas por fornecedor, porque `sales_items` só
 conhece SKU, não procedência (ver a entrada de backlog "Vendas somadas por
 fornecedor").
 
-**Resultado:**
+**Resultado:** **não executado** — exigiria criar um segundo fornecedor e
+dois recebimentos do mesmo SKU no tenant real, sem caminho de estorno no
+app. A marcação "+1" continua sem verificação em tela (a suíte cobre a
+regra: `receivedVsSold.test.ts`, caso "marca SKU com mais de um fornecedor").
 
 ---
 
@@ -339,7 +369,10 @@ tenant com policy de leitura quebrada só na ausência de dado, o que pode
 confundir os dois casos; confira a resposta de rede antes de concluir qual
 é.
 
-**Resultado:**
+**Resultado:** **não executável neste ambiente** — não havia um segundo
+tenant vazio de movimento e com pelo menos 1 produto cadastrado. O caso
+existe justamente para exercitar a correção da condição de vazio, então
+continua pendente.
 
 ---
 
@@ -347,11 +380,46 @@ confundir os dois casos; confira a resposta de rede antes de concluir qual
 
 Total de casos: **7** (Caso 0, pré-voo/gate de merge, + Casos 1–6).
 
-- Caso 0: **(a preencher)**
-- Passaram: **_ / 6** (Casos 1–6)
-- Falharam: **_ / 6**
-- Não executáveis neste ambiente: **_ / 6**
+Execução de **2026-09-09**, no tenant **Stanley**, contra o preview da branch
+(mesmo Supabase do ambiente local — não existe base separada), com sessão
+real do Lucas dirigida pelo Claude.
 
-**Efeitos colaterais no(s) tenant(s)** (dados reais gravados pela execução):
-**(a preencher na execução — recebimentos novos do Caso 5, amostras dos
-Casos 2 e 3, saldo negativo deixado de propósito no Caso 2)**.
+- Caso 0: **passou** — gate de merge satisfeito.
+- Passaram: **2 / 6** (Casos 1 e 4)
+- Falharam: **0 / 6**
+- Não executados por decisão (evitar sujar tenant real sem ganho): **3 / 6**
+  (Casos 2, 3 e 5 — os dois primeiros já provados por dado preexistente)
+- Não executáveis neste ambiente: **1 / 6** (Caso 6, falta tenant vazio de
+  movimento com catálogo)
+
+**Efeitos colaterais no(s) tenant(s):** **nenhum.** Só os casos de leitura
+foram executados; o filtro de loja foi devolvido a "Todos os locais". Nenhum
+recebimento, amostra ou saldo foi alterado.
+
+## Achados desta execução (o que só a tela mostrou)
+
+1. **A tabela "Recebido x vendido por produto" lista o catálogo inteiro.**
+   `buildReceivedVsSold` cria uma linha por produto, então no tenant Stanley
+   a tabela passou de centenas de linhas — quase todas `0 / 0 / 0` — e exigiu
+   dezenas de rolagens para chegar aos blocos seguintes. As linhas com
+   movimento vêm primeiro (a ordenação é por recebido desc), mas o painel
+   fica impraticável em catálogo real. **Deveria mostrar só SKUs com
+   movimento no período**, com o resto atrás de um "ver todos". Não é
+   regressão desta execução: é consequência da regra de montagem, e nenhum
+   teste de unidade poderia sentir isso.
+
+2. **`US$ 0,00 (parcial)` quando a cobertura de custo é zero.** Com 22 un de
+   amostra e nenhum SKU com custo conhecido, o KPI mostrou
+   "~US$ 0,00 (est., parcial)" e as seis linhas por contato repetiram
+   "US$ 0,00 (parcial)". A wave de revisão resolveu o caso "sem amostra"
+   (omite o valor), mas **cobertura zero ainda vira um zero com cara de
+   valor** — é a mesma regra "vazio não é zero" pela metade. Quando
+   `skusWithoutCost == skusTotal`, o valor deveria ser omitido, deixando só a
+   quantidade e o aviso de cobertura.
+
+3. **Duplicata de loja por caixa, confirmada em produção.** O seletor de loja
+   do header lista "Brasília Shopping" e "BRASÍLIA SHOPPING", "Loja
+   principal" e "LOJA PRINCIPAL" como opções distintas. Já estava registrado
+   em `docs/backlog.md` (entrada de 2026-08-30) como hipótese observada; esta
+   execução confirma. Afeta o Caso 4: escolher a variante "errada" de uma
+   loja muda o vendido sem que o usuário entenda por quê.
