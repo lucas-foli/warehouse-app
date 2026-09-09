@@ -463,7 +463,14 @@ const Dashboard = ({
 					)}
 
 					{page === 'campo' && (
-						<FieldPage tenantId={tenantId} products={products} onReload={reload} />
+						<FieldPage
+							tenantId={tenantId}
+							products={products}
+							onReload={reload}
+							locationFilter={locationFilter}
+							orders={visibleActiveOrders}
+							salesItems={visibleActiveItems}
+						/>
 					)}
 				</div>
 			</main>

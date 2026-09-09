@@ -7,11 +7,30 @@ const rangeMock = vi.fn();
 // além do que o teste configurou.
 let fromPages: Record<string, unknown>[][] = [];
 
+// Instrumentação da query montada pela última chamada a `.select(...)` e a
+// cada filtro (`eq`/`gte`/`lte`) — sem isso um teste não consegue provar que
+// o filtro certo foi ao banco, só que *alguma* query rodou.
+let lastSelect: string | null = null;
+let lastFilters: [string, string, unknown][] = [];
+
+// Nome de cada tabela passada a `supabase.from(...)`, na ordem das chamadas —
+// sem isso nenhum teste provava QUAL tabela foi consultada, só que alguma foi.
+let fromCalls: string[] = [];
+
 vi.mock('../lib/supabaseClient', () => {
 	const makeBuilder = () => {
 		const builder: Record<string, unknown> = {};
-		builder.select = () => builder;
-		builder.eq = () => builder;
+		builder.select = (sel: string) => {
+			lastSelect = sel;
+			return builder;
+		};
+		const filter = (op: string) => (col: string, val: unknown) => {
+			lastFilters.push([op, col, val]);
+			return builder;
+		};
+		builder.eq = filter('eq');
+		builder.gte = filter('gte');
+		builder.lte = filter('lte');
 		builder.order = () => builder;
 		builder.range = (...args: unknown[]) => {
 			rangeMock(...args);
@@ -23,7 +42,10 @@ vi.mock('../lib/supabaseClient', () => {
 	return {
 		supabase: {
 			rpc: (...args: unknown[]) => rpcMock(...args),
-			from: () => makeBuilder(),
+			from: (table: string) => {
+				fromCalls.push(table);
+				return makeBuilder();
+			},
 		},
 	};
 });
@@ -148,5 +170,70 @@ describe('fetchFieldContacts paginação', () => {
 
 		expect(result).toHaveLength(3);
 		expect(rangeMock).toHaveBeenCalledTimes(1);
+	});
+});
+
+describe('fetchInteractionsInWindow', () => {
+	beforeEach(() => {
+		rangeMock.mockClear();
+		fromPages = [];
+		lastSelect = null;
+		lastFilters = [];
+	});
+
+	it('pede ao banco só o que está na janela, com as amostras juntas', async () => {
+		// mata: buscar tudo e filtrar no cliente (traria meses de histórico por
+		// página de 1000 linhas), ou esquecer o join de interaction_samples
+		const { fetchInteractionsInWindow } = await import('./fieldService');
+		const w = { from: '2026-09-01T00:00:00.000Z', to: '2026-09-08T00:00:00.000Z' };
+		await fetchInteractionsInWindow('t1', w);
+		expect(lastSelect).toContain('interaction_samples');
+		expect(lastFilters).toContainEqual(['gte', 'occurred_at', w.from]);
+	});
+
+	it('não manda filtro inferior quando a janela é "tudo"', async () => {
+		// mata: mandar `gte occurred_at null`, que o PostgREST rejeita
+		const { fetchInteractionsInWindow } = await import('./fieldService');
+		await fetchInteractionsInWindow('t1', { from: null, to: '2026-09-08T00:00:00.000Z' });
+		expect(lastFilters.some(([op, col]) => op === 'gte' && col === 'occurred_at')).toBe(false);
+	});
+});
+
+describe('fetchContactCreatedAts', () => {
+	beforeEach(() => {
+		rangeMock.mockClear();
+		fromPages = [];
+		fromCalls = [];
+	});
+
+	it('lê clients e suppliers e junta as datas de cadastro das duas', async () => {
+		// mata: apagar a leitura de `suppliers` (ou de `clients`) do Promise.all —
+		// o KPI "contatos novos" mostraria um número menor, sem erro nenhum
+		fromPages = [
+			[{ id: 'c1', created_at: '2026-09-01T00:00:00.000Z' }],
+			[{ id: 's1', created_at: '2026-09-02T00:00:00.000Z' }],
+		];
+		const { fetchContactCreatedAts } = await import('./fieldService');
+		const result = await fetchContactCreatedAts('t1');
+		expect(fromCalls).toEqual(expect.arrayContaining(['clients', 'suppliers']));
+		expect(result).toEqual(
+			expect.arrayContaining(['2026-09-01T00:00:00.000Z', '2026-09-02T00:00:00.000Z']),
+		);
+		expect(result).toHaveLength(2);
+	});
+
+	it('descarta created_at nulo em vez de incluir null/vazio na lista', async () => {
+		// mata: remover o `.filter((at): at is string => Boolean(at))` — um
+		// created_at nulo viraria `null` ou string vazia na lista de datas
+		fromPages = [
+			[
+				{ id: 'c1', created_at: '2026-09-01T00:00:00.000Z' },
+				{ id: 'c2', created_at: null },
+			],
+			[],
+		];
+		const { fetchContactCreatedAts } = await import('./fieldService');
+		const result = await fetchContactCreatedAts('t1');
+		expect(result).toEqual(['2026-09-01T00:00:00.000Z']);
 	});
 });

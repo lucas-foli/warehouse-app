@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabaseClient';
 import type { ContactStage, ContactType, FieldContact, Interaction, InteractionKind, InteractionOutcome } from '../types';
 import { clientExternalId } from '../utils/clientSellerForms';
+import type { ReportWindow } from '../utils/reportWindow';
 
 export type SampleInput = { sku: string; qty: number };
 
@@ -240,6 +241,43 @@ export async function fetchContactInteractions(
 		return b.id.localeCompare(a.id);
 	});
 	return interactions;
+}
+
+// Recorte por janela para o Painel. O filtro vai ao banco: buscar tudo e
+// filtrar no cliente traria o histórico inteiro em páginas de 1000 linhas.
+export async function fetchInteractionsInWindow(
+	tenantId: string,
+	w: ReportWindow,
+): Promise<Interaction[]> {
+	const rows = await fetchAllPages<InteractionRow>((from, to) => {
+		let query = supabase
+			.from('interactions')
+			.select('*, interaction_samples(sku, qty)')
+			.eq('tenant_id', tenantId)
+			.lte('occurred_at', w.to);
+		// "Tudo" não tem limite inferior: mandar gte com null quebra a query.
+		if (w.from) query = query.gte('occurred_at', w.from);
+		return query.order('id', { ascending: true }).range(from, to);
+	});
+	return rows.map(rowToInteraction);
+}
+
+// "Contatos novos" do período. A view field_contacts NÃO expõe created_at
+// (decisão da spec: consultar as tabelas em vez de alterar a view).
+export async function fetchContactCreatedAts(tenantId: string): Promise<string[]> {
+	const read = async (table: 'clients' | 'suppliers'): Promise<string[]> => {
+		const rows = await fetchAllPages<{ created_at: string | null }>((from, to) =>
+			supabase
+				.from(table)
+				.select('id, created_at')
+				.eq('tenant_id', tenantId)
+				.order('id', { ascending: true })
+				.range(from, to),
+		);
+		return rows.map((r) => r.created_at).filter((at): at is string => Boolean(at));
+	};
+	const [clients, suppliers] = await Promise.all([read('clients'), read('suppliers')]);
+	return [...clients, ...suppliers];
 }
 
 export async function markNextStepDone(interactionId: string): Promise<void> {
