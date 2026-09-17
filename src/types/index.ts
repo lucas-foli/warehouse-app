@@ -102,27 +102,27 @@ export interface Interaction {
 
 export interface Receipt {
 	id: string;
-	tenant_id: string;
-	receipt_number: string;
-	supplier_id: string;
-	received_at: string;
+	tenantId: string;
+	receiptNumber: string;
+	supplierId: string;
+	receivedAt: string;
 	document: string | null;
 	note: string | null;
-	total_cost: number | null;
-	created_by: string | null;
-	created_at: string;
-	updated_at: string;
+	totalCost: number | null;
+	createdBy: string | null;
+	createdAt: string;
+	updatedAt: string;
 }
 
 export interface ReceiptItem {
 	id: string;
-	tenant_id: string;
-	receipt_id: string;
-	receipt_number: string;
-	product_id: string | null;
+	tenantId: string;
+	receiptId: string;
+	receiptNumber: string;
+	productId: string | null;
 	sku: string;
 	qty: number;
-	unit_cost: number | null;
-	total_cost: number | null;
-	created_at: string;
+	unitCost: number | null;
+	totalCost: number | null;
+	createdAt: string;
 }

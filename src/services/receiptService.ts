@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabaseClient';
-import type { Receipt } from '../types';
+import type { Receipt, ReceiptItem } from '../types';
 import { mergeReceiptLines, type ReceiptLine } from '../utils/receiptCart';
 
 export type RegisterReceiptInput = {
@@ -82,5 +82,70 @@ export async function registerReceipt(input: RegisterReceiptInput): Promise<Rece
 	if (error) throw new Error(friendlyReceiptError(error.message));
 	if (!data) throw new Error('Não foi possível registrar a entrada.');
 
-	return data as Receipt;
+	return rowToReceipt(data);
+}
+
+type Row = Record<string, unknown>;
+
+const text = (row: Row, key: string): string => (row[key] === null || row[key] === undefined ? '' : String(row[key]));
+const nullableText = (row: Row, key: string): string | null =>
+	row[key] === null || row[key] === undefined ? null : String(row[key]);
+const nullableNumber = (row: Row, key: string): number | null =>
+	row[key] === null || row[key] === undefined ? null : Number(row[key]);
+
+export const rowToReceipt = (row: Row): Receipt => ({
+	id: text(row, 'id'),
+	tenantId: text(row, 'tenant_id'),
+	receiptNumber: text(row, 'receipt_number'),
+	supplierId: text(row, 'supplier_id'),
+	receivedAt: text(row, 'received_at'),
+	document: nullableText(row, 'document'),
+	note: nullableText(row, 'note'),
+	totalCost: nullableNumber(row, 'total_cost'),
+	createdBy: nullableText(row, 'created_by'),
+	createdAt: text(row, 'created_at'),
+	updatedAt: text(row, 'updated_at'),
+});
+
+export const rowToReceiptItem = (row: Row): ReceiptItem => ({
+	id: text(row, 'id'),
+	tenantId: text(row, 'tenant_id'),
+	receiptId: text(row, 'receipt_id'),
+	receiptNumber: text(row, 'receipt_number'),
+	productId: nullableText(row, 'product_id'),
+	sku: text(row, 'sku'),
+	qty: Number(row.qty),
+	// nullableNumber, e não Number(): custo ausente não é custo zero.
+	unitCost: nullableNumber(row, 'unit_cost'),
+	totalCost: nullableNumber(row, 'total_cost'),
+	createdAt: text(row, 'created_at'),
+});
+
+const PAGE_SIZE = 1000;
+
+// Mesma paginação do fieldService: PostgREST corta em 1000 linhas e o corte é
+// silencioso. Ordena por id para ter chave estável.
+async function fetchAll(table: 'receipts' | 'receipt_items', tenantId: string): Promise<Row[]> {
+	const rows: Row[] = [];
+	for (let from = 0; ; from += PAGE_SIZE) {
+		const { data, error } = await supabase
+			.from(table)
+			.select('*')
+			.eq('tenant_id', tenantId)
+			.order('id', { ascending: true })
+			.range(from, from + PAGE_SIZE - 1);
+		if (error) throw error;
+		if (!data?.length) break;
+		rows.push(...(data as Row[]));
+		if (data.length < PAGE_SIZE) break;
+	}
+	return rows;
+}
+
+export async function fetchReceipts(tenantId: string): Promise<Receipt[]> {
+	return (await fetchAll('receipts', tenantId)).map(rowToReceipt);
+}
+
+export async function fetchReceiptItems(tenantId: string): Promise<ReceiptItem[]> {
+	return (await fetchAll('receipt_items', tenantId)).map(rowToReceiptItem);
 }
