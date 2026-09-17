@@ -294,3 +294,57 @@ exibição em memória). Dois testes novos cobrem a paginação. Commit 689f902.
 - **Origem:** descoberto ao verificar a suíte em `main` depois do merge da fatia 1
   do Campo. Não é regressão de nenhuma obra — é lacuna de config que só aflora
   com worktree viva no diretório.
+
+## 2026-09-09 — BUG-20: o Painel lista o catálogo inteiro em "Recebido x vendido"
+
+**Origem:** e2e da fatia 3 do Campo (PR #75), executado no tenant Stanley contra
+o Supabase real. Só a tela mostra — nenhum teste de unidade poderia sentir.
+
+- **Atual:** `buildReceivedVsSold` (`src/utils/receivedVsSold.ts:41-51`) cria uma
+  linha por produto do catálogo, antes de somar recebimentos e vendas. No tenant
+  de teste isso produziu **centenas de linhas `0 / 0 / 0`**: as linhas com
+  movimento aparecem primeiro (a ordenação é por recebido desc, vendido desc),
+  e todo o resto do catálogo vem atrás. Foram necessárias dezenas de rolagens
+  para alcançar os dois blocos seguintes, "Recebido por fornecedor" e
+  "Saldo negativo".
+- **Efeito no mobile** (o celular do Elcy, que é o uso real): pior ainda — a
+  tabela tem cinco colunas com rolagem horizontal própria dentro de uma lista
+  vertical interminável, e o card de divergência, única janela do app para o
+  estoque negativo, é o último elemento da tela.
+- **Por que passou despercebido até o e2e:** o mockup foi desenhado com os 10
+  SKUs da Global, onde a tabela cabe inteira na tela. A decisão não estava
+  errada para o cliente-alvo; ficou errada para qualquer tenant com catálogo
+  grande.
+- **Esperado:** listar apenas SKUs com movimento no período (`received > 0 ||
+  sold > 0`), com o restante do catálogo atrás de um "ver todos" ou fora da
+  tabela. O saldo negativo continua garantido pelo card próprio, que não
+  depende desta tabela.
+- **Cuidado ao corrigir:** a condição de vazio da tela
+  (`PanelView.tsx`, bloco "Recebido x vendido") já usa
+  `!rows.some((row) => row.received > 0 || row.sold > 0)`. Se a lista passar a
+  ser filtrada na origem, as duas regras precisam continuar concordando — e o
+  Caso 6 do runbook (`docs/superpowers/runbooks/2026-09-08-campo-fatia3-e2e.md`)
+  existe exatamente para pegar essa divergência.
+
+## 2026-09-09 — BUG-21: cobertura de custo zero vira "US$ 0,00 (parcial)"
+
+**Origem:** mesmo e2e da fatia 3. Observado no tenant Stanley, onde nenhum SKU
+entregue como amostra tinha custo conhecido.
+
+- **Atual:** com 22 unidades de amostra e **nenhum** SKU com custo, o KPI exibiu
+  "~US$ 0,00 (est., parcial)" e as seis linhas por contato repetiram
+  "US$ 0,00 (parcial)". O rodapé dizia, corretamente,
+  "4 de 4 SKUs sem custo conhecido".
+- **Por que é defeito:** a fatia inteira se apoia na regra "vazio não é zero", e
+  a revisão final já corrigiu o caso "sem amostra nenhuma" (o valor some). Falta
+  o caso simétrico: **cobertura zero não é valor zero** — é ausência total de
+  custo, e exibi-la como `US$ 0,00` dá a um desconhecido a aparência de um fato
+  medido.
+- **Esperado:** quando `skusWithoutCost === skusTotal`, omitir o valor em US$ e
+  deixar só a quantidade mais o aviso de cobertura. O caso intermediário
+  (cobertura parcial, com algum custo conhecido) continua como está, exibindo o
+  valor marcado como parcial.
+- **Onde:** `src/components/field/PanelView.tsx` — KPI de amostras e as linhas
+  de "Amostras por mercado". Os dados já existem em `SampleSummary`
+  (`skusTotal`, `skusWithoutCost`) e em `SampleContactRow.partial`; é decisão de
+  apresentação, não de derivação.
