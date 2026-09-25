@@ -3,12 +3,20 @@
 > Bugs capturados durante uso/teste manual, com o comportamento atual já confirmado no
 > código. Não implementados ainda. Ordem = ordem de registro.
 
+> **Revisão 2026-09-25** (reconferida contra o `main` em `62ee985`): BUG-1/2/3 resolvidos
+> pelo PR #72; BUG-6/7/8 resolvidos pelo PR #71. Seguem abertos BUG-4 (WAR-15), BUG-5
+> (WAR-16) e BUG-15 (WAR-17). As referências de `arquivo:linha` das entradas antigas podem
+> ter deslocado desde o registro original.
+>
+> _Revisão 2026-08-05 (histórica):_ BUG-1 a BUG-5 reconferidos contra o `main` pós-PR #65,
+> todos abertos naquela data; BUG-6..9 são os achados do e2e manual daquela revisão.
+
 ## 2026-07-24 — Fluxo "Novo Produto" (`src/components/ProductsPage.tsx`)
 
 Todos os três se referem ao mesmo painel: o drawer aberto por **Novo Produto**
 (`startCreateProduct`, `ProductsPage.tsx:156`), renderizado em `ProductsPage.tsx:737-960`.
 
-### BUG-1 — O painel de novo produto deve ser uma modal responsiva
+### BUG-1 — O painel de novo produto deve ser uma modal responsiva (RESOLVIDO — PR #72)
 
 - **Atual:** não é modal. No desktop o wrapper usa `md:contents`
   (`ProductsPage.tsx:742`), então o `Card` cai como mais uma coluna do grid da página —
@@ -22,7 +30,7 @@ Todos os três se referem ao mesmo painel: o drawer aberto por **Novo Produto**
 - **Referência de padrão:** já existe modal no projeto — `products/SaleOrderModal.tsx` e
   `products/ConfirmDialog.tsx`.
 
-### BUG-2 — Apenas Nome e SKU são obrigatórios
+### BUG-2 — Apenas Nome e SKU são obrigatórios (RESOLVIDO — PR #72)
 
 - **Atual:** a validação de submit já exige só `sku` e `name`
   (`ProductsPage.tsx:225-229`), e os demais campos têm default ou aceitam nulo
@@ -33,7 +41,7 @@ Todos os três se referem ao mesmo painel: o drawer aberto por **Novo Produto**
 - **Esperado:** Nome e SKU marcados visualmente como obrigatórios (asterisco/label), os
   demais explicitamente opcionais, e erro por campo em vez de só a mensagem global.
 
-### BUG-3 — Salvar habilita ao preencher o primeiro campo
+### BUG-3 — Salvar habilita ao preencher o primeiro campo (RESOLVIDO — PR #72)
 
 - **Atual:** `disabled={!editDirty || editSaving || !tenantId}`
   (`ProductsPage.tsx:933`). `editDirty` vira `true` no primeiro `updateDraft`
@@ -53,11 +61,13 @@ atacava.
 Duas colunas guardam imagem (`image` e `image_url`, ambas em `products`), e cada caminho
 grava numa delas:
 
-- **Atual:** o drawer de produto (create e edit) grava a coluna **legada** `image`
-  (`ProductsPage.tsx:231`, no `payload`). O importador de CSV normaliza `image`/`imagem`/
-  `foto`/`photo` para **`image_url`** (`src/utils/csv.ts:239-243`) e grava lá
-  (`DataImport.tsx:369`). O normalizador de leitura prefere `image_url`
+- **Atual:** o drawer de produto (create e edit) grava só a coluna **legada** `image`
+  (`ProductsPage.tsx:232`, no `payload`). O importador de CSV normaliza `image`/`imagem`/
+  `foto`/`photo` e hoje grava em **ambas** as colunas — `image_url` e `image`
+  (`DataImport.tsx:369-370`). O normalizador de leitura prefere `image_url`
   (`dashboardService.ts:116`: `str(row, 'image_url', 'image')`).
+  _(2026-08-05: o import passou a gravar as duas colunas, mas o drawer continua só em `image`,
+  então o bug persiste — ver Consequência.)_
 - **Consequência:** para um produto que veio do importador (que tem `image_url`
   preenchido), editar a foto pelo drawer grava em `image` e deixa `image_url` intacto.
   Enquanto o estado local vive, a foto nova aparece; no próximo refetch o normalizador lê
@@ -86,6 +96,69 @@ grava numa delas:
 - **Esperado:** propagar o SKU do `detail` para a mensagem, algo como "SKU 214 está
   inativo e não pode ser vendido — remova-o do carrinho". Vale para os outros códigos que
   também carregam `detail` (`sales_item_unknown_sku`, por exemplo).
+
+## 2026-08-04 — Achados do e2e manual (criar loja → produtos → convite → venda → dashboard)
+
+E2e ponta a ponta numa loja nova (`loja-teste-e2e`) via `/demo` → aprovação admin →
+convite → onboarding → 1 produto → 1 venda. O fallback de faturamento fantasma
+(`monthlyRevenue ?? 574661`) já está sendo corrigido pelo PR #65 (`?? 0`) e por isso não
+entra aqui. Os quatro abaixo **não** são cobertos pelo #65 (ele não toca `helpers.ts` nem
+`SetPassword.tsx`).
+
+### BUG-6 — "Faturamento do dia" mostra a média diária do mês, não o dia (RESOLVIDO — PR #71)
+
+- **Atual:** `src/components/OverviewPage.tsx:52` → `const dailyRevenue = monthlyRevenue / 30;`.
+  O card "Faturamento do dia" (`OverviewPage.tsx:86-93`) exibe o faturamento do mês
+  corrente dividido por 30. `monthlyRevenue` = `latestMonth?.value` (history do mês).
+- **Consequência:** registrei uma única venda de R$ 399,80 hoje e o card "Faturamento do
+  dia" mostrou **R$ 13** (399,80 / 30), não R$ 399,80. O rótulo "do dia" comunica algo que
+  o número não é.
+- **Esperado:** somar as vendas cujo `sold_at` é hoje para o card do dia — ou renomear o
+  card para deixar explícito que é média diária do mês.
+- **Nota:** o PR #65 troca o fallback `?? 574661` por `?? 0` mas mantém a divisão por 30,
+  então o problema persiste em qualquer loja com vendas.
+
+### BUG-7 — Custo/margem do dashboard são fabricados (sempre 40% da venda) (RESOLVIDO — PR #71)
+
+- **Atual:** `src/utils/helpers.ts:94` (`buildCategorySalesFromProducts`) e
+  `helpers.ts:133` (`buildCategorySalesFromItems`) → `custo = venda * 0.4`. O card
+  "Categorias — vendas e custos" (`OverviewPage.tsx`) exibe esse custo e o share.
+- **Consequência:** cadastrei um produto **sem informar custo** e vendi; o dashboard
+  mostrou "Custo R$ 159,92" = exatos 40% da venda de R$ 399,80. Não há campo de custo real
+  no produto — a margem de 60% é sempre presumida e apresentada como se fosse real.
+- **Esperado:** usar custo real (adicionar custo ao produto e somar por item vendido), ou
+  rotular o card como estimativa/remover até existir custo real.
+
+### BUG-8 — Histórico/tendência mensal é sintético quando não há vendas (RESOLVIDO — PR #71)
+
+- **Atual:** `src/hooks/useDashboardData.ts:90-92` usa `buildHistoryFromOrders` quando há
+  pedidos reais; senão cai em `buildHistoryFromProducts` (`helpers.ts:166-170`), que
+  distribui o total dos produtos em proporções fixas (0.18/0.22/0.20/0.19/0.21) em meses
+  **hardcoded Jul–Nov/25**.
+- **Consequência:** uma loja com produtos mas sem vendas mostra faturamento mensal e
+  gráfico de tendência inventados, ancorados em meses do passado, independente da data
+  atual.
+- **Esperado:** sem vendas, histórico/tendência deve ser empty state honesto — não números
+  fabricados. Mesmo espírito do "empty states honestos" do PR #65, mas `helpers.ts` não é
+  tocado por ele.
+- **Nota:** confirmado no código; não reproduzido na UI nesta sessão (a loja de teste
+  passou direto de "sem produto" para "com venda").
+
+### BUG-9 — Copy do set-password fala em "recuperação" também no fluxo de convite (RESOLVIDO — PR #66)
+
+> **Resolvido** em PR #66 com texto neutro: título "Definir senha" e "Defina sua senha
+> para acessar sua conta.". Não condicional por fluxo: o convite sem `invite_token` chega
+> em `/set-password` igual à recuperação (`buildSetPasswordTarget` no `App.tsx`), e
+> distinguir exigiria um sinal novo na rota para trocar uma frase.
+
+- **Atual:** `src/components/SetPassword.tsx:57` → "Escolha uma nova senha para concluir a
+  **recuperação**." O mesmo componente atende o link de **convite** (`type=invite`,
+  `approve_signup_request` → `inviteUserByEmail`) e o de recuperação de senha.
+- **Consequência:** um dono de loja recém-aprovado clica em "Accept the invite" e a tela
+  de definir senha fala em "concluir a recuperação" — termo errado para quem nunca teve
+  senha.
+- **Esperado:** texto neutro ("Defina sua senha para acessar sua conta") ou condicional ao
+  tipo (invite vs recovery).
 
 ## 2026-08-05 — Gráfico de performance de vendedor (`src/components/SellersPage.tsx`)
 
@@ -299,7 +372,12 @@ exibição em memória). Dois testes novos cobrem a paginação. Commit 689f902.
   do Campo. Não é regressão de nenhuma obra — é lacuna de config que só aflora
   com worktree viva no diretório.
 
-## 2026-09-09 — BUG-20: o Painel lista o catálogo inteiro em "Recebido x vendido"
+## 2026-09-09 — BUG-20: o Painel lista o catálogo inteiro em "Recebido x vendido" (RESOLVIDO — PR #66)
+
+> **Resolvido** em PR #66: `buildReceivedVsSold` só devolve SKU com `received > 0 ||
+> sold > 0` na janela, e a condição de vazio do `PanelView` virou `rows.length === 0` —
+> uma regra, num lugar só. Sem "ver todos": o catálogo mora na aba Produtos. O layout
+> mobile da tabela (5 colunas com rolagem horizontal) ficou para o WAR-8.
 
 **Origem:** e2e da fatia 3 do Campo (PR #75), executado no tenant Stanley contra
 o Supabase real. Só a tela mostra — nenhum teste de unidade poderia sentir.
@@ -330,7 +408,16 @@ o Supabase real. Só a tela mostra — nenhum teste de unidade poderia sentir.
   Caso 6 do runbook (`docs/superpowers/runbooks/2026-09-08-campo-fatia3-e2e.md`)
   existe exatamente para pegar essa divergência.
 
-## 2026-09-09 — BUG-21: cobertura de custo zero vira "US$ 0,00 (parcial)"
+## 2026-09-09 — BUG-21: cobertura de custo zero vira "US$ 0,00 (parcial)" (RESOLVIDO — PR #66)
+
+> **Resolvido** em PR #66 com uma regra só para os três blocos que mostram US$ (KPI de
+> amostras, amostras por contato, recebido por fornecedor): o valor só aparece se ao
+> menos uma linha do agregado tem custo conhecido. O KPI sem custo conhecido diz "custo
+> desconhecido"; as linhas mostram só a quantidade. Diferente do que esta entrada
+> previa, não bastou apresentação: `SampleContactRow` e `SupplierReceivedRow` ganharam
+> `costKnown`, porque `cost === 0 && partial` não distinguia "nada conhecido" de "custo
+> conhecido que soma zero". O fornecedor, que escondia o valor por `cost !== 0`, agora
+> mostra um custo zero registrado.
 
 **Origem:** mesmo e2e da fatia 3. Observado no tenant Stanley, onde nenhum SKU
 entregue como amostra tinha custo conhecido.

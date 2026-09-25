@@ -27,6 +27,9 @@ export const lastKnownCostBySku = (receipts: Receipt[], items: ReceiptItem[]): M
 
 export type SampleContactRow = {
 	key: string; name: string; qty: number; cost: number; partial: boolean;
+	/** true se ao menos uma amostra do contato tinha custo conhecido (mesmo
+	 * que zero). false = nenhum custo conhecido: a tela não mostra valor. */
+	costKnown: boolean;
 };
 
 export type SampleSummary = {
@@ -71,11 +74,12 @@ export const summarizeSamples = (input: SampleInput): SampleSummary => {
 			const lineCost = unit === undefined ? 0 : unit * sample.qty;
 			cost += lineCost;
 			const row = rows.get(key) ?? {
-				key, name: nameByKey.get(key) ?? '—', qty: 0, cost: 0, partial: false,
+				key, name: nameByKey.get(key) ?? '—', qty: 0, cost: 0, partial: false, costKnown: false,
 			};
 			row.qty += sample.qty;
 			row.cost += lineCost;
 			if (unit === undefined) row.partial = true;
+			else row.costKnown = true;
 			rows.set(key, row);
 		}
 	}
