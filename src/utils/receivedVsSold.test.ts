@@ -60,9 +60,10 @@ describe('buildReceivedVsSold', () => {
 		}]);
 	});
 
-	it('exclui recebimento e venda fora da janela', () => {
-		// mata: ignorar a janela num dos dois lados (o mais provável é sobrar
-		// no lado das vendas, cujo filtro mora no pedido, não no item)
+	it('exclui recebimento e venda fora da janela — e a linha some', () => {
+		// mata: filtrar por "teve movimento em algum momento" em vez de "na
+		// janela"; e ignorar a janela num dos dois lados (o mais provável é
+		// sobrar no lado das vendas, cujo filtro mora no pedido, não no item)
 		const rows = buildReceivedVsSold({
 			...base,
 			receipts: [receipt('r1', 's1', '2026-01-01T00:00:00.000Z')],
@@ -70,7 +71,7 @@ describe('buildReceivedVsSold', () => {
 			orders: [order('o1', '2026-01-02T00:00:00.000Z')],
 			salesItems: [sItem('o1', 'CAM-1620', 300)],
 		});
-		expect(rows[0]).toMatchObject({ received: 0, sold: 0, balance: 200 });
+		expect(rows).toEqual([]);
 	});
 
 	it('marca SKU com mais de um fornecedor e mostra o do recebimento mais recente', () => {
@@ -90,8 +91,8 @@ describe('buildReceivedVsSold', () => {
 	});
 
 	it('inclui SKU vendido que nunca foi recebido', () => {
-		// mata: montar as linhas só a partir dos recebimentos (o produto some
-		// da tabela e a venda dele desaparece do painel)
+		// mata: montar as linhas só a partir dos recebimentos, ou filtrar só por
+		// `received > 0` (o produto some da tabela e a venda dele desaparece do painel)
 		const rows = buildReceivedVsSold({
 			...base,
 			receipts: [], receiptItems: [],
@@ -109,9 +110,10 @@ describe('buildReceivedVsSold', () => {
 			...base,
 			receipts: [], // 'r-orfao' não existe em `receipts`
 			receiptItems: [rItem('r-orfao', 'CAM-1620', 500)],
-			orders: [], salesItems: [],
+			orders: [order('o1', '2026-09-02T00:00:00.000Z')],
+			salesItems: [sItem('o1', 'CAM-1620', 5)],
 		});
-		expect(rows[0]).toMatchObject({ received: 0, supplierName: null, multipleSuppliers: false });
+		expect(rows[0]).toMatchObject({ received: 0, sold: 5, supplierName: null, multipleSuppliers: false });
 	});
 
 	it('casa SKU com caixa e espaço diferentes', () => {
@@ -126,6 +128,46 @@ describe('buildReceivedVsSold', () => {
 		});
 		expect(rows).toHaveLength(1);
 		expect(rows[0]).toMatchObject({ sku: 'CAM-1620', received: 10, sold: 4 });
+	});
+
+	it('não lista produto do catálogo sem movimento na janela', () => {
+		// mata: remover o filtro — o catálogo inteiro volta como linhas 0/0 (BUG-20)
+		const rows = buildReceivedVsSold({
+			...base,
+			products: [product('CAM-1620', 200, 'Camarão 16/20'), product('TIL-FIL', 80, 'Tilápia filé')],
+			receipts: [receipt('r1', 's1', '2026-09-01T00:00:00.000Z')],
+			receiptItems: [rItem('r1', 'CAM-1620', 500)],
+			orders: [], salesItems: [],
+		});
+		expect(rows.map((r) => r.sku)).toEqual(['CAM-1620']);
+	});
+
+	it('lista SKU só recebido na janela', () => {
+		// mata: filtrar só por `sold > 0` (o recebimento sem venda sumiria da tabela)
+		const rows = buildReceivedVsSold({
+			...base,
+			receipts: [receipt('r1', 's1', '2026-09-01T00:00:00.000Z')],
+			receiptItems: [rItem('r1', 'CAM-1620', 500)],
+			orders: [], salesItems: [],
+		});
+		expect(rows).toHaveLength(1);
+		expect(rows[0]).toMatchObject({ sku: 'CAM-1620', received: 500, sold: 0 });
+	});
+
+	it('mantém a procedência de recebimento anterior à janela para SKU só vendido na janela', () => {
+		// mata: restringir a procedência à janela junto com o filtro (o SKU
+		// apareceria com procedência "—" apesar de ter fornecedor conhecido)
+		const rows = buildReceivedVsSold({
+			...base,
+			receipts: [receipt('r1', 's1', '2026-01-01T00:00:00.000Z')],
+			receiptItems: [rItem('r1', 'CAM-1620', 500)],
+			orders: [order('o1', '2026-09-02T00:00:00.000Z')],
+			salesItems: [sItem('o1', 'CAM-1620', 30)],
+		});
+		expect(rows).toEqual([{
+			sku: 'CAM-1620', name: 'Camarão 16/20', received: 0, sold: 30,
+			balance: 200, supplierName: 'Noronha Pescados', multipleSuppliers: false,
+		}]);
 	});
 });
 

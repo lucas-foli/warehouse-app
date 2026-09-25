@@ -76,6 +76,10 @@ export const buildReceivedVsSold = (input: ReceivedVsSoldInput): ReceivedVsSoldR
 
 	const supplierName = new Map(input.suppliers.map((s) => [s.id, s.name]));
 	return [...acc.entries()]
+		// Só SKU com movimento na janela (BUG-20). O catálogo entra no acc para
+		// dar nome e saldo a quem se moveu, não para virar linha 0/0 na tela — e
+		// a tela confia neste contrato em vez de refiltrar.
+		.filter(([, row]) => row.received > 0 || row.sold > 0)
 		.map(([sku, row]) => ({
 			sku,
 			name: row.name,

@@ -113,22 +113,13 @@ describe('PanelView', () => {
 		expect(screen.getByText(/Noronha Pescados/).closest('div')).toHaveTextContent(/\(parcial\)/);
 	});
 
-	it('mostra a frase de vazio em "Recebido x vendido" quando há produto mas nenhum movimento no período', () => {
-		// mata: testar `rows.length === 0` (só verdade com catálogo vazio) — um
-		// tenant com produtos e sem recebimento/venda no período veria a
-		// tabela inteira zerada em vez desta frase
-		render(
-			<PanelView
-				{...base}
-				rows={[
-					{
-						sku: 'CAM-1620', name: 'Camarão 16/20', received: 0, sold: 0, balance: 200,
-						supplierName: null, multipleSuppliers: false,
-					},
-				]}
-			/>,
-		);
+	it('mostra a frase de vazio em "Recebido x vendido" quando não há linha', () => {
+		// mata: renderizar a tabela vazia (só o cabeçalho) em vez da frase — o
+		// filtro de movimento mora em buildReceivedVsSold, então "sem movimento"
+		// chega aqui como lista vazia
+		render(<PanelView {...base} rows={[]} />);
 		expect(screen.getByText(/Nenhum recebimento nem venda no período/i)).toBeInTheDocument();
+		expect(screen.queryByText('Produto')).not.toBeInTheDocument();
 	});
 
 	it('mostra a tabela de "Recebido x vendido" quando há movimento no período', () => {

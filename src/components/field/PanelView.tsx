@@ -160,13 +160,9 @@ const PanelView = ({
 
 		<section className={card}>
 			<p className="mb-3 text-sm font-semibold">Recebido x vendido por produto</p>
-			{/* buildReceivedVsSold cria uma linha por produto do catálogo, então
-			    `rows.length === 0` só é verdade sem catálogo — um tenant com
-			    produtos e zero movimento no período veria a tabela inteira
-			    zerada em vez desta frase. O vazio de verdade é nenhuma linha com
-			    recebido ou vendido no período (o que também cobre catálogo vazio,
-			    já que `.some` em array vazio é `false`). */}
-			{!rows.some((row) => row.received > 0 || row.sold > 0) ? (
+			{/* buildReceivedVsSold só devolve SKU com movimento na janela (BUG-20):
+			    a regra de vazio mora lá, não aqui. */}
+			{rows.length === 0 ? (
 				<p className="text-sm text-muted-foreground">Nenhum recebimento nem venda no período.</p>
 			) : (
 				<div className="overflow-x-auto">

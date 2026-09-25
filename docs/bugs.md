@@ -367,7 +367,12 @@ exibição em memória). Dois testes novos cobrem a paginação. Commit 689f902.
   do Campo. Não é regressão de nenhuma obra — é lacuna de config que só aflora
   com worktree viva no diretório.
 
-## 2026-09-09 — BUG-20: o Painel lista o catálogo inteiro em "Recebido x vendido"
+## 2026-09-09 — BUG-20: o Painel lista o catálogo inteiro em "Recebido x vendido" (RESOLVIDO — PR #66)
+
+> **Resolvido** em PR #66: `buildReceivedVsSold` só devolve SKU com `received > 0 ||
+> sold > 0` na janela, e a condição de vazio do `PanelView` virou `rows.length === 0` —
+> uma regra, num lugar só. Sem "ver todos": o catálogo mora na aba Produtos. O layout
+> mobile da tabela (5 colunas com rolagem horizontal) ficou para o WAR-8.
 
 **Origem:** e2e da fatia 3 do Campo (PR #75), executado no tenant Stanley contra
 o Supabase real. Só a tela mostra — nenhum teste de unidade poderia sentir.
