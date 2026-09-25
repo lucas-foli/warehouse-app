@@ -144,7 +144,12 @@ entra aqui. Os quatro abaixo **não** são cobertos pelo #65 (ele não toca `hel
 - **Nota:** confirmado no código; não reproduzido na UI nesta sessão (a loja de teste
   passou direto de "sem produto" para "com venda").
 
-### BUG-9 — Copy do set-password fala em "recuperação" também no fluxo de convite
+### BUG-9 — Copy do set-password fala em "recuperação" também no fluxo de convite (RESOLVIDO — PR #66)
+
+> **Resolvido** em PR #66 com texto neutro: título "Definir senha" e "Defina sua senha
+> para acessar sua conta.". Não condicional por fluxo: o convite sem `invite_token` chega
+> em `/set-password` igual à recuperação (`buildSetPasswordTarget` no `App.tsx`), e
+> distinguir exigiria um sinal novo na rota para trocar uma frase.
 
 - **Atual:** `src/components/SetPassword.tsx:57` → "Escolha uma nova senha para concluir a
   **recuperação**." O mesmo componente atende o link de **convite** (`type=invite`,

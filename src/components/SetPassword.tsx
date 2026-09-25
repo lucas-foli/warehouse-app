@@ -53,8 +53,8 @@ const SetPassword = () => {
 				onSubmit={handleSubmit}
 				className="w-full max-w-md rounded-[var(--radius-card)] border border-border/40 bg-card p-8 shadow-[var(--shadow-card)] space-y-4">
 				<div className="space-y-1">
-					<h1 className="text-xl font-semibold tracking-tight">Definir nova senha</h1>
-					<p className="text-sm text-muted-foreground">Escolha uma nova senha para concluir a recuperação.</p>
+					<h1 className="text-xl font-semibold tracking-tight">Definir senha</h1>
+					<p className="text-sm text-muted-foreground">Defina sua senha para acessar sua conta.</p>
 				</div>
 
 				<label className="block text-sm">
