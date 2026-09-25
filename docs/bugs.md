@@ -3,17 +3,20 @@
 > Bugs capturados durante uso/teste manual, com o comportamento atual já confirmado no
 > código. Não implementados ainda. Ordem = ordem de registro.
 
-> **Revisão 2026-08-05:** BUG-1 a BUG-5 reconferidos contra o `main` pós-PR #65 —
-> **todos seguem abertos** (nenhum foi resolvido pelos PRs #62/#64/#65). As referências de
-> `arquivo:linha` podem ter deslocado desde o registro original. BUG-4 teve o trecho do
-> importador atualizado abaixo. BUG-6..9 são os achados do e2e manual desta revisão.
+> **Revisão 2026-09-25** (reconferida contra o `main` em `62ee985`): BUG-1/2/3 resolvidos
+> pelo PR #72; BUG-6/7/8 resolvidos pelo PR #71. Seguem abertos BUG-4 (WAR-15), BUG-5
+> (WAR-16) e BUG-15 (WAR-17). As referências de `arquivo:linha` das entradas antigas podem
+> ter deslocado desde o registro original.
+>
+> _Revisão 2026-08-05 (histórica):_ BUG-1 a BUG-5 reconferidos contra o `main` pós-PR #65,
+> todos abertos naquela data; BUG-6..9 são os achados do e2e manual daquela revisão.
 
 ## 2026-07-24 — Fluxo "Novo Produto" (`src/components/ProductsPage.tsx`)
 
 Todos os três se referem ao mesmo painel: o drawer aberto por **Novo Produto**
 (`startCreateProduct`, `ProductsPage.tsx:156`), renderizado em `ProductsPage.tsx:737-960`.
 
-### BUG-1 — O painel de novo produto deve ser uma modal responsiva
+### BUG-1 — O painel de novo produto deve ser uma modal responsiva (RESOLVIDO — PR #72)
 
 - **Atual:** não é modal. No desktop o wrapper usa `md:contents`
   (`ProductsPage.tsx:742`), então o `Card` cai como mais uma coluna do grid da página —
@@ -27,7 +30,7 @@ Todos os três se referem ao mesmo painel: o drawer aberto por **Novo Produto**
 - **Referência de padrão:** já existe modal no projeto — `products/SaleOrderModal.tsx` e
   `products/ConfirmDialog.tsx`.
 
-### BUG-2 — Apenas Nome e SKU são obrigatórios
+### BUG-2 — Apenas Nome e SKU são obrigatórios (RESOLVIDO — PR #72)
 
 - **Atual:** a validação de submit já exige só `sku` e `name`
   (`ProductsPage.tsx:225-229`), e os demais campos têm default ou aceitam nulo
@@ -38,7 +41,7 @@ Todos os três se referem ao mesmo painel: o drawer aberto por **Novo Produto**
 - **Esperado:** Nome e SKU marcados visualmente como obrigatórios (asterisco/label), os
   demais explicitamente opcionais, e erro por campo em vez de só a mensagem global.
 
-### BUG-3 — Salvar habilita ao preencher o primeiro campo
+### BUG-3 — Salvar habilita ao preencher o primeiro campo (RESOLVIDO — PR #72)
 
 - **Atual:** `disabled={!editDirty || editSaving || !tenantId}`
   (`ProductsPage.tsx:933`). `editDirty` vira `true` no primeiro `updateDraft`
@@ -102,7 +105,7 @@ convite → onboarding → 1 produto → 1 venda. O fallback de faturamento fant
 entra aqui. Os quatro abaixo **não** são cobertos pelo #65 (ele não toca `helpers.ts` nem
 `SetPassword.tsx`).
 
-### BUG-6 — "Faturamento do dia" mostra a média diária do mês, não o dia
+### BUG-6 — "Faturamento do dia" mostra a média diária do mês, não o dia (RESOLVIDO — PR #71)
 
 - **Atual:** `src/components/OverviewPage.tsx:52` → `const dailyRevenue = monthlyRevenue / 30;`.
   O card "Faturamento do dia" (`OverviewPage.tsx:86-93`) exibe o faturamento do mês
@@ -115,7 +118,7 @@ entra aqui. Os quatro abaixo **não** são cobertos pelo #65 (ele não toca `hel
 - **Nota:** o PR #65 troca o fallback `?? 574661` por `?? 0` mas mantém a divisão por 30,
   então o problema persiste em qualquer loja com vendas.
 
-### BUG-7 — Custo/margem do dashboard são fabricados (sempre 40% da venda)
+### BUG-7 — Custo/margem do dashboard são fabricados (sempre 40% da venda) (RESOLVIDO — PR #71)
 
 - **Atual:** `src/utils/helpers.ts:94` (`buildCategorySalesFromProducts`) e
   `helpers.ts:133` (`buildCategorySalesFromItems`) → `custo = venda * 0.4`. O card
@@ -126,7 +129,7 @@ entra aqui. Os quatro abaixo **não** são cobertos pelo #65 (ele não toca `hel
 - **Esperado:** usar custo real (adicionar custo ao produto e somar por item vendido), ou
   rotular o card como estimativa/remover até existir custo real.
 
-### BUG-8 — Histórico/tendência mensal é sintético quando não há vendas
+### BUG-8 — Histórico/tendência mensal é sintético quando não há vendas (RESOLVIDO — PR #71)
 
 - **Atual:** `src/hooks/useDashboardData.ts:90-92` usa `buildHistoryFromOrders` quando há
   pedidos reais; senão cai em `buildHistoryFromProducts` (`helpers.ts:166-170`), que
