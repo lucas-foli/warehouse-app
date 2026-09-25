@@ -74,12 +74,15 @@ describe('PanelView', () => {
 		// blocos
 		render(<PanelView {...base} samples={{ totalQty: 0, cost: 0, skusTotal: 0, skusWithoutCost: 0, byContact: [] }} />);
 		expect(screen.queryByText(/\(est\./i)).not.toBeInTheDocument();
+		// mata também: mostrar "custo desconhecido" quando não há amostra (vazio
+		// não é desconhecido — não há custo nenhum a estimar)
+		expect(screen.queryByText('custo desconhecido')).not.toBeInTheDocument();
 	});
 
-	it('marca o valor estimado do KPI de amostras como parcial quando há SKU sem custo', () => {
-		// mata: mostrar "US$ 0,00" (ou qualquer valor) com cara de fato fechado
-		// quando há amostra mas nenhum/nem todo SKU tem custo conhecido
-		render(<PanelView {...base} samples={{ totalQty: 5, cost: 0, skusTotal: 1, skusWithoutCost: 1, byContact: [] }} />);
+	it('marca o valor estimado do KPI de amostras como parcial quando a cobertura é parcial', () => {
+		// mata: omitir o valor sempre que `skusWithoutCost > 0` — com algum custo
+		// conhecido, o valor existe e deve aparecer, marcado como parcial
+		render(<PanelView {...base} samples={{ totalQty: 5, cost: 10, skusTotal: 2, skusWithoutCost: 1, byContact: [] }} />);
 		expect(screen.getByText(/\(est\., parcial\)/i)).toBeInTheDocument();
 	});
 
@@ -138,5 +141,57 @@ describe('PanelView', () => {
 		);
 		expect(screen.queryByText(/Nenhum recebimento nem venda no período/i)).not.toBeInTheDocument();
 		expect(screen.getByText('Camarão 16/20')).toBeInTheDocument();
+	});
+
+	it('diz "custo desconhecido" no KPI quando nenhum SKU de amostra tem custo', () => {
+		// mata: o comportamento do BUG-21 — "~US$ 0,00 (est., parcial)" dava a um
+		// desconhecido a aparência de um fato medido
+		render(<PanelView {...base} samples={{ totalQty: 22, cost: 0, skusTotal: 4, skusWithoutCost: 4, byContact: [] }} />);
+		expect(screen.getByText('custo desconhecido')).toBeInTheDocument();
+		expect(screen.queryAllByText(/US\$/)).toHaveLength(0);
+	});
+
+	it('mostra só a quantidade na linha de contato sem custo conhecido', () => {
+		// mata: mostrar o valor sempre que a linha existe ("6 un · US$ 0,00 (parcial)")
+		render(
+			<PanelView
+				{...base}
+				samples={{
+					totalQty: 6,
+					cost: 0,
+					skusTotal: 1,
+					skusWithoutCost: 1,
+					byContact: [{ key: 'client:c1', name: 'Popeye Seafood', qty: 6, cost: 0, partial: true, costKnown: false }],
+				}}
+			/>,
+		);
+		const line = screen.getByText('Popeye Seafood').closest('div');
+		expect(line).toHaveTextContent('6 un');
+		expect(line).not.toHaveTextContent(/US\$/);
+	});
+
+	it('mostra US$ 0,00 no fornecedor quando o custo conhecido é zero', () => {
+		// mata: manter o critério antigo da tela, `cost !== 0`, que escondia um
+		// custo zero registrado como se fosse desconhecido
+		render(
+			<PanelView
+				{...base}
+				bySupplier={[{ supplierId: 's1', name: 'Noronha Pescados', qty: 10, cost: 0, partial: false, costKnown: true }]}
+			/>,
+		);
+		expect(screen.getByText('Noronha Pescados').closest('div')).toHaveTextContent(/US\$\s0,00/);
+	});
+
+	it('mostra só a quantidade no fornecedor sem custo conhecido', () => {
+		// mata: exibir "US$ 0,00" para fornecedor cujas linhas não têm custo
+		render(
+			<PanelView
+				{...base}
+				bySupplier={[{ supplierId: 's1', name: 'Noronha Pescados', qty: 40, cost: 0, partial: true, costKnown: false }]}
+			/>,
+		);
+		const line = screen.getByText('Noronha Pescados').closest('div');
+		expect(line).toHaveTextContent('40 un');
+		expect(line).not.toHaveTextContent(/US\$/);
 	});
 });

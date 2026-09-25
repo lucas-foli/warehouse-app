@@ -403,7 +403,16 @@ o Supabase real. Só a tela mostra — nenhum teste de unidade poderia sentir.
   Caso 6 do runbook (`docs/superpowers/runbooks/2026-09-08-campo-fatia3-e2e.md`)
   existe exatamente para pegar essa divergência.
 
-## 2026-09-09 — BUG-21: cobertura de custo zero vira "US$ 0,00 (parcial)"
+## 2026-09-09 — BUG-21: cobertura de custo zero vira "US$ 0,00 (parcial)" (RESOLVIDO — PR #66)
+
+> **Resolvido** em PR #66 com uma regra só para os três blocos que mostram US$ (KPI de
+> amostras, amostras por contato, recebido por fornecedor): o valor só aparece se ao
+> menos uma linha do agregado tem custo conhecido. O KPI sem custo conhecido diz "custo
+> desconhecido"; as linhas mostram só a quantidade. Diferente do que esta entrada
+> previa, não bastou apresentação: `SampleContactRow` e `SupplierReceivedRow` ganharam
+> `costKnown`, porque `cost === 0 && partial` não distinguia "nada conhecido" de "custo
+> conhecido que soma zero". O fornecedor, que escondia o valor por `cost !== 0`, agora
+> mostra um custo zero registrado.
 
 **Origem:** mesmo e2e da fatia 3. Observado no tenant Stanley, onde nenhum SKU
 entregue como amostra tinha custo conhecido.

@@ -83,11 +83,14 @@ const PanelView = ({
 				<b className="block text-2xl">{samples.totalQty} un</b>
 				<span className="text-xs text-muted-foreground">Amostras entregues</span>
 				{/* Vazio não é zero: sem nenhuma amostra no período, não há valor a
-				    estimar. Com amostra e cobertura parcial, o valor precisa dizer
-				    que é parcial — nunca aparecer com cara de fato fechado. */}
+				    estimar. Com amostra e NENHUM SKU com custo, o valor é
+				    desconhecido — nunca "US$ 0,00" (BUG-21). Com cobertura parcial,
+				    o valor aparece marcado como parcial. */}
 				{samples.totalQty > 0 && (
 					<p className="mt-1 text-xs text-muted-foreground">
-						~{money.format(samples.cost)} (est.{samples.skusWithoutCost > 0 ? ', parcial' : ''})
+						{samples.skusWithoutCost === samples.skusTotal
+							? 'custo desconhecido'
+							: `~${money.format(samples.cost)} (est.${samples.skusWithoutCost > 0 ? ', parcial' : ''})`}
 					</p>
 				)}
 			</div>
@@ -144,8 +147,8 @@ const PanelView = ({
 					<div key={row.key} className="mb-1.5 flex items-center justify-between last:mb-0">
 						<span className="text-sm">{row.name}</span>
 						<span className="text-sm text-muted-foreground">
-							{row.qty} un · {money.format(row.cost)}
-							{row.partial ? ' (parcial)' : ''}
+							{row.qty} un
+							{row.costKnown ? ` · ${money.format(row.cost)}${row.partial ? ' (parcial)' : ''}` : ''}
 						</span>
 					</div>
 				))
@@ -212,7 +215,7 @@ const PanelView = ({
 						<span className="text-sm">{row.name}</span>
 						<span className="text-sm text-muted-foreground">
 							{row.qty} un
-							{row.cost !== 0 ? ` · ${money.format(row.cost)}${row.partial ? ' (parcial)' : ''}` : ''}
+							{row.costKnown ? ` · ${money.format(row.cost)}${row.partial ? ' (parcial)' : ''}` : ''}
 						</span>
 					</div>
 				))
