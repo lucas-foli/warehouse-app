@@ -148,7 +148,7 @@ describe('PanelView', () => {
 		// desconhecido a aparência de um fato medido
 		render(<PanelView {...base} samples={{ totalQty: 22, cost: 0, skusTotal: 4, skusWithoutCost: 4, byContact: [] }} />);
 		expect(screen.getByText('custo desconhecido')).toBeInTheDocument();
-		expect(screen.queryAllByText(/US\$/)).toHaveLength(0);
+		expect(screen.getByText('custo desconhecido').closest('div')).not.toHaveTextContent(/US\$/);
 	});
 
 	it('mostra só a quantidade na linha de contato sem custo conhecido', () => {
@@ -172,7 +172,8 @@ describe('PanelView', () => {
 
 	it('mostra US$ 0,00 no fornecedor quando o custo conhecido é zero', () => {
 		// mata: manter o critério antigo da tela, `cost !== 0`, que escondia um
-		// custo zero registrado como se fosse desconhecido
+		// custo zero registrado como se fosse desconhecido; e marcar "(parcial)"
+		// numa linha sem custo desconhecido
 		render(
 			<PanelView
 				{...base}
@@ -180,6 +181,7 @@ describe('PanelView', () => {
 			/>,
 		);
 		expect(screen.getByText('Noronha Pescados').closest('div')).toHaveTextContent(/US\$\s0,00/);
+		expect(screen.getByText('Noronha Pescados').closest('div')).not.toHaveTextContent(/parcial/);
 	});
 
 	it('mostra só a quantidade no fornecedor sem custo conhecido', () => {
@@ -193,5 +195,36 @@ describe('PanelView', () => {
 		const line = screen.getByText('Noronha Pescados').closest('div');
 		expect(line).toHaveTextContent('40 un');
 		expect(line).not.toHaveTextContent(/US\$/);
+	});
+
+	it('mostra US$ 0,00 na linha de contato quando o custo conhecido é zero', () => {
+		// mata: decidir a linha por `row.cost !== 0` em vez de `row.costKnown` —
+		// o critério antigo do fornecedor, que esconde um custo zero registrado;
+		// e marcar "(parcial)" numa linha sem SKU desconhecido
+		render(
+			<PanelView
+				{...base}
+				samples={{
+					totalQty: 2,
+					cost: 0,
+					skusTotal: 1,
+					skusWithoutCost: 0,
+					byContact: [{ key: 'client:c1', name: 'Popeye Seafood', qty: 2, cost: 0, partial: false, costKnown: true }],
+				}}
+			/>,
+		);
+		const line = screen.getByText('Popeye Seafood').closest('div');
+		expect(line).toHaveTextContent(/US\$\s0,00/);
+		expect(line).not.toHaveTextContent(/parcial/);
+	});
+
+	it('mostra ~US$ 0,00 (est.) no KPI quando todo SKU tem custo conhecido zero', () => {
+		// mata: decidir o KPI por `samples.cost === 0` em vez da cobertura (um
+		// custo zero registrado viraria "custo desconhecido"); e marcar
+		// "parcial" com cobertura total
+		render(<PanelView {...base} samples={{ totalQty: 2, cost: 0, skusTotal: 1, skusWithoutCost: 0, byContact: [] }} />);
+		expect(screen.getByText(/~US\$\s0,00 \(est\.\)/)).toBeInTheDocument();
+		expect(screen.queryByText('custo desconhecido')).not.toBeInTheDocument();
+		expect(screen.queryByText(/parcial/)).not.toBeInTheDocument();
 	});
 });
