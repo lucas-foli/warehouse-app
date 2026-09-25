@@ -94,7 +94,7 @@ describe('PanelView', () => {
 					cost: 10,
 					skusTotal: 2,
 					skusWithoutCost: 1,
-					byContact: [{ key: 'client:c1', name: 'Popeye Seafood', qty: 5, cost: 10, partial: true }],
+					byContact: [{ key: 'client:c1', name: 'Popeye Seafood', qty: 5, cost: 10, partial: true, costKnown: true }],
 				}}
 			/>,
 		);
@@ -107,7 +107,7 @@ describe('PanelView', () => {
 		render(
 			<PanelView
 				{...base}
-				bySupplier={[{ supplierId: 's1', name: 'Noronha Pescados', qty: 140, cost: 200, partial: true }]}
+				bySupplier={[{ supplierId: 's1', name: 'Noronha Pescados', qty: 140, cost: 200, partial: true, costKnown: true }]}
 			/>,
 		);
 		expect(screen.getByText(/Noronha Pescados/).closest('div')).toHaveTextContent(/\(parcial\)/);

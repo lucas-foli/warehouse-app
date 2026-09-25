@@ -97,7 +97,7 @@ describe('summarizeSamples', () => {
 		expect(r.totalQty).toBe(5);
 		expect(r.cost).toBe(50);
 		expect(r.byContact).toEqual([
-			{ key: 'client:c1', name: 'Popeye Seafood', qty: 5, cost: 50, partial: false },
+			{ key: 'client:c1', name: 'Popeye Seafood', qty: 5, cost: 50, partial: false, costKnown: true },
 		]);
 	});
 
@@ -135,5 +135,26 @@ describe('summarizeSamples', () => {
 			interactions: [interaction({ clientId: null, supplierId: 's9', samples: [{ sku: 'CAM-1620', qty: 2 }] })],
 		});
 		expect(r.byContact[0]).toMatchObject({ key: 'supplier:s9', name: 'Noronha Pescados' });
+	});
+
+	it('marca costKnown=false no contato que só recebeu SKU sem custo', () => {
+		// mata: não distinguir "nada conhecido" de "parcial" — a tela voltaria a
+		// mostrar "US$ 0,00 (parcial)" para um custo que ninguém sabe (BUG-21)
+		const r = summarizeSamples({
+			...base,
+			interactions: [interaction({ clientId: 'c1', samples: [{ sku: 'LAG-CDA', qty: 6 }] })],
+		});
+		expect(r.byContact[0]).toMatchObject({ qty: 6, cost: 0, partial: true, costKnown: false });
+	});
+
+	it('marca costKnown=true quando o custo conhecido é zero', () => {
+		// mata: derivar costKnown de `cost > 0` (um custo zero registrado é fato,
+		// não ausência)
+		const r = summarizeSamples({
+			...base,
+			receiptItems: [item('r1', 'BRINDE-1', 0)],
+			interactions: [interaction({ clientId: 'c1', samples: [{ sku: 'BRINDE-1', qty: 2 }] })],
+		});
+		expect(r.byContact[0]).toMatchObject({ qty: 2, cost: 0, partial: false, costKnown: true });
 	});
 });

@@ -189,20 +189,20 @@ describe('buildReceivedBySupplier', () => {
 			window: W,
 		});
 		expect(rows).toEqual([
-			{ supplierId: 's1', name: 'Noronha Pescados', qty: 100, cost: 200, partial: false },
-			{ supplierId: 's2', name: 'Atlântico Sul', qty: 40, cost: 120, partial: false },
+			{ supplierId: 's1', name: 'Noronha Pescados', qty: 100, cost: 200, partial: false, costKnown: true },
+			{ supplierId: 's2', name: 'Atlântico Sul', qty: 40, cost: 120, partial: false, costKnown: true },
 		]);
 	});
 
 	it('conta a quantidade mesmo sem custo na linha', () => {
-		// mata: descartar a linha sem custo (o recebido do fornecedor sumiria)
+		// mata: descartar a linha sem custo (o recebido do fornecedor sumiria); e marcar costKnown=true sem nenhuma linha com custo
 		const rows = buildReceivedBySupplier({
 			receipts: [receipt('r1', 's1', '2026-09-01T00:00:00.000Z')],
 			receiptItems: [rItem('r1', 'CAM-1620', 100)],
 			suppliers: base.suppliers,
 			window: W,
 		});
-		expect(rows[0]).toMatchObject({ qty: 100, cost: 0 });
+		expect(rows[0]).toMatchObject({ qty: 100, cost: 0, costKnown: false });
 	});
 
 	it('marca o total como parcial quando alguma linha do fornecedor não tem custo', () => {
@@ -218,6 +218,18 @@ describe('buildReceivedBySupplier', () => {
 			suppliers: base.suppliers,
 			window: W,
 		});
-		expect(rows[0]).toMatchObject({ qty: 140, cost: 200, partial: true });
+		expect(rows[0]).toMatchObject({ qty: 140, cost: 200, partial: true, costKnown: true });
+	});
+
+	it('marca costKnown=true quando a linha tem custo zero registrado', () => {
+		// mata: derivar costKnown de `cost !== 0` — o critério que a tela usava
+		// e que escondia um custo zero real
+		const rows = buildReceivedBySupplier({
+			receipts: [receipt('r1', 's1', '2026-09-01T00:00:00.000Z')],
+			receiptItems: [{ ...rItem('r1', 'BRINDE-1', 10), unitCost: 0 }],
+			suppliers: base.suppliers,
+			window: W,
+		});
+		expect(rows[0]).toMatchObject({ qty: 10, cost: 0, partial: false, costKnown: true });
 	});
 });

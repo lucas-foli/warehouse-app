@@ -98,6 +98,10 @@ export type SupplierReceivedRow = {
 	 * o `cost` somado é parcial, não o total — a mesma regra da spec para
 	 * amostras ("o total sai marcado como parcial sempre que N > 0"). */
 	partial: boolean;
+	/** true se ao menos uma linha do fornecedor, na janela, tinha custo
+	 * (mesmo que zero). false = nenhum custo conhecido: a tela não mostra
+	 * valor. Nunca derivar de `cost !== 0`. */
+	costKnown: boolean;
 };
 
 // Este é o único lugar em que fornecedor vira agregação — e só do lado
@@ -120,13 +124,16 @@ export const buildReceivedBySupplier = (input: {
 			qty: 0,
 			cost: 0,
 			partial: false,
+			costKnown: false,
 		};
 		row.qty += item.qty;
 		// Linha sem custo entra na quantidade e não no valor: ausente não é zero,
 		// mas também não invalida o que já se sabe do fornecedor. Marca o total
 		// como parcial em vez de deixá-lo com cara de fato completo.
-		if (item.unitCost !== null && item.unitCost !== undefined) row.cost += item.unitCost * item.qty;
-		else row.partial = true;
+		if (item.unitCost !== null && item.unitCost !== undefined) {
+			row.cost += item.unitCost * item.qty;
+			row.costKnown = true;
+		} else row.partial = true;
 		acc.set(receipt.supplierId, row);
 	}
 	return [...acc.values()].sort((a, b) => b.qty - a.qty || a.name.localeCompare(b.name));
