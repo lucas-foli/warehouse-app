@@ -276,7 +276,7 @@ não pegaram.
 `dashboardService.fetchAllRows` (ordenação por `id` na query, reordenação de
 exibição em memória). Dois testes novos cobrem a paginação. Commit 689f902.
 
-## 2026-08-30 — BUG-19: `npm test` varre as worktrees em `.claude/worktrees/` (CONFIRMADO)
+## 2026-08-30 — BUG-19: `npm test` varre as worktrees em `.claude/worktrees/` (RESOLVIDO — PR #76)
 
 - **Atual:** `vite.config.ts` define `test:` sem `exclude`, então o vitest usa o
   default (`node_modules`, `dist`, …) — que **não** cobre `.claude/worktrees/`.
@@ -290,7 +290,11 @@ exibição em memória). Dois testes novos cobrem a paginação. Commit 689f902.
 - **Esperado:** o gate mede só o checkout em que roda. Acrescentar
   `exclude: [...configDefaults.exclude, '**/.claude/**']` (ou `dir: 'src'` com
   o mesmo exclude) na seção `test` do `vite.config.ts`.
-- **Contorno enquanto não entra:** `npx vitest run --dir src --exclude '**/.claude/**'`.
+- **Fix (PR #76):** `exclude: [...configDefaults.exclude, '**/.claude/**']` na seção
+  `test` do `vite.config.ts`, com o import vindo de `vitest/config` no lugar do
+  triple-slash reference (senão a regra `triple-slash-reference` do eslint passa a
+  reclamar). Medido na branch: antes 1301 testes / 22 falhas em 20s; depois 311
+  testes / 0 falhas em 5s.
 - **Origem:** descoberto ao verificar a suíte em `main` depois do merge da fatia 1
   do Campo. Não é regressão de nenhuma obra — é lacuna de config que só aflora
   com worktree viva no diretório.
