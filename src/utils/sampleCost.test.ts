@@ -102,7 +102,9 @@ describe('summarizeSamples', () => {
 	});
 
 	it('conta SKU sem custo na cobertura e marca o total como parcial', () => {
-		// mata: contar SKU sem custo como custo zero (o aviso sumiria da tela)
+		// mata: contar SKU sem custo como custo zero (o aviso sumiria da tela); e
+		// derivar costKnown de !partial ou deixar a última linha sem custo zerar
+		// o costKnown
 		const r = summarizeSamples({
 			...base,
 			interactions: [
@@ -114,6 +116,7 @@ describe('summarizeSamples', () => {
 		expect(r.skusTotal).toBe(2);
 		expect(r.skusWithoutCost).toBe(1);
 		expect(r.byContact[0].partial).toBe(true);
+		expect(r.byContact[0]).toMatchObject({ partial: true, costKnown: true });
 	});
 
 	it('ignora amostra fora da janela', () => {

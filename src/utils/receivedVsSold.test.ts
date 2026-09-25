@@ -195,7 +195,8 @@ describe('buildReceivedBySupplier', () => {
 	});
 
 	it('conta a quantidade mesmo sem custo na linha', () => {
-		// mata: descartar a linha sem custo (o recebido do fornecedor sumiria); e marcar costKnown=true sem nenhuma linha com custo
+		// mata: descartar a linha sem custo (o recebido do fornecedor sumiria); e
+		// marcar costKnown=true sem nenhuma linha com custo
 		const rows = buildReceivedBySupplier({
 			receipts: [receipt('r1', 's1', '2026-09-01T00:00:00.000Z')],
 			receiptItems: [rItem('r1', 'CAM-1620', 100)],
