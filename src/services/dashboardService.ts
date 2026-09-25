@@ -136,6 +136,7 @@ export async function fetchClients(tenantId: string): Promise<Client[]> {
 		nome: toText(row.name) || toText(row.nome) || 'Cliente',
 		cidade: toText(row.city) || toText(row.cidade) || '—',
 		telefone: toText(row.phone) || toText(row.telefone) || undefined,
+		email: toText(row.email) || undefined,
 		ultimaCompra: toText(row.last_purchase_at) || '',
 		created_at: toText(row.created_at) || undefined,
 	}));
@@ -149,6 +150,7 @@ export async function fetchSellers(tenantId: string): Promise<Seller[]> {
 		id: toText(row.id) || crypto.randomUUID(),
 		externalId: toText(row.external_id) || undefined,
 		nome: toText(row.name) || toText(row.nome) || toText(row.external_id) || 'Vendedor',
+		email: toText(row.email) || undefined,
 		itens: 0,
 		bruto: 0,
 		liquido: 0,

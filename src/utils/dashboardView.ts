@@ -1,4 +1,4 @@
-export type DashboardPage = 'overview' | 'clientes' | 'vendedores' | 'vendas';
+export type DashboardPage = 'overview' | 'clientes' | 'vendedores' | 'vendas' | 'campo';
 export type DashboardSurface = 'dashboard' | 'products';
 
 export interface DashboardView {
@@ -20,6 +20,8 @@ export const resolveDashboardView = (pathname: string): DashboardView => {
 			return { page: 'vendedores', surface: 'dashboard' };
 		case '/sales':
 			return { page: 'vendas', surface: 'dashboard' };
+		case '/field':
+			return { page: 'campo', surface: 'dashboard' };
 		case '/':
 		default:
 			return { page: 'overview', surface: 'dashboard' };

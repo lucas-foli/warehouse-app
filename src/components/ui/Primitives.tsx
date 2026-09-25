@@ -29,8 +29,13 @@ export const Card = ({ children, className, interactive = true, style }: CardPro
 	return <div className={merge(`${base} ${interactive ? interactiveClasses : ''}`, className)} style={style}>{children}</div>;
 };
 
+// The Dashboard route's only heading: Dashboard.tsx renders exactly one
+// `<Title>` per view (overview/products/clientes/vendedores/vendas/campo),
+// above whichever page component is active — none of those page components
+// render their own top-level heading. That makes this the route's `<h1>`,
+// not a `<h2>` nested under some other heading that doesn't exist.
 export const Title = ({ children, className }: WithChildren & { className?: string }) => (
-	<h2 className={merge('text-3xl font-semibold tracking-tight text-foreground', className)}>{children}</h2>
+	<h1 className={merge('text-3xl font-semibold tracking-tight text-foreground', className)}>{children}</h1>
 );
 
 export const Metric = ({

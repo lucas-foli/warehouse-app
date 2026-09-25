@@ -19,7 +19,6 @@ export interface Product {
 export interface CategorySale {
 	name: string;
 	venda: number;
-	custo: number;
 	share: number;
 }
 
@@ -35,6 +34,7 @@ export interface Client {
 	nome: string;
 	cidade: string;
 	telefone?: string;
+	email?: string;
 	ultimaCompra: string;
 	created_at?: string;
 }
@@ -43,6 +43,7 @@ export interface Seller {
 	id: string;
 	externalId?: string;
 	nome: string;
+	email?: string;
 	itens: number;
 	bruto: number;
 	liquido: number;
@@ -54,4 +55,74 @@ export interface KPIs {
 	totalCusto: number;
 	quantidadeTotal: number;
 	produtosDistintos: number;
+}
+
+export type ContactType = 'client' | 'supplier';
+export type InteractionKind = 'visit' | 'call' | 'whatsapp' | 'email';
+export type InteractionOutcome =
+	| 'interested'
+	| 'proposal_requested'
+	| 'undecided'
+	| 'not_interested'
+	| 'buyer_absent';
+export type ContactStage = 'new' | 'contacted' | 'sample_delivered' | 'negotiating' | 'active' | 'lost';
+
+export interface FieldContact {
+	contactType: ContactType;
+	id: string;
+	tenantId: string;
+	name: string;
+	city?: string;
+	phone?: string;
+	email?: string;
+	manualStage: ContactStage | null;
+	stageOverriddenAt: string | null;
+	lastInteractionAt: string | null;
+	hasTransaction: boolean;
+	lastOutcome: InteractionOutcome | null;
+	hasSamples: boolean;
+	hasInteraction: boolean;
+	lastFactAt: string | null;
+}
+
+export interface Interaction {
+	id: string;
+	tenantId: string;
+	clientId: string | null;
+	supplierId: string | null;
+	kind: InteractionKind;
+	outcome: InteractionOutcome | null;
+	note: string | null;
+	occurredAt: string;
+	nextStep: string | null;
+	nextStepDueAt: string | null;
+	nextStepDoneAt: string | null;
+	samples: { sku: string; qty: number }[];
+}
+
+export interface Receipt {
+	id: string;
+	tenantId: string;
+	receiptNumber: string;
+	supplierId: string;
+	receivedAt: string;
+	document: string | null;
+	note: string | null;
+	totalCost: number | null;
+	createdBy: string | null;
+	createdAt: string;
+	updatedAt: string;
+}
+
+export interface ReceiptItem {
+	id: string;
+	tenantId: string;
+	receiptId: string;
+	receiptNumber: string;
+	productId: string | null;
+	sku: string;
+	qty: number;
+	unitCost: number | null;
+	totalCost: number | null;
+	createdAt: string;
 }

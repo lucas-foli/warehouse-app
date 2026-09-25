@@ -14,7 +14,6 @@ import {
 	buildClientEvolutionFromClients,
 	buildClientEvolutionFromOrders,
 	buildHistoryFromOrders,
-	buildHistoryFromProducts,
 	buildRecentDailySalesFromOrders,
 } from '../utils/helpers';
 import { aggregateSellers } from '../utils/sellerRollup';
@@ -86,10 +85,8 @@ export const useDashboardData = (tenantId: string | undefined) => {
 			const categoryFromProducts = parsedProducts.length ? buildCategorySalesFromProducts(parsedProducts) : [];
 			setCategorySales(categoryFromItems.length ? categoryFromItems : categoryFromProducts);
 
-			// Build history
-			const historyFromOrders = activeOrders.length ? buildHistoryFromOrders(activeOrders) : [];
-			const historyFromProducts = parsedProducts.length ? buildHistoryFromProducts(parsedProducts) : [];
-			setHistory(historyFromOrders.length ? historyFromOrders : historyFromProducts);
+			// Build history — real orders only; sem pedidos → [] → empty state no componente.
+			setHistory(activeOrders.length ? buildHistoryFromOrders(activeOrders) : []);
 			setSalesTrend(buildRecentDailySalesFromOrders(activeOrders, 20));
 
 			// Enrich clients with last purchase dates from orders.

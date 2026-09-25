@@ -1,5 +1,6 @@
 // src/components/products/BulkResultDialog.tsx
 import type { BulkResult } from '../../utils/bulk';
+import { Modal } from '../ui/Modal';
 
 type Props = {
   open: boolean;
@@ -9,12 +10,12 @@ type Props = {
 };
 
 export const BulkResultDialog = ({ open, result, action, onClose }: Props) => {
-  if (!open || !result) return null;
-  const total = result.succeeded + result.failed.length;
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="w-full max-w-lg rounded-lg bg-card p-6 shadow-xl">
-        <h3 className="text-lg font-semibold text-foreground">{action === 'updated' ? 'Update' : 'Delete'} complete</h3>
+	if (!result) return null;
+	const total = result.succeeded + result.failed.length;
+	return (
+		<Modal open={open} onClose={onClose} size="md" labelledById="bulk-result-title">
+			<div className="p-6">
+				<h3 id="bulk-result-title" className="text-lg font-semibold text-foreground">{action === 'updated' ? 'Update' : 'Delete'} complete</h3>
         <p className="mt-2 text-sm text-muted-foreground">
           {result.succeeded} of {total} products {action}.
           {result.failed.length > 0 && ` ${result.failed.length} failed.`}
@@ -40,7 +41,7 @@ export const BulkResultDialog = ({ open, result, action, onClose }: Props) => {
             Close
           </button>
         </div>
-      </div>
-    </div>
-  );
+			</div>
+		</Modal>
+	);
 };

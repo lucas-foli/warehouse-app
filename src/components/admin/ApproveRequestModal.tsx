@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { approveSignupRequest, type SignupRequest } from "../../services/signupRequests";
 import { messageForEdgeErrorCode } from "../../utils/edgeErrors";
 import { SLUG_RE, slugify } from "../../utils/slug";
+import { Modal } from "../ui/Modal";
 
 const DURATIONS = [
   { value: "7", label: "7 days" },
@@ -53,49 +54,43 @@ const ApproveRequestModal = ({ request, onClose, onApproved }: Props) => {
   };
 
   return (
-    <Backdrop onClose={onClose}>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <h2 className="text-lg font-semibold">Approve request</h2>
-        <p className="text-sm text-muted-foreground">
-          Granting access for <strong>{request.email}</strong> ({request.workspace_name}).
-        </p>
+    <Modal open onClose={onClose} size="md" labelledById="approve-request-title">
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-6 pt-2 sm:pt-6">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <h2 id="approve-request-title" className="text-lg font-semibold">Approve request</h2>
+          <p className="text-sm text-muted-foreground">
+            Granting access for <strong>{request.email}</strong> ({request.workspace_name}).
+          </p>
 
-        <Field label="Slug">
-          <input value={slug} onChange={(e) => setSlug(e.target.value)} required
-            className="mt-2 w-full rounded-2xl border border-input bg-card px-4 py-3 text-sm outline-none focus:border-ring/60 focus:ring-2 focus:ring-ring/25" />
-        </Field>
+          <Field label="Slug">
+            <input value={slug} onChange={(e) => setSlug(e.target.value)} required
+              className="mt-2 w-full rounded-2xl border border-input bg-card px-4 py-3 text-sm outline-none focus:border-ring/60 focus:ring-2 focus:ring-ring/25" />
+          </Field>
 
-        <Field label="Access duration">
-          <select value={duration} onChange={(e) => setDuration(e.target.value)}
-            className="mt-2 w-full rounded-2xl border border-input bg-card px-4 py-3 text-sm outline-none focus:border-ring/60 focus:ring-2 focus:ring-ring/25">
-            {DURATIONS.map((d) => <option key={d.value} value={d.value}>{d.label}</option>)}
-          </select>
-        </Field>
+          <Field label="Access duration">
+            <select value={duration} onChange={(e) => setDuration(e.target.value)}
+              className="mt-2 w-full rounded-2xl border border-input bg-card px-4 py-3 text-sm outline-none focus:border-ring/60 focus:ring-2 focus:ring-ring/25">
+              {DURATIONS.map((d) => <option key={d.value} value={d.value}>{d.label}</option>)}
+            </select>
+          </Field>
 
-        {error && (
-          <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs font-semibold uppercase tracking-[0.25em] text-red-600">
-            {error}
+          {error && (
+            <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs font-semibold uppercase tracking-[0.25em] text-red-600">
+              {error}
+            </div>
+          )}
+
+          <div className="flex justify-end gap-3 pt-2">
+            <button type="button" onClick={onClose} className="rounded-2xl px-4 py-2 text-sm border border-border/40">Cancel</button>
+            <button type="submit" disabled={submitting} className="rounded-2xl bg-primary px-4 py-2 text-sm text-primary-foreground disabled:opacity-60">
+              {submitting ? "Approving…" : "Approve"}
+            </button>
           </div>
-        )}
-
-        <div className="flex justify-end gap-3 pt-2">
-          <button type="button" onClick={onClose} className="rounded-2xl px-4 py-2 text-sm border border-border/40">Cancel</button>
-          <button type="submit" disabled={submitting} className="rounded-2xl bg-primary px-4 py-2 text-sm text-primary-foreground disabled:opacity-60">
-            {submitting ? "Approving…" : "Approve"}
-          </button>
-        </div>
-      </form>
-    </Backdrop>
+        </form>
+      </div>
+    </Modal>
   );
 };
-
-const Backdrop = ({ children, onClose }: { children: React.ReactNode; onClose: () => void }) => (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-    <div className="w-full max-w-lg rounded-[var(--radius-card)] border border-border/40 bg-card p-6 shadow-[var(--shadow-card)]" onClick={(e) => e.stopPropagation()}>
-      {children}
-    </div>
-  </div>
-);
 
 const Field = ({ label, children }: { label: string; children: React.ReactNode }) => (
   <label className="block text-[10px] font-semibold uppercase tracking-[0.25em] text-muted-foreground">

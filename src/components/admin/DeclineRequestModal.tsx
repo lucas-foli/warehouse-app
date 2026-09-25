@@ -1,6 +1,7 @@
 // src/components/admin/DeclineRequestModal.tsx
 import { useState } from "react";
 import { declineSignupRequest, type SignupRequest } from "../../services/signupRequests";
+import { Modal } from "../ui/Modal";
 
 interface Props {
   request: SignupRequest;
@@ -27,10 +28,10 @@ const DeclineRequestModal = ({ request, onClose, onDeclined }: Props) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div className="w-full max-w-lg rounded-[var(--radius-card)] border border-border/40 bg-card p-6 shadow-[var(--shadow-card)]" onClick={(e) => e.stopPropagation()}>
+    <Modal open onClose={onClose} size="md" labelledById="decline-request-title">
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-6 pt-2 sm:pt-6">
         <form onSubmit={handleSubmit} className="space-y-4">
-          <h2 className="text-lg font-semibold">Decline request</h2>
+          <h2 id="decline-request-title" className="text-lg font-semibold">Decline request</h2>
           <p className="text-sm text-muted-foreground">
             Decline {request.email}'s request for <strong>{request.workspace_name}</strong>?
           </p>
@@ -52,7 +53,7 @@ const DeclineRequestModal = ({ request, onClose, onDeclined }: Props) => {
           </div>
         </form>
       </div>
-    </div>
+    </Modal>
   );
 };
 

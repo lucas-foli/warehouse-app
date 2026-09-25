@@ -8,6 +8,7 @@ import {
 } from 'recharts';
 import type { CategorySale, HistoryItem, Product } from '../types';
 import { formatCurrency } from '../utils/currency';
+import { latestDailyRevenue } from '../utils/dailyRevenue';
 import { getProductRisk } from '../utils/productRisk';
 import { Card, ListItem, Metric, Section } from './ui/Primitives';
 
@@ -50,7 +51,7 @@ const OverviewPage = ({
 	const latestMonth = history[history.length - 1];
 	const previousMonth = history[history.length - 2];
 	const monthlyRevenue = latestMonth?.value ?? 0;
-	const dailyRevenue = monthlyRevenue / 30;
+	const dailyRevenue = latestDailyRevenue(salesTrend);
 	const monthlyChange =
 		latestMonth && previousMonth && previousMonth.value
 			? (latestMonth.value - previousMonth.value) / previousMonth.value
@@ -144,7 +145,7 @@ const OverviewPage = ({
 
 					<Card>
 						<p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-muted-foreground">
-							Categorias — vendas e custos
+							Categorias — vendas
 						</p>
 					<div className="mt-5 space-y-4">
 						{categorySales.slice(0, 5).map((cat) => {
@@ -158,8 +159,7 @@ const OverviewPage = ({
 										<div className="flex h-2 overflow-hidden rounded-full bg-card">
 											<div style={{ width: `${share}%`, backgroundColor: primaryColor }} />
 										</div>
-										<div className="flex justify-between text-[10px] uppercase tracking-[0.18em] text-muted-foreground/80">
-											<span>Custo: {formatCurrency(cat.custo)}</span>
+										<div className="flex justify-end text-[10px] uppercase tracking-[0.18em] text-muted-foreground/80">
 											<span>Share: {share.toFixed(1)}%</span>
 										</div>
 								</div>
